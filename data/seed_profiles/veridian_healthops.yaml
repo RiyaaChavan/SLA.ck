@@ -1,0 +1,57 @@
+seed: 47
+organization:
+  name: Veridian HealthOps
+  industry: Healthcare Operations
+  geography: Singapore
+departments:
+  - name: Provider Network Ops
+    category: provider_operations
+    capacity_score: 103
+  - name: Authorizations Desk
+    category: claims
+    capacity_score: 91
+  - name: Revenue Assurance
+    category: finance
+    capacity_score: 97
+  - name: Care Platform Engineering
+    category: infrastructure
+    capacity_score: 112
+vendors:
+  - name: Helix Revenue Systems
+    category: revenue_cycle
+    risk_rating: 0.34
+  - name: NovaCare Cloud
+    category: infrastructure
+    risk_rating: 0.22
+  - name: Accord Clinical Services
+    category: operations
+    risk_rating: 0.44
+workload:
+  workflow_count: 105
+  invoice_count: 81
+  workflow_types:
+    - prior_authorization
+    - claims_review
+    - provider_support
+    - reconciliation
+resources:
+  - resource_type: analyst_capacity
+    utilization_min: 42
+    utilization_max: 93
+  - resource_type: compute_cluster
+    utilization_min: 33
+    utilization_max: 88
+anomalies:
+  duplicate_invoice_probability: 0.14
+  sla_delay_probability: 0.29
+  resource_overload_probability: 0.19
+  resource_underuse_probability: 0.16
+source_schema:
+  name: healthops_semantic_export
+  type: data_lake_extract
+  sample_columns:
+    - business_unit
+    - vendor_name
+    - target_hours
+    - billed_qty
+    - actual_units

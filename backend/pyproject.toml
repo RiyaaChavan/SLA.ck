@@ -1,0 +1,36 @@
+[project]
+name = "costpulse-backend"
+version = "0.1.0"
+description = "CostPulse AI backend"
+requires-python = ">=3.12"
+dependencies = [
+  "alembic>=1.14.1",
+  "faker>=37.0.0",
+  "fastapi>=0.116.0",
+  "pydantic-settings>=2.8.0",
+  "psycopg[binary]>=3.2.0",
+  "python-multipart>=0.0.20",
+  "pyyaml>=6.0.2",
+  "reportlab>=4.2.5",
+  "sqlalchemy>=2.0.38",
+  "uvicorn[standard]>=0.34.0",
+]
+
+[project.optional-dependencies]
+dev = [
+  "httpx>=0.28.1",
+  "ruff>=0.11.0",
+]
+
+[tool.uv]
+package = true
+
+[tool.hatch.build.targets.wheel]
+packages = ["app"]
+
+[tool.ruff]
+line-length = 100
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"

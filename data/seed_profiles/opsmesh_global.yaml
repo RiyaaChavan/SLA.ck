@@ -1,0 +1,57 @@
+seed: 29
+organization:
+  name: OpsMesh Global
+  industry: Enterprise Services
+  geography: UAE
+departments:
+  - name: Shared Services Desk
+    category: operations
+    capacity_score: 99
+  - name: Commercial Procurement
+    category: procurement
+    capacity_score: 101
+  - name: Core Finance
+    category: finance
+    capacity_score: 94
+  - name: Delivery Assurance
+    category: service_quality
+    capacity_score: 107
+vendors:
+  - name: Delta Fulfilment Labs
+    category: logistics
+    risk_rating: 0.41
+  - name: Meridian SaaS Works
+    category: software
+    risk_rating: 0.25
+  - name: Silverline Support Partners
+    category: shared_services
+    risk_rating: 0.38
+workload:
+  workflow_count: 120
+  invoice_count: 72
+  workflow_types:
+    - shared_service_request
+    - incident_triage
+    - vendor_change_request
+    - approval_chain
+resources:
+  - resource_type: support_capacity
+    utilization_min: 48
+    utilization_max: 94
+  - resource_type: saas_licenses
+    utilization_min: 25
+    utilization_max: 79
+anomalies:
+  duplicate_invoice_probability: 0.11
+  sla_delay_probability: 0.24
+  resource_overload_probability: 0.21
+  resource_underuse_probability: 0.22
+source_schema:
+  name: opsmesh_service_warehouse
+  type: postgres_snapshot
+  sample_columns:
+    - department_name
+    - partner
+    - response_due
+    - invoice_units
+    - served_qty
