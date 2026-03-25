@@ -10,72 +10,102 @@ type AppShellProps = PropsWithChildren<{
   seeding: boolean;
 }>;
 
-function IconGrid() {
+/* ── Icons ──────────────────────────────────────────── */
+function IconHome(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" />
-      <rect x="14" y="14" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+      <polyline points="9 22 9 12 15 12 15 22" />
     </svg>
   );
 }
 
-function IconBell() {
+function IconGrid(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </svg>
+  );
+}
+
+function IconBell(): ReactNode {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
       <path d="M13.73 21a2 2 0 0 1-3.46 0" />
     </svg>
   );
 }
 
-function IconServer() {
+function IconServer(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="8" rx="2" ry="2" />
-      <rect x="2" y="14" width="20" height="8" rx="2" ry="2" />
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" />
+      <rect x="2" y="14" width="20" height="8" rx="2" />
       <line x1="6" y1="6" x2="6.01" y2="6" />
       <line x1="6" y1="18" x2="6.01" y2="18" />
     </svg>
   );
 }
 
-function IconSearch() {
+function IconSearch(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="11" cy="11" r="8" />
       <line x1="21" y1="21" x2="16.65" y2="16.65" />
     </svg>
   );
 }
 
-function IconClipboard() {
+function IconClipboard(): ReactNode {
   return (
-    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
-      <rect x="8" y="2" width="8" height="4" rx="1" ry="1" />
+      <rect x="8" y="2" width="8" height="4" rx="1" />
       <line x1="9" y1="12" x2="15" y2="12" />
       <line x1="9" y1="16" x2="15" y2="16" />
     </svg>
   );
 }
 
-function IconPlus() {
+function IconPlus(): ReactNode {
   return (
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
       <line x1="12" y1="5" x2="12" y2="19" />
       <line x1="5" y1="12" x2="19" y2="12" />
     </svg>
   );
 }
 
-const navItems: Array<{ to: string; label: string; icon: ReactNode; end?: boolean }> = [
-  { to: "/", label: "Overview", icon: <IconGrid />, end: true },
-  { to: "/alerts", label: "Alerts", icon: <IconBell /> },
-  { to: "/resources", label: "Resources", icon: <IconServer /> },
-  { to: "/investigate", label: "Investigate", icon: <IconSearch /> },
-  { to: "/audit", label: "Audit & Reports", icon: <IconClipboard /> },
+/* ── Nav structure ──────────────────────────────────── */
+const navGroups = [
+  {
+    label: "Main",
+    items: [
+      { to: "/",        label: "Home",         icon: <IconHome />,      end: true },
+      { to: "/overview",label: "Dashboard",    icon: <IconGrid />,      end: true },
+    ],
+  },
+  {
+    label: "Workspace",
+    items: [
+      { to: "/alerts",   label: "Alerts",   icon: <IconBell /> },
+      { to: "/resources",label: "Resources",icon: <IconServer /> },
+    ],
+  },
+  {
+    label: "Intelligence",
+    items: [
+      { to: "/investigate",label: "Investigate",    icon: <IconSearch /> },
+      { to: "/audit",      label: "Audit & Reports",icon: <IconClipboard /> },
+    ],
+  },
 ];
 
+/* ── Component ──────────────────────────────────────── */
 export function AppShell({
   organizations,
   selectedOrganizationId,
@@ -96,21 +126,25 @@ export function AppShell({
           </div>
         </div>
 
-        {/* Navigation */}
+        {/* Grouped Navigation */}
         <nav className="sidebar-nav">
-          <span className="sidebar-section-label">Main Menu</span>
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                isActive ? "nav-link nav-link-active" : "nav-link"
-              }
-            >
-              <span className="nav-link-icon">{item.icon}</span>
-              {item.label}
-            </NavLink>
+          {navGroups.map((group) => (
+            <div key={group.label}>
+              <span className="sidebar-section-label">{group.label}</span>
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.to}
+                  to={item.to}
+                  end={item.end}
+                  className={({ isActive }) =>
+                    isActive ? "nav-link nav-link-active" : "nav-link"
+                  }
+                >
+                  <span className="nav-link-icon">{item.icon}</span>
+                  {item.label}
+                </NavLink>
+              ))}
+            </div>
           ))}
         </nav>
 

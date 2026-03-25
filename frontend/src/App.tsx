@@ -6,6 +6,7 @@ import { api } from "./api/client";
 import { AppShell } from "./components/layout/AppShell";
 import { AlertsPage } from "./pages/AlertsPage";
 import { AuditPage } from "./pages/AuditPage";
+import { HomePage } from "./pages/HomePage";
 import { InvestigatePage } from "./pages/InvestigatePage";
 import { OverviewPage } from "./pages/OverviewPage";
 import { ResourcesPage } from "./pages/ResourcesPage";
@@ -122,6 +123,16 @@ export default function App() {
       <Routes>
         <Route
           path="/"
+          element={
+            <HomePage
+              onSeed={() => seedMutation.mutate()}
+              seeding={seedMutation.isPending}
+              hasData={Boolean(dashboardQuery.data)}
+            />
+          }
+        />
+        <Route
+          path="/overview"
           element={
             <OverviewPage
               data={dashboardQuery.data}

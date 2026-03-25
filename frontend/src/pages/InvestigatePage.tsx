@@ -106,7 +106,7 @@ export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
               <div className="card-title">Query Result</div>
               <div className="card-subtitle">{result.explanation}</div>
             </div>
-            <span className="badge badge-blue">{result.rows.length} row{result.rows.length !== 1 ? "s" : ""}</span>
+            <span className="badge badge-violet">{result.rows.length} row{result.rows.length !== 1 ? "s" : ""}</span>
           </div>
           <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             <div>
