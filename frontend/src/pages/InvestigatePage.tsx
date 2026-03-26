@@ -1,156 +1,310 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import type { InvestigationResult } from "../types/api";
+import { pickCopilotScenario, type DemoQueryRun } from "../demo/businessSentryHardcoded";
 
 type InvestigatePageProps = {
-  onSubmit: (question: string) => Promise<InvestigationResult>;
+  onSubmit?: (question: string) => Promise<InvestigationResult>;
+};
+
+type StreamEvent =
+  | { id: string; kind: "reasoning"; text: string }
+  | { id: string; kind: "action"; label: string; note: string; sql: string };
+
+type ChatTurn = {
+  id: string;
+  question: string;
+  summary: string;
+  result: InvestigationResult;
+  stream: StreamEvent[];
 };
 
 const EXAMPLE_QUERIES = [
-  "Which vendors caused the highest billing discrepancy this quarter?",
-  "Show top 10 idle resources sorted by monthly cost.",
-  "Which departments exceeded their budget by more than 20%?",
+  "Which anomalies should I send to Finance AP right now?",
+  "Where are we likely to breach SLA in the next hour?",
+  "Which warehouses or drivers look overprovisioned?",
 ];
 
-export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
-  const [question, setQuestion] = useState(EXAMPLE_QUERIES[0]);
-  const [result, setResult] = useState<InvestigationResult | null>(null);
+function sleep(ms: number) {
+  return new Promise((resolve) => window.setTimeout(resolve, ms));
+}
+
+function AgentTrace({ stream }: { stream: StreamEvent[] }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="bs-chat-trace">
+      <button type="button" className="bs-chat-trace-toggle" onClick={() => setOpen((v) => !v)}>
+        <span>Agent trace</span>
+        <span>{open ? "Hide" : "Show"}</span>
+      </button>
+      {open ? (
+        <div className="bs-agent-stream">
+          {stream.map((event) =>
+            event.kind === "reasoning" ? (
+              <div key={event.id} className="bs-agent-event">
+                <div className="bs-agent-event-kind">Reasoning</div>
+                <div>{event.text}</div>
+              </div>
+            ) : (
+              <div key={event.id} className="bs-agent-event bs-agent-event-action">
+                <div className="bs-agent-event-head">
+                  <div className="bs-agent-event-kind">Action</div>
+                  <strong>{event.label}</strong>
+                </div>
+                <div className="bs-agent-event-note">{event.note}</div>
+                <pre className="bs-code-block">{event.sql}</pre>
+              </div>
+            ),
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function AssistantMessage({ turn }: { turn: ChatTurn }) {
+  return (
+    <div className="bs-chat-row bs-chat-row-assistant">
+      <div className="bs-chat-avatar bs-chat-avatar-assistant">BS</div>
+      <div className="bs-chat-bubble bs-chat-bubble-assistant">
+        <div className="bs-chat-bubble-label">Business Sentry Copilot</div>
+        <div className="bs-agent-summary">{turn.summary}</div>
+        <div className="bs-agent-answer">{turn.result.explanation}</div>
+
+        {turn.result.rows.length ? (
+          <div className="table-wrapper bs-chat-table">
+            <table>
+              <thead>
+                <tr>
+                  {Object.keys(turn.result.rows[0] ?? {}).map((key) => (
+                    <th key={key}>{key}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {turn.result.rows.map((row, i) => (
+                  <tr key={i}>
+                    {Object.values(row).map((val, j) => (
+                      <td key={j}>{String(val)}</td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : null}
+
+        <div>
+          <div className="sql-label">Final SQL</div>
+          <pre className="sql-box">{turn.result.sql}</pre>
+        </div>
+
+        <AgentTrace stream={turn.stream} />
+      </div>
+    </div>
+  );
+}
+
+export function InvestigatePage(_: InvestigatePageProps) {
+  const [question, setQuestion] = useState("");
+  const [draftQuestion, setDraftQuestion] = useState(EXAMPLE_QUERIES[0]);
+  const [chat, setChat] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
+  const [liveStream, setLiveStream] = useState<StreamEvent[]>([]);
+
+  const helperText = useMemo(() => {
+    if (!loading) return "Ask about anomalies, SLA risk, warehouse capacity, or vendor leakage.";
+    return "Agent is inspecting schema memory, selecting detectors, and composing an answer.";
+  }, [loading]);
+
+  const appendReasoning = (text: string) => {
+    setLiveStream((current) => [...current, { id: `evt-${current.length + 1}`, kind: "reasoning", text }]);
+  };
+
+  const appendAction = (action: DemoQueryRun) => {
+    setLiveStream((current) => [
+      ...current,
+      {
+        id: `evt-${current.length + 1}`,
+        kind: "action",
+        label: action.label,
+        note: action.note,
+        sql: action.sql,
+      },
+    ]);
+  };
 
   const handleSubmit = async () => {
-    if (!question.trim()) return;
+    const input = draftQuestion.trim();
+    if (!input || loading) return;
+
+    const scenario = pickCopilotScenario(input);
+    setQuestion(input);
     setLoading(true);
-    try {
-      const data = await onSubmit(question);
-      setResult(data);
-    } finally {
-      setLoading(false);
+    setLiveStream([]);
+
+    for (const text of scenario.reasoning) {
+      await sleep(380 + Math.random() * 180);
+      appendReasoning(text);
     }
+
+    for (const action of scenario.actions) {
+      await sleep(560 + Math.random() * 240);
+      appendAction(action);
+    }
+
+    await sleep(620);
+    appendReasoning("Packaging a concise answer, attaching the strongest rows, and preserving the execution trace.");
+    await sleep(460);
+
+    setChat((current) => [
+      ...current,
+      {
+        id: `turn-${current.length + 1}`,
+        question: input,
+        summary: scenario.summary,
+        result: scenario.result,
+        stream: [
+          ...scenario.reasoning.map((text, index) => ({
+            id: `reason-${index + 1}`,
+            kind: "reasoning" as const,
+            text,
+          })),
+          ...scenario.actions.map((action, index) => ({
+            id: `action-${index + 1}`,
+            kind: "action" as const,
+            label: action.label,
+            note: action.note,
+            sql: action.sql,
+          })),
+          {
+            id: "reason-final",
+            kind: "reasoning" as const,
+            text: "Packaging a concise answer, attaching the strongest rows, and preserving the execution trace.",
+          },
+        ],
+      },
+    ]);
+
+    setLoading(false);
+    setLiveStream([]);
+    setDraftQuestion("");
   };
 
   return (
-    <div className="page-content">
-      {/* Page Header */}
+    <div className="page-content bs-chat-page">
       <div className="page-header">
         <div>
-          <div className="page-title">SQL Copilot</div>
+          <div className="page-title">Chat with data</div>
           <div className="page-subtitle">
-            Read-only SQL over connected data — for analysts and agents; RBAC can scope this later.
+            Ask a question in plain English. The demo copilot responds like an agent-backed analyst, not a debug console.
           </div>
         </div>
       </div>
 
-      {/* Query input card */}
-      <div className="card">
-        <div className="card-header">
-          <div>
-            <div className="card-title">Ask an operations question</div>
-            <div className="card-subtitle">Natural language is converted to read-only SQL and executed</div>
-          </div>
-        </div>
-        <div className="card-body">
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-            <textarea
-              className="investigate-textarea"
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              rows={3}
-              placeholder="e.g. Which vendors caused the highest billing discrepancy this quarter?"
-            />
-
-            {/* Example queries */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
-              {EXAMPLE_QUERIES.map((q) => (
-                <button
-                  key={q}
-                  className="btn btn-secondary btn-sm"
-                  onClick={() => setQuestion(q)}
-                  style={{ fontWeight: 400, fontSize: 12 }}
-                >
-                  {q.length > 48 ? q.slice(0, 48) + "…" : q}
-                </button>
-              ))}
+      <div className="bs-chat-shell">
+        <div className="bs-chat-thread">
+          {chat.length === 0 ? (
+            <div className="bs-chat-empty card">
+              <div className="card-body">
+                <div className="bs-chat-empty-title">Start with an operations question</div>
+                <div className="bs-chat-empty-copy">
+                  Ask about anomaly routing, vendor leakage, SLA breach risk, warehouses, drivers, or capacity.
+                </div>
+                <div className="bs-chat-suggestions">
+                  {EXAMPLE_QUERIES.map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      className="bs-chat-suggestion"
+                      onClick={() => setDraftQuestion(item)}
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
+          ) : null}
 
-            <div style={{ display: "flex", justifyContent: "flex-end" }}>
-              <button
-                className="btn btn-primary"
-                onClick={handleSubmit}
-                disabled={loading || !question.trim()}
-              >
-                {loading ? (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 1s linear infinite" }}>
-                      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                    </svg>
-                    Querying...
-                  </>
-                ) : (
-                  <>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polygon points="5 3 19 12 5 21 5 3" />
-                    </svg>
-                    Run Investigation
-                  </>
-                )}
+          {chat.map((turn) => (
+            <div key={turn.id} className="bs-chat-turn">
+              <div className="bs-chat-row bs-chat-row-user">
+                <div className="bs-chat-bubble bs-chat-bubble-user">{turn.question}</div>
+              </div>
+              <AssistantMessage turn={turn} />
+            </div>
+          ))}
+
+          {loading ? (
+            <div className="bs-chat-turn">
+              <div className="bs-chat-row bs-chat-row-user">
+                <div className="bs-chat-bubble bs-chat-bubble-user">{question}</div>
+              </div>
+              <div className="bs-chat-row bs-chat-row-assistant">
+                <div className="bs-chat-avatar bs-chat-avatar-assistant">BS</div>
+                <div className="bs-chat-bubble bs-chat-bubble-assistant">
+                  <div className="bs-chat-bubble-label">Business Sentry Copilot</div>
+                  <div className="bs-chat-thinking">
+                    <span className="bs-chat-thinking-dot" />
+                    <span className="bs-chat-thinking-dot" />
+                    <span className="bs-chat-thinking-dot" />
+                    <span>Working through the connected dataset…</span>
+                  </div>
+                  {liveStream.length ? (
+                    <div className="bs-agent-stream">
+                      {liveStream.map((event) =>
+                        event.kind === "reasoning" ? (
+                          <div key={event.id} className="bs-agent-event">
+                            <div className="bs-agent-event-kind">Reasoning</div>
+                            <div>{event.text}</div>
+                          </div>
+                        ) : (
+                          <div key={event.id} className="bs-agent-event bs-agent-event-action">
+                            <div className="bs-agent-event-head">
+                              <div className="bs-agent-event-kind">Action</div>
+                              <strong>{event.label}</strong>
+                            </div>
+                            <div className="bs-agent-event-note">{event.note}</div>
+                            <pre className="bs-code-block">{event.sql}</pre>
+                          </div>
+                        ),
+                      )}
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+            </div>
+          ) : null}
+        </div>
+
+        <div className="bs-chat-composer card">
+          <div className="card-body">
+            <div className="bs-chat-composer-top">
+              <textarea
+                className="investigate-textarea bs-chat-input"
+                value={draftQuestion}
+                onChange={(e) => setDraftQuestion(e.target.value)}
+                rows={3}
+                placeholder="Ask a question about anomalies, SLAs, vendors, resources, or operations."
+              />
+              <button type="button" className="btn btn-primary bs-chat-send" onClick={handleSubmit} disabled={loading || !draftQuestion.trim()}>
+                {loading ? "Running…" : "Send"}
               </button>
             </div>
+            <div className="bs-chat-composer-meta">
+              <span>{helperText}</span>
+              <div className="bs-chat-chip-row">
+                {EXAMPLE_QUERIES.map((item) => (
+                  <button key={item} type="button" className="bs-chat-chip" onClick={() => setDraftQuestion(item)}>
+                    {item}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Results */}
-      {result ? (
-        <div className="card">
-          <div className="card-header">
-            <div>
-              <div className="card-title">Query Result</div>
-              <div className="card-subtitle">{result.explanation}</div>
-            </div>
-            <span className="badge badge-violet">{result.rows.length} row{result.rows.length !== 1 ? "s" : ""}</span>
-          </div>
-          <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-            <div>
-              <div className="sql-label">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" />
-                </svg>
-                Generated SQL
-              </div>
-              <pre className="sql-box">{result.sql}</pre>
-            </div>
-
-            {result.rows.length > 0 && (
-              <div className="table-wrapper">
-                <table>
-                  <thead>
-                    <tr>
-                      {Object.keys(result.rows[0] ?? {}).map((key) => (
-                        <th key={key}>{key}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {result.rows.map((row, i) => (
-                      <tr key={i}>
-                        {Object.values(row).map((val, j) => (
-                          <td key={j}>{String(val)}</td>
-                        ))}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </div>
-        </div>
-      ) : null}
-
-      <style>{`
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

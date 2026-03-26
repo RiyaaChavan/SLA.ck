@@ -1,0 +1,11 @@
+contract_id,org_id,vendor_id,contract_type,service_unit,contracted_rate_inr,rate_tolerance_pct,start_date,end_date,sla_name,response_deadline_hours,resolution_deadline_hours,penalty_per_breach_inr,auto_action_allowed
+1,1,1,last_mile_service,completed_drop,35.74,8,2025-11-27,2027-03-27,FlashFleet Partners Operational SLA,1,6,95000,true
+2,1,2,last_mile_service,completed_drop,39.89,10,2025-11-27,2027-03-27,SwiftDrop Logistics Operational SLA,1,6,95000,true
+3,1,3,procurement,order_pack,6.47,8,2025-11-27,2027-03-27,PackRight Materials Operational SLA,4,24,30000,false
+4,1,4,procurement,order_pack,6.98,10,2025-11-27,2027-03-27,FreshWrap Consumables Operational SLA,4,24,30000,false
+5,1,5,cold_chain,crate_day,34.29,10,2025-11-27,2027-03-27,CoolChain Services Operational SLA,2,8,85000,false
+6,1,6,cold_chain,crate_day,39.06,10,2025-11-27,2027-03-27,NorthStar Cold Logistics Operational SLA,2,8,85000,false
+7,1,7,staffing,shift,937.94,10,2025-11-27,2027-03-27,ShiftPilot Staffing Operational SLA,8,24,40000,false
+8,1,8,staffing,shift,1088.48,5,2025-11-27,2027-03-27,BlueCrew Workforce Operational SLA,8,24,40000,false
+9,1,9,saas,active_seat,298.29,8,2025-11-27,2027-03-27,OpsGrid SaaS Operational SLA,24,72,15000,false
+10,1,10,saas,active_seat,240.82,8,2025-11-27,2027-03-27,RouteSense Cloud Operational SLA,24,72,15000,false

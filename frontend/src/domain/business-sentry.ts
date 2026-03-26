@@ -279,6 +279,55 @@ export type AutoModePolicy = {
   expires_at: string | null;
 };
 
+export type DataSourceConnectResult = {
+  organization_id: number;
+  organization_name: string;
+  source_database: string;
+  schema: string;
+  source_uploads_created: number;
+  alerts_generated: number;
+};
+
+export type DatasetSummary = {
+  name: string;
+  record_count: number;
+  columns: string[];
+  source_uri: string;
+  schema: string;
+};
+
+export type DatasetPreview = {
+  name: string;
+  columns: string[];
+  rows: Array<Record<string, string | number | boolean | null>>;
+  row_count: number;
+  source_uri: string;
+  schema: string;
+};
+
+export type SourceAgentMemory = {
+  id: number;
+  status: string;
+  engine_name: string;
+  summary_text: string;
+  dashboard_brief: string;
+  schema_notes?: string | null;
+  memory_path?: string | null;
+  context_snapshot: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavedAnomalyQuery = {
+  id: number;
+  name: string;
+  description: string;
+  sql_text: string;
+  category: string;
+  enabled: boolean;
+  created_at: string;
+};
+
 export type AutoModeSettings = {
   organization_id: number;
   policies: AutoModePolicy[];

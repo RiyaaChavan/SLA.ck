@@ -117,6 +117,84 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     };
   },
 
+  async connectRelationalSource(_databaseUrl, _schema, _schemaNotes) {
+    await delay();
+    return {
+      organization_id: 1,
+      organization_name: "Mock Workspace",
+      source_database: "postgresql://demo-source:5432/mock#public",
+      schema: "public",
+      source_uploads_created: 2,
+      alerts_generated: 6,
+    };
+  },
+
+  async listSourceDatasets(_organizationId) {
+    await delay();
+    return [
+      {
+        name: "orders.csv",
+        record_count: 149811,
+        columns: ["order_id", "order_ts", "basket_value_inr", "actual_delivery_minutes"],
+        source_uri: "postgresql://demo-source:5432/mock#public",
+        schema: "public",
+      },
+      {
+        name: "invoices.csv",
+        record_count: 354,
+        columns: ["invoice_ref", "billed_rate_inr", "contracted_rate_inr", "amount_inr"],
+        source_uri: "postgresql://demo-source:5432/mock#public",
+        schema: "public",
+      },
+    ];
+  },
+
+  async previewSourceDataset(_organizationId, datasetName) {
+    await delay();
+    return {
+      name: datasetName,
+      columns: ["id", "name", "value"],
+      rows: [
+        { id: 1, name: "sample-a", value: "42" },
+        { id: 2, name: "sample-b", value: "84" },
+      ],
+      row_count: 2,
+      source_uri: "postgresql://demo-source:5432/mock#public",
+      schema: "public",
+    };
+  },
+
+  async getSourceAgentMemory(_organizationId) {
+    await delay();
+    return {
+      id: 1,
+      status: "ready",
+      engine_name: "deterministic-fallback",
+      summary_text: "Mock source summary.",
+      dashboard_brief: "Mock dashboard brief.",
+      schema_notes: null,
+      memory_path: "/tmp/mock.md",
+      context_snapshot: {},
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    };
+  },
+
+  async listSavedAnomalyQueries(_organizationId) {
+    await delay();
+    return [
+      {
+        id: 1,
+        name: "Late delivery clusters",
+        description: "Mock saved query.",
+        sql_text: "select * from orders limit 10;",
+        category: "delivery",
+        enabled: true,
+        created_at: new Date().toISOString(),
+      },
+    ];
+  },
+
   async listDetectors(_organizationId) {
     await delay();
     return clone(mockDetectors);
@@ -147,7 +225,7 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return { id, name: d.name, enabled: d.enabled };
   },
 
-  async promptDraftDetector(prompt) {
+  async promptDraftDetector(_organizationId, prompt) {
     await delay();
     return {
       draft: {

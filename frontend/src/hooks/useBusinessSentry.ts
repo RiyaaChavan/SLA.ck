@@ -120,6 +120,66 @@ export function useDataSourceUpload(organizationId: number | undefined) {
   });
 }
 
+export function useConnectRelationalSource() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      databaseUrl,
+      schema,
+      schemaNotes,
+    }: {
+      databaseUrl: string;
+      schema: string;
+      schemaNotes?: string;
+    }) => adapter.connectRelationalSource(databaseUrl, schema, schemaNotes),
+    onSuccess: async (data) => {
+      await Promise.all([
+        qc.invalidateQueries({ queryKey: ["organizations"] }),
+        qc.invalidateQueries({ queryKey: ["bs", "dataSources", data.organization_id] }),
+        qc.invalidateQueries({ queryKey: ["bs", "dataSets", data.organization_id] }),
+        qc.invalidateQueries({ queryKey: ["bs", "dataSetPreview", data.organization_id] }),
+        qc.invalidateQueries({ queryKey: ["bs", "sourceAgentMemory", data.organization_id] }),
+        qc.invalidateQueries({ queryKey: ["bs", "sourceAnomalyQueries", data.organization_id] }),
+      ]);
+    },
+  });
+}
+
+export function useSourceDatasets(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "dataSets", organizationId],
+    queryFn: () => adapter.listSourceDatasets(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
+export function useSourceDatasetPreview(
+  organizationId: number | undefined,
+  datasetName: string | null,
+) {
+  return useQuery({
+    queryKey: ["bs", "dataSetPreview", organizationId, datasetName],
+    queryFn: () => adapter.previewSourceDataset(organizationId!, datasetName!),
+    enabled: Boolean(organizationId && datasetName),
+  });
+}
+
+export function useSourceAgentMemory(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "sourceAgentMemory", organizationId],
+    queryFn: () => adapter.getSourceAgentMemory(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
+export function useSavedAnomalyQueries(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "sourceAnomalyQueries", organizationId],
+    queryFn: () => adapter.listSavedAnomalyQueries(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
 export function useSlaExtractionUpload(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
@@ -165,9 +225,10 @@ export function useDiscardSlaCandidate(organizationId: number | undefined) {
   });
 }
 
-export function usePromptDraftDetector() {
+export function usePromptDraftDetector(organizationId: number | undefined) {
   return useMutation({
-    mutationFn: (prompt: string) => adapter.promptDraftDetector(prompt),
+    mutationFn: (args: { prompt: string; module?: string | null }) =>
+      adapter.promptDraftDetector(organizationId!, args.prompt, args.module),
   });
 }
 

@@ -185,6 +185,53 @@ class SourceUpload(Base, TimestampMixin):
     file_path: Mapped[str] = mapped_column(String(255))
 
 
+class ConnectedSource(Base, TimestampMixin):
+    __tablename__ = "connected_sources"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    name: Mapped[str] = mapped_column(String(120))
+    source_kind: Mapped[str] = mapped_column(String(40))
+    database_url: Mapped[str] = mapped_column(Text)
+    schema_name: Mapped[str] = mapped_column(String(120), default="public")
+    masked_uri: Mapped[str] = mapped_column(String(255))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class SourceAgentMemory(Base, TimestampMixin):
+    __tablename__ = "source_agent_memory"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    connected_source_id: Mapped[int | None] = mapped_column(
+        ForeignKey("connected_sources.id"), nullable=True
+    )
+    source_kind: Mapped[str] = mapped_column(String(40))
+    engine_name: Mapped[str] = mapped_column(String(80))
+    status: Mapped[str] = mapped_column(String(40), default="ready")
+    schema_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    summary_text: Mapped[str] = mapped_column(Text)
+    dashboard_brief: Mapped[str] = mapped_column(Text)
+    memory_path: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    context_snapshot: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class SavedAnomalyQuery(Base, TimestampMixin):
+    __tablename__ = "saved_anomaly_queries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    connected_source_id: Mapped[int | None] = mapped_column(
+        ForeignKey("connected_sources.id"), nullable=True
+    )
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text)
+    sql_text: Mapped[str] = mapped_column(Text)
+    category: Mapped[str] = mapped_column(String(80))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    source_kind: Mapped[str] = mapped_column(String(40), default="generated")
+
+
 class DetectorDefinition(Base, TimestampMixin):
     __tablename__ = "detector_definitions"
 

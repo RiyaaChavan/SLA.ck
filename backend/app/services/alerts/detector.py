@@ -73,6 +73,17 @@ def _severity(score: float) -> Severity:
     return Severity.low
 
 
+def _workflow_delay_hours(workflow: Workflow, now: datetime) -> float:
+    if workflow.backlog_hours > 0:
+        return workflow.backlog_hours
+
+    expected_by = workflow.expected_by
+    current_time = now
+    if expected_by.tzinfo is None:
+        current_time = datetime.now(UTC).replace(tzinfo=None)
+    return max((current_time - expected_by).total_seconds() / 3600, 0.0)
+
+
 def create_recommendation_bundle(
     db: Session, *, alert: Alert, rationale: str, action_type: str
 ) -> tuple[Recommendation, Action]:

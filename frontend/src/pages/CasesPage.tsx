@@ -1,21 +1,26 @@
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
-import type { CaseSummary, CasesListParams } from "../domain/business-sentry";
+import type { CaseDetail, CaseSummary } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { FilterBar } from "../components/business-sentry/FilterBar";
 import { StateBlock } from "../components/business-sentry/StateBlock";
-import { formatMoneyInr, formatDateTime, formatModuleLabel } from "../lib/formatters";
-import { useCaseDetail, useCasesList } from "../hooks/useBusinessSentry";
+import { demoCaseDetails, demoCases } from "../demo/businessSentryHardcoded";
+import { formatDateTime, formatModuleLabel, formatMoneyInr } from "../lib/formatters";
 
 type CasesPageProps = {
   organizationId?: number;
 };
 
-function uniq(vals: string[]): string[] {
+function uniq(vals: string[]) {
   return [...new Set(vals)].filter(Boolean).sort();
 }
 
-export function CasesPage({ organizationId }: CasesPageProps) {
+function bySeverity(value: string) {
+  const order: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+  return order[value] ?? 0;
+}
+
+export function CasesPage(_: CasesPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
   const caseId = searchParams.get("case");
 
@@ -29,40 +34,44 @@ export function CasesPage({ organizationId }: CasesPageProps) {
   const [approver, setApprover] = useStateParam(searchParams, setSearchParams, "approver", "");
   const [actionState, setActionState] = useStateParam(searchParams, setSearchParams, "action_state", "");
 
-  const params: CasesListParams = useMemo(
+  const filterOptions = useMemo(
     () => ({
-      sort: sort || undefined,
-      severity: severity || undefined,
-      status: status || undefined,
-      module: module || undefined,
-      team: team || undefined,
-      vendor: vendor || undefined,
-      detector: detector || undefined,
-      approver: approver || undefined,
-      action_state: actionState || undefined,
+      teams: uniq(demoCases.map((row) => row.team)),
+      vendors: uniq(demoCases.map((row) => row.vendor)),
+      modules: uniq(demoCases.map((row) => row.module)),
+      detectors: uniq(demoCases.map((row) => row.detector_name)),
+      approvers: uniq(demoCases.map((row) => row.approver_name)),
+      actionStates: uniq(demoCases.map((row) => row.action_state)),
+      severities: uniq(demoCases.map((row) => row.severity)),
+      statuses: uniq(demoCases.map((row) => row.status)),
     }),
-    [sort, severity, status, module, team, vendor, detector, approver, actionState],
+    [],
   );
 
-  const listQ = useCasesList(organizationId, params);
-  const allQ = useCasesList(organizationId, {});
+  const rows = useMemo(() => {
+    const filtered = demoCases.filter((row) => {
+      if (severity && row.severity !== severity) return false;
+      if (status && row.status !== status) return false;
+      if (module && row.module !== module) return false;
+      if (team && row.team !== team) return false;
+      if (vendor && row.vendor !== vendor) return false;
+      if (detector && row.detector_name !== detector) return false;
+      if (approver && row.approver_name !== approver) return false;
+      if (actionState && row.action_state !== actionState) return false;
+      return true;
+    });
 
-  const detailQ = useCaseDetail(caseId);
+    return [...filtered].sort((a, b) => {
+      if (sort === "cost_impact") return b.projected_impact - a.projected_impact;
+      if (sort === "deadline") return (a.sla_countdown_minutes ?? 999999) - (b.sla_countdown_minutes ?? 999999);
+      if (sort === "sla_risk") return bySeverity(b.sla_risk_level) - bySeverity(a.sla_risk_level);
+      if (sort === "newest") return Date.parse(b.created_at) - Date.parse(a.created_at);
+      if (sort === "status") return a.status.localeCompare(b.status);
+      return bySeverity(b.severity) - bySeverity(a.severity) || b.projected_impact - a.projected_impact;
+    });
+  }, [actionState, approver, detector, module, severity, sort, status, team, vendor]);
 
-  const filterOptions = useMemo(() => {
-    const rows = allQ.data ?? [];
-    return {
-      teams: uniq(rows.map((r) => r.team)),
-      vendors: uniq(rows.map((r) => r.vendor)),
-      caseTypes: uniq(rows.map((r) => r.case_type)),
-      modules: uniq(rows.map((r) => r.module)),
-      detectors: uniq(rows.map((r) => r.detector_name)),
-      approvers: uniq(rows.map((r) => r.approver_name)),
-      actionStates: uniq(rows.map((r) => r.action_state)),
-      severities: uniq(rows.map((r) => r.severity)),
-      statuses: uniq(rows.map((r) => r.status)),
-    };
-  }, [allQ.data]);
+  const detail = caseId ? demoCaseDetails[caseId] ?? null : null;
 
   const openCase = (id: string) => {
     setSearchParams((prev) => {
@@ -80,19 +89,11 @@ export function CasesPage({ organizationId }: CasesPageProps) {
     });
   };
 
-  if (!organizationId) {
-    return (
-      <div className="page-content">
-        <StateBlock title="Select a workspace" description="Choose an organization in the sidebar." />
-      </div>
-    );
-  }
-
   return (
     <div className="page-content bs-cases-layout">
       <PageHeader
         title="Cases"
-        subtitle="Ranked issues from detection — filter by team, vendor, type, detector, approver, and action state."
+        subtitle="Ranked issues from the saved anomaly detectors. Filters and detail views are fully interactive in this demo."
       />
 
       <FilterBar>
@@ -106,76 +107,72 @@ export function CasesPage({ organizationId }: CasesPageProps) {
         </select>
         <select className="bs-select" value={team} onChange={(e) => setTeam(e.target.value)}>
           <option value="">Team (all)</option>
-          {filterOptions.teams.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.teams.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={vendor} onChange={(e) => setVendor(e.target.value)}>
           <option value="">Vendor (all)</option>
-          {filterOptions.vendors.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.vendors.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={module} onChange={(e) => setModule(e.target.value)}>
           <option value="">Module (all)</option>
-          {filterOptions.modules.map((t) => (
-            <option key={t} value={t}>
-              {formatModuleLabel(t)}
+          {filterOptions.modules.map((item) => (
+            <option key={item} value={item}>
+              {formatModuleLabel(item)}
             </option>
           ))}
         </select>
         <select className="bs-select" value={detector} onChange={(e) => setDetector(e.target.value)}>
           <option value="">Detector (all)</option>
-          {filterOptions.detectors.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.detectors.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={approver} onChange={(e) => setApprover(e.target.value)}>
           <option value="">Approver (all)</option>
-          {filterOptions.approvers.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.approvers.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={actionState} onChange={(e) => setActionState(e.target.value)}>
           <option value="">Action state (all)</option>
-          {filterOptions.actionStates.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.actionStates.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={severity} onChange={(e) => setSeverity(e.target.value)}>
           <option value="">Severity (all)</option>
-          {filterOptions.severities.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.severities.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
         <select className="bs-select" value={status} onChange={(e) => setStatus(e.target.value)}>
           <option value="">Status (all)</option>
-          {filterOptions.statuses.map((t) => (
-            <option key={t} value={t}>
-              {t}
+          {filterOptions.statuses.map((item) => (
+            <option key={item} value={item}>
+              {item}
             </option>
           ))}
         </select>
       </FilterBar>
 
-      {listQ.isPending ? (
-        <StateBlock title="Loading cases" loading />
-      ) : listQ.isError ? (
-        <StateBlock title="Failed to load cases" />
-      ) : !listQ.data?.length ? (
-        <StateBlock title="No cases match filters" description="Clear filters or bootstrap demo data." />
+      {!rows.length ? (
+        <StateBlock title="No cases match filters" description="Clear a few filters to bring the ranked case list back." />
       ) : (
         <div className="card">
           <div className="card-body-flush">
@@ -192,8 +189,8 @@ export function CasesPage({ organizationId }: CasesPageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {listQ.data.map((c) => (
-                    <CaseRow key={c.id} c={c} onOpen={() => openCase(c.id)} />
+                  {rows.map((row) => (
+                    <CaseRow key={row.id} c={row} onOpen={() => openCase(row.id)} />
                   ))}
                 </tbody>
               </table>
@@ -204,12 +201,7 @@ export function CasesPage({ organizationId }: CasesPageProps) {
 
       {caseId ? (
         <div className="bs-drawer-backdrop" role="presentation" onClick={closeCase}>
-          <aside
-            className="bs-drawer"
-            role="dialog"
-            aria-modal="true"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <aside className="bs-drawer" role="dialog" aria-modal="true" onClick={(e) => e.stopPropagation()}>
             <div className="bs-drawer-header">
               <h2>Case detail</h2>
               <button type="button" className="btn btn-ghost btn-sm" onClick={closeCase}>
@@ -217,13 +209,7 @@ export function CasesPage({ organizationId }: CasesPageProps) {
               </button>
             </div>
             <div className="bs-drawer-body">
-              {detailQ.isPending ? (
-                <StateBlock title="Loading…" loading />
-              ) : detailQ.isError || !detailQ.data ? (
-                <StateBlock title="Case not found" />
-              ) : (
-                <CaseDetailPanel d={detailQ.data} />
-              )}
+              {detail ? <CaseDetailPanel d={detail} /> : <StateBlock title="Case not found" />}
             </div>
           </aside>
         </div>
@@ -266,7 +252,9 @@ function CaseRow({ c, onOpen }: { c: CaseSummary; onOpen: () => void }) {
       </td>
       <td>
         {c.sla_countdown_minutes != null ? (
-          <span className="badge badge-default">{c.sla_countdown_minutes}m · {c.sla_risk_level}</span>
+          <span className="badge badge-default">
+            {c.sla_countdown_minutes}m · {c.sla_risk_level}
+          </span>
         ) : (
           <span className="bs-muted">—</span>
         )}
@@ -280,13 +268,15 @@ function CaseRow({ c, onOpen }: { c: CaseSummary; onOpen: () => void }) {
   );
 }
 
-function CaseDetailPanel({ d }: { d: import("../domain/business-sentry").CaseDetail }) {
+function CaseDetailPanel({ d }: { d: CaseDetail }) {
   const s = d.summary;
   return (
     <div className="bs-detail-stack">
       <section className="bs-detail-hero">
         <h3>{s.title}</h3>
-        <p className="bs-muted" style={{ marginBottom: 12 }}>{s.summary}</p>
+        <p className="bs-muted" style={{ marginBottom: 12 }}>
+          {s.summary}
+        </p>
         <div className="bs-pill-row">
           <span className={`badge badge-${s.severity}`}>{s.severity}</span>
           <span className="badge badge-default">{formatModuleLabel(s.module)}</span>
@@ -308,7 +298,9 @@ function CaseDetailPanel({ d }: { d: import("../domain/business-sentry").CaseDet
       <section className="bs-detail-card">
         <h4>Root cause</h4>
         <p>{d.root_cause}</p>
-        <p className="td-sub" style={{ marginTop: 8 }}>{d.baseline_comparison}</p>
+        <p className="td-sub" style={{ marginTop: 8 }}>
+          {d.baseline_comparison}
+        </p>
       </section>
       {d.sla ? (
         <section className="bs-detail-card bs-detail-sla">
@@ -335,36 +327,19 @@ function CaseDetailPanel({ d }: { d: import("../domain/business-sentry").CaseDet
       </section>
       <section className="bs-detail-card">
         <h4>Evidence</h4>
-        <ul className="bs-list">
-          {d.evidence.length === 0 ? <li className="bs-muted">No evidence rows (stub).</li> : null}
-          {d.evidence.map((e) => (
-            <li key={e.id} className="bs-evidence-item">
-              <strong>{e.label}</strong> <span className="bs-muted">({e.kind})</span>
-              <div className="bs-evidence-snippet">{e.snippet}</div>
-            </li>
-          ))}
-        </ul>
-      </section>
-      <section className="bs-detail-card">
-        <h4>Related entities</h4>
-        <div className="bs-pill-row">
-          {d.related_entities.map((r) => (
-            <span key={`${r.type}-${r.id}`} className="bs-pill">
-              {r.type}: {r.name}
-            </span>
-          ))}
-        </div>
+        {d.evidence.map((item) => (
+          <div key={item.id} className="bs-evidence-item">
+            <strong>{item.label}</strong>
+            <div className="bs-evidence-snippet">{item.snippet}</div>
+          </div>
+        ))}
       </section>
       <section className="bs-detail-card">
         <h4>Approval chain</h4>
-        <ul className="bs-timeline-list">
-          {d.approval_chain.map((a) => (
-            <li key={a.step}>
-              <div className="bs-timeline-dot"></div>
-              <div className="bs-timeline-content">
-                <strong>Step {a.step}: {a.role}</strong>
-                <div className="bs-muted">{a.name} ({a.state})</div>
-              </div>
+        <ul className="bs-list">
+          {d.approval_chain.map((step) => (
+            <li key={step.step}>
+              {step.step}. {step.role} · {step.name} · {step.state}
             </li>
           ))}
         </ul>
@@ -372,12 +347,14 @@ function CaseDetailPanel({ d }: { d: import("../domain/business-sentry").CaseDet
       <section className="bs-detail-card">
         <h4>Timeline</h4>
         <ul className="bs-timeline-list">
-          {d.timeline.map((t, i) => (
-            <li key={i}>
-              <div className="bs-timeline-dot"></div>
+          {d.timeline.map((event, index) => (
+            <li key={`${event.at}-${index}`}>
+              <span className="bs-timeline-dot" />
               <div className="bs-timeline-content">
-                <strong>{t.event}</strong>
-                <div className="bs-muted">{formatDateTime(t.at)} — {t.actor}</div>
+                <strong>{event.event}</strong>
+                <span className="td-sub">
+                  {event.actor} · {formatDateTime(event.at)}
+                </span>
               </div>
             </li>
           ))}

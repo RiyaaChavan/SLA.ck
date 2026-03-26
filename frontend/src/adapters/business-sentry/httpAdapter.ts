@@ -4,7 +4,10 @@ import type {
   AutoModePolicyUpdate,
   AutoModeSettings,
   CasesListParams,
+  DataSourceSummary,
   DetectorDefinition,
+  DetectorDraft,
+  ImpactOverview,
   LiveWorkItem,
   SlaExtractionBatch,
   SlaExtractionCandidate,
@@ -13,6 +16,7 @@ import type {
 import type {
   ActionDecisionBody,
   BusinessSentryAdapter,
+  DetectorCreateResponse,
   SlaExtractionCandidateEdit,
   SlaRulebookArchivePayload,
   SlaRulebookEntryUpdatePayload,
@@ -350,8 +354,130 @@ function scrubCandidateEdits(edits: SlaExtractionCandidateEdit[]) {
   ) as Record<string, unknown>[];
 }
 
+function mapDataSourceSummary(source: Record<string, unknown>): DataSourceSummary {
+  const history = Array.isArray(source.upload_history) ? source.upload_history : [];
+  const mappedSource = source as Record<string, unknown>;
+  return {
+    id: String(mappedSource.id ?? ""),
+    name: String(mappedSource.name ?? ""),
+    source_type: String(mappedSource.source_type ?? ""),
+    status: String(mappedSource.status ?? ""),
+    freshness_status: String(mappedSource.freshness_status ?? ""),
+    last_synced_at: String(mappedSource.last_synced_at ?? ""),
+    record_count: Number(mappedSource.record_count ?? 0),
+    schema_preview: Array.isArray(mappedSource.schema_preview)
+      ? mappedSource.schema_preview.map((item) => String(item))
+      : [],
+    health: String(mappedSource.health ?? ""),
+    upload_history: history.map((item) => {
+      const entry = item as Record<string, unknown>;
+      const rawPath = String(entry.file_path ?? "");
+      const parts = rawPath.split("::");
+      return {
+        at: String(entry.uploaded_at ?? ""),
+        filename: rawPath.includes("::") ? parts[parts.length - 1] ?? rawPath : rawPath,
+        rows: Number(entry.record_count ?? 0),
+      };
+    }),
+  };
+}
+
+function mapImpactOverview(raw: Record<string, unknown>): ImpactOverview {
+  const metrics = Array.isArray(raw.metrics) ? raw.metrics : [];
+  const metricValue = (label: string) =>
+    Number(
+      (metrics.find((item) => String((item as Record<string, unknown>).label) === label) as
+        | Record<string, unknown>
+        | undefined)?.value ?? 0,
+    );
+  const topVendors = Array.isArray(raw.top_vendors_by_risk) ? raw.top_vendors_by_risk : [];
+  const maxVendorCases = Math.max(
+    1,
+    ...topVendors.map((item) => Number((item as Record<string, unknown>).case_count ?? 0)),
+  );
+  const topTeams = Array.isArray(raw.top_teams_by_overload) ? raw.top_teams_by_overload : [];
+  const realizedProjected = (raw.realized_vs_projected ?? {}) as Record<string, unknown>;
+  return {
+    organization: raw.organization as ImpactOverview["organization"],
+    metrics: raw.metrics as ImpactOverview["metrics"],
+    top_vendors_by_risk: topVendors.map((item) => {
+      const row = item as Record<string, unknown>;
+      const caseCount = Number(row.case_count ?? 0);
+      return {
+        vendor: String(row.vendor_name ?? ""),
+        risk_score: caseCount / maxVendorCases,
+        projected_impact: Number(row.projected_impact ?? 0),
+      };
+    }),
+    top_teams_by_overload: topTeams.map((item) => {
+      const row = item as Record<string, unknown>;
+      const overloadHours = Number(row.overload_hours ?? 0);
+      const projectedImpact = Number(row.projected_impact ?? 0);
+      return {
+        team: String(row.team_name ?? ""),
+        open_items: Math.max(1, Math.round(overloadHours)),
+        sla_breach_risk: overloadHours >= 6 || projectedImpact >= 100000 ? "high" : overloadHours >= 3 ? "medium" : "low",
+      };
+    }),
+    realized_vs_projected: {
+      periods: ["Current"],
+      realized_savings: [Number(realizedProjected.realized_savings ?? 0)],
+      projected_savings: [Number(realizedProjected.projected_savings ?? 0)],
+    },
+    approval_execution_funnel: {
+      pending_approval: Math.round(metricValue("Open high-risk cases")),
+      approved: Math.round(metricValue("Approved actions")),
+      rejected: 0,
+      executed: Math.round(metricValue("Executed actions")),
+    },
+    recent_cases: (raw.recent_cases ?? []) as ImpactOverview["recent_cases"],
+  };
+}
+
+type ApiDetectorDefinitionOut = {
+  id: number;
+  detector_key?: string | null;
+  name: string;
+  description: string;
+  module: string;
+  business_domain: string;
+  severity: string;
+  owner_name: string;
+  enabled: boolean;
+  logic_type: string;
+  logic_summary: string;
+  query_logic: string;
+  expected_output_fields: string[];
+  linked_action_template: string;
+  linked_cost_formula: string;
+  last_triggered_at: string | { toISOString(): string } | null;
+  issue_count: number;
+};
+
+function mapDetectorDefinition(r: ApiDetectorDefinitionOut): DetectorDefinition {
+  return {
+    id: String(r.id),
+    name: r.name,
+    description: r.description,
+    module: r.module,
+    business_domain: r.business_domain,
+    severity: r.severity,
+    owner_name: r.owner_name,
+    enabled: r.enabled,
+    logic_type: r.logic_type,
+    logic_summary: r.logic_summary,
+    query_logic: r.query_logic,
+    expected_output_fields: r.expected_output_fields ?? [],
+    linked_action_template: r.linked_action_template,
+    linked_cost_formula: r.linked_cost_formula,
+    last_triggered_at: r.last_triggered_at == null ? null : iso(r.last_triggered_at),
+    issue_count: r.issue_count ?? 0,
+  };
+}
+
 export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
-  getImpact: (organizationId) => request(`/impact/${organizationId}`),
+  getImpact: async (organizationId) =>
+    mapImpactOverview(await request<Record<string, unknown>>(`/impact/${organizationId}`)),
   listCases: (organizationId, params) =>
     request(`/cases/${organizationId}${casesQuery(params)}`),
   getCaseDetail: (caseId) => request(`/cases/detail/${caseId}`),
@@ -359,31 +485,82 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
     const rows = await request<ApiLiveWorkItemOut[]>(`/live-ops/${organizationId}`);
     return rows.map(mapLiveWorkItem);
   },
-  listDataSources: (organizationId) => request(`/data-sources/${organizationId}`),
+  listDataSources: async (organizationId) =>
+    (await request<Array<Record<string, unknown>>>(`/data-sources/${organizationId}`)).map(mapDataSourceSummary),
   uploadDataSource: (organizationId, fileName) =>
     request(`/data-sources/${organizationId}/upload`, {
       method: "POST",
-      body: JSON.stringify({ filename: fileName }),
+      body: JSON.stringify({
+        name: fileName,
+        source_type: "file_upload",
+        file_name: fileName,
+        sample_columns: [],
+      }),
     }),
-  listDetectors: (organizationId) => request(`/detectors/${organizationId}`),
-  createDetector: (organizationId, body) =>
-    request(`/detectors/${organizationId}`, {
+  connectRelationalSource: (databaseUrl, schema, schemaNotes) =>
+    request(`/data-sources/connect-relational`, {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({ database_url: databaseUrl, schema, schema_notes: schemaNotes ?? null, reset: true }),
     }),
-  promptDraftDetector: (prompt) =>
-    request(`/detectors/prompt-draft`, {
+  listSourceDatasets: (organizationId) => request(`/data-sources/${organizationId}/datasets`),
+  previewSourceDataset: (organizationId, datasetName) =>
+    request(`/data-sources/${organizationId}/datasets/${encodeURIComponent(datasetName)}/preview`),
+  getSourceAgentMemory: async (organizationId) => {
+    try {
+      return await request(`/data-sources/${organizationId}/agent-memory`);
+    } catch {
+      return null;
+    }
+  },
+  listSavedAnomalyQueries: async (organizationId) => {
+    try {
+      return await request(`/data-sources/${organizationId}/anomaly-queries`);
+    } catch {
+      return [];
+    }
+  },
+  listDetectors: async (organizationId) =>
+    (await request<ApiDetectorDefinitionOut[]>(`/detectors/${organizationId}`)).map(mapDetectorDefinition),
+  createDetector: async (organizationId, body): Promise<DetectorCreateResponse> => {
+    const d = mapDetectorDefinition(
+      await request<ApiDetectorDefinitionOut>(`/detectors/${organizationId}`, {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
+    );
+    return { id: d.id, name: d.name, enabled: d.enabled };
+  },
+  promptDraftDetector: async (organizationId, prompt, module) => {
+    const raw = await request<ApiDetectorDefinitionOut>(`/detectors/prompt-draft`, {
       method: "POST",
-      body: JSON.stringify({ prompt }),
-    }),
-  testDetector: (detectorId) =>
-    request(`/detectors/${detectorId}/test`, { method: "POST" }),
+      body: JSON.stringify({ organization_id: organizationId, prompt, module: module ?? null }),
+    });
+    const draft: DetectorDraft = {
+      name: raw.name,
+      logic_summary: raw.logic_summary,
+      query_logic: raw.query_logic,
+      expected_output_fields: raw.expected_output_fields ?? [],
+    };
+    return { draft };
+  },
+  testDetector: async (detectorId) => {
+    const r = await request<{
+      sample_rows: Array<Record<string, string | number>>;
+      explanation: string;
+      issue_count: number;
+    }>(`/detectors/${detectorId}/test`, { method: "POST" });
+    return {
+      passed: true,
+      sample_rows: r.sample_rows,
+      message: r.explanation,
+    };
+  },
   updateDetectorEnabled: async (detectorId, enabled) => {
-    const res = await request<DetectorDefinition>(`/detectors/${detectorId}`, {
+    const res = await request<ApiDetectorDefinitionOut>(`/detectors/${detectorId}`, {
       method: "PATCH",
       body: JSON.stringify({ enabled }),
     });
-    return res;
+    return mapDetectorDefinition(res);
   },
   listSlaRules: async (organizationId) => {
     const rows = await request<ApiSlaRulebookEntryOut[]>(`/sla/rules/${organizationId}`);

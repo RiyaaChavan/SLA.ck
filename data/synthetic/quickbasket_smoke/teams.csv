@@ -1,0 +1,118 @@
+team_id,org_id,city_id,store_id,team_name,team_type,parent_team_id,manager_employee_id,slack_channel,escalation_level
+1,1,,,Regional Command,regional_command,,1,#regional-command-1,1
+2,1,,,Procurement Control,procurement,1,2,#procurement-1,1
+3,1,,,Finance Control Tower,finance_control,1,8,#finance-control-1,1
+4,1,1,,Bengaluru City Ops,city_ops,1,14,#city-ops-1,2
+5,1,1,,Bengaluru Escalations,customer_escalations,4,15,#customer-escalations-1,3
+6,1,2,,Mumbai City Ops,city_ops,1,27,#city-ops-2,2
+7,1,2,,Mumbai Escalations,customer_escalations,6,28,#customer-escalations-2,3
+8,1,3,,Delhi NCR City Ops,city_ops,1,41,#city-ops-3,2
+9,1,3,,Delhi NCR Escalations,customer_escalations,8,42,#customer-escalations-3,3
+10,1,4,,Hyderabad City Ops,city_ops,1,54,#city-ops-4,2
+11,1,4,,Hyderabad Escalations,customer_escalations,10,55,#customer-escalations-4,3
+12,1,5,,Pune City Ops,city_ops,1,67,#city-ops-5,2
+13,1,5,,Pune Escalations,customer_escalations,12,68,#customer-escalations-5,3
+14,1,6,,Chennai City Ops,city_ops,1,82,#city-ops-6,2
+15,1,6,,Chennai Escalations,customer_escalations,14,83,#customer-escalations-6,3
+16,1,1,1,Bengaluru HSR DS-1 Store Ops,dark_store_ops,4,99,#dark-store-ops-1,3
+17,1,1,1,Bengaluru HSR DS-1 Inventory,inventory_control,16,100,#inventory-control-1,3
+18,1,1,1,Bengaluru HSR DS-1 Fleet,fleet_ops,4,101,#fleet-ops-1,3
+19,1,1,2,Bengaluru Indiranagar DS-2 Store Ops,dark_store_ops,4,129,#dark-store-ops-2,3
+20,1,1,2,Bengaluru Indiranagar DS-2 Inventory,inventory_control,19,130,#inventory-control-2,3
+21,1,1,2,Bengaluru Indiranagar DS-2 Fleet,fleet_ops,4,131,#fleet-ops-2,3
+22,1,1,3,Bengaluru Whitefield DS-3 Store Ops,dark_store_ops,4,157,#dark-store-ops-3,3
+23,1,1,3,Bengaluru Whitefield DS-3 Inventory,inventory_control,22,158,#inventory-control-3,3
+24,1,1,3,Bengaluru Whitefield DS-3 Fleet,fleet_ops,4,159,#fleet-ops-3,3
+25,1,1,4,Bengaluru Koramangala DS-4 Store Ops,dark_store_ops,4,191,#dark-store-ops-4,3
+26,1,1,4,Bengaluru Koramangala DS-4 Inventory,inventory_control,25,192,#inventory-control-4,3
+27,1,1,4,Bengaluru Koramangala DS-4 Fleet,fleet_ops,4,193,#fleet-ops-4,3
+28,1,1,5,Bengaluru Hebbal DS-5 Store Ops,dark_store_ops,4,222,#dark-store-ops-5,3
+29,1,1,5,Bengaluru Hebbal DS-5 Inventory,inventory_control,28,223,#inventory-control-5,3
+30,1,1,5,Bengaluru Hebbal DS-5 Fleet,fleet_ops,4,224,#fleet-ops-5,3
+31,1,1,6,Bengaluru Jayanagar DS-6 Store Ops,dark_store_ops,4,244,#dark-store-ops-6,3
+32,1,1,6,Bengaluru Jayanagar DS-6 Inventory,inventory_control,31,245,#inventory-control-6,3
+33,1,1,6,Bengaluru Jayanagar DS-6 Fleet,fleet_ops,4,246,#fleet-ops-6,3
+34,1,1,7,Bengaluru HSR DS-7 Store Ops,dark_store_ops,4,267,#dark-store-ops-7,3
+35,1,1,7,Bengaluru HSR DS-7 Inventory,inventory_control,34,268,#inventory-control-7,3
+36,1,1,7,Bengaluru HSR DS-7 Fleet,fleet_ops,4,269,#fleet-ops-7,3
+37,1,2,8,Mumbai Powai DS-1 Store Ops,dark_store_ops,6,299,#dark-store-ops-8,3
+38,1,2,8,Mumbai Powai DS-1 Inventory,inventory_control,37,300,#inventory-control-8,3
+39,1,2,8,Mumbai Powai DS-1 Fleet,fleet_ops,6,301,#fleet-ops-8,3
+40,1,2,9,Mumbai Andheri DS-2 Store Ops,dark_store_ops,6,319,#dark-store-ops-9,3
+41,1,2,9,Mumbai Andheri DS-2 Inventory,inventory_control,40,320,#inventory-control-9,3
+42,1,2,9,Mumbai Andheri DS-2 Fleet,fleet_ops,6,321,#fleet-ops-9,3
+43,1,2,10,Mumbai Bandra DS-3 Store Ops,dark_store_ops,6,354,#dark-store-ops-10,3
+44,1,2,10,Mumbai Bandra DS-3 Inventory,inventory_control,43,355,#inventory-control-10,3
+45,1,2,10,Mumbai Bandra DS-3 Fleet,fleet_ops,6,356,#fleet-ops-10,3
+46,1,2,11,Mumbai Thane DS-4 Store Ops,dark_store_ops,6,393,#dark-store-ops-11,3
+47,1,2,11,Mumbai Thane DS-4 Inventory,inventory_control,46,394,#inventory-control-11,3
+48,1,2,11,Mumbai Thane DS-4 Fleet,fleet_ops,6,395,#fleet-ops-11,3
+49,1,2,12,Mumbai Ghatkopar DS-5 Store Ops,dark_store_ops,6,412,#dark-store-ops-12,3
+50,1,2,12,Mumbai Ghatkopar DS-5 Inventory,inventory_control,49,413,#inventory-control-12,3
+51,1,2,12,Mumbai Ghatkopar DS-5 Fleet,fleet_ops,6,414,#fleet-ops-12,3
+52,1,2,13,Mumbai Navi Mumbai DS-6 Store Ops,dark_store_ops,6,441,#dark-store-ops-13,3
+53,1,2,13,Mumbai Navi Mumbai DS-6 Inventory,inventory_control,52,442,#inventory-control-13,3
+54,1,2,13,Mumbai Navi Mumbai DS-6 Fleet,fleet_ops,6,443,#fleet-ops-13,3
+55,1,2,14,Mumbai Powai DS-7 Store Ops,dark_store_ops,6,471,#dark-store-ops-14,3
+56,1,2,14,Mumbai Powai DS-7 Inventory,inventory_control,55,472,#inventory-control-14,3
+57,1,2,14,Mumbai Powai DS-7 Fleet,fleet_ops,6,473,#fleet-ops-14,3
+58,1,3,15,Delhi NCR Gurugram DS-1 Store Ops,dark_store_ops,8,502,#dark-store-ops-15,3
+59,1,3,15,Delhi NCR Gurugram DS-1 Inventory,inventory_control,58,503,#inventory-control-15,3
+60,1,3,15,Delhi NCR Gurugram DS-1 Fleet,fleet_ops,8,504,#fleet-ops-15,3
+61,1,3,16,Delhi NCR Noida DS-2 Store Ops,dark_store_ops,8,533,#dark-store-ops-16,3
+62,1,3,16,Delhi NCR Noida DS-2 Inventory,inventory_control,61,534,#inventory-control-16,3
+63,1,3,16,Delhi NCR Noida DS-2 Fleet,fleet_ops,8,535,#fleet-ops-16,3
+64,1,3,17,Delhi NCR Dwarka DS-3 Store Ops,dark_store_ops,8,554,#dark-store-ops-17,3
+65,1,3,17,Delhi NCR Dwarka DS-3 Inventory,inventory_control,64,555,#inventory-control-17,3
+66,1,3,17,Delhi NCR Dwarka DS-3 Fleet,fleet_ops,8,556,#fleet-ops-17,3
+67,1,3,18,Delhi NCR Saket DS-4 Store Ops,dark_store_ops,8,576,#dark-store-ops-18,3
+68,1,3,18,Delhi NCR Saket DS-4 Inventory,inventory_control,67,577,#inventory-control-18,3
+69,1,3,18,Delhi NCR Saket DS-4 Fleet,fleet_ops,8,578,#fleet-ops-18,3
+70,1,3,19,Delhi NCR Rohini DS-5 Store Ops,dark_store_ops,8,598,#dark-store-ops-19,3
+71,1,3,19,Delhi NCR Rohini DS-5 Inventory,inventory_control,70,599,#inventory-control-19,3
+72,1,3,19,Delhi NCR Rohini DS-5 Fleet,fleet_ops,8,600,#fleet-ops-19,3
+73,1,3,20,Delhi NCR Indirapuram DS-6 Store Ops,dark_store_ops,8,633,#dark-store-ops-20,3
+74,1,3,20,Delhi NCR Indirapuram DS-6 Inventory,inventory_control,73,634,#inventory-control-20,3
+75,1,3,20,Delhi NCR Indirapuram DS-6 Fleet,fleet_ops,8,635,#fleet-ops-20,3
+76,1,4,21,Hyderabad Madhapur DS-1 Store Ops,dark_store_ops,10,653,#dark-store-ops-21,3
+77,1,4,21,Hyderabad Madhapur DS-1 Inventory,inventory_control,76,654,#inventory-control-21,3
+78,1,4,21,Hyderabad Madhapur DS-1 Fleet,fleet_ops,10,655,#fleet-ops-21,3
+79,1,4,22,Hyderabad Gachibowli DS-2 Store Ops,dark_store_ops,10,685,#dark-store-ops-22,3
+80,1,4,22,Hyderabad Gachibowli DS-2 Inventory,inventory_control,79,686,#inventory-control-22,3
+81,1,4,22,Hyderabad Gachibowli DS-2 Fleet,fleet_ops,10,687,#fleet-ops-22,3
+82,1,4,23,Hyderabad Kondapur DS-3 Store Ops,dark_store_ops,10,715,#dark-store-ops-23,3
+83,1,4,23,Hyderabad Kondapur DS-3 Inventory,inventory_control,82,716,#inventory-control-23,3
+84,1,4,23,Hyderabad Kondapur DS-3 Fleet,fleet_ops,10,717,#fleet-ops-23,3
+85,1,4,24,Hyderabad Banjara Hills DS-4 Store Ops,dark_store_ops,10,742,#dark-store-ops-24,3
+86,1,4,24,Hyderabad Banjara Hills DS-4 Inventory,inventory_control,85,743,#inventory-control-24,3
+87,1,4,24,Hyderabad Banjara Hills DS-4 Fleet,fleet_ops,10,744,#fleet-ops-24,3
+88,1,4,25,Hyderabad Kukatpally DS-5 Store Ops,dark_store_ops,10,771,#dark-store-ops-25,3
+89,1,4,25,Hyderabad Kukatpally DS-5 Inventory,inventory_control,88,772,#inventory-control-25,3
+90,1,4,25,Hyderabad Kukatpally DS-5 Fleet,fleet_ops,10,773,#fleet-ops-25,3
+91,1,5,26,Pune Baner DS-1 Store Ops,dark_store_ops,12,805,#dark-store-ops-26,3
+92,1,5,26,Pune Baner DS-1 Inventory,inventory_control,91,806,#inventory-control-26,3
+93,1,5,26,Pune Baner DS-1 Fleet,fleet_ops,12,807,#fleet-ops-26,3
+94,1,5,27,Pune Kothrud DS-2 Store Ops,dark_store_ops,12,828,#dark-store-ops-27,3
+95,1,5,27,Pune Kothrud DS-2 Inventory,inventory_control,94,829,#inventory-control-27,3
+96,1,5,27,Pune Kothrud DS-2 Fleet,fleet_ops,12,830,#fleet-ops-27,3
+97,1,5,28,Pune Wakad DS-3 Store Ops,dark_store_ops,12,858,#dark-store-ops-28,3
+98,1,5,28,Pune Wakad DS-3 Inventory,inventory_control,97,859,#inventory-control-28,3
+99,1,5,28,Pune Wakad DS-3 Fleet,fleet_ops,12,860,#fleet-ops-28,3
+100,1,5,29,Pune Viman Nagar DS-4 Store Ops,dark_store_ops,12,889,#dark-store-ops-29,3
+101,1,5,29,Pune Viman Nagar DS-4 Inventory,inventory_control,100,890,#inventory-control-29,3
+102,1,5,29,Pune Viman Nagar DS-4 Fleet,fleet_ops,12,891,#fleet-ops-29,3
+103,1,5,30,Pune Hadapsar DS-5 Store Ops,dark_store_ops,12,920,#dark-store-ops-30,3
+104,1,5,30,Pune Hadapsar DS-5 Inventory,inventory_control,103,921,#inventory-control-30,3
+105,1,5,30,Pune Hadapsar DS-5 Fleet,fleet_ops,12,922,#fleet-ops-30,3
+106,1,6,31,Chennai OMR DS-1 Store Ops,dark_store_ops,14,940,#dark-store-ops-31,3
+107,1,6,31,Chennai OMR DS-1 Inventory,inventory_control,106,941,#inventory-control-31,3
+108,1,6,31,Chennai OMR DS-1 Fleet,fleet_ops,14,942,#fleet-ops-31,3
+109,1,6,32,Chennai Adyar DS-2 Store Ops,dark_store_ops,14,983,#dark-store-ops-32,3
+110,1,6,32,Chennai Adyar DS-2 Inventory,inventory_control,109,984,#inventory-control-32,3
+111,1,6,32,Chennai Adyar DS-2 Fleet,fleet_ops,14,985,#fleet-ops-32,3
+112,1,6,33,Chennai Anna Nagar DS-3 Store Ops,dark_store_ops,14,1012,#dark-store-ops-33,3
+113,1,6,33,Chennai Anna Nagar DS-3 Inventory,inventory_control,112,1013,#inventory-control-33,3
+114,1,6,33,Chennai Anna Nagar DS-3 Fleet,fleet_ops,14,1014,#fleet-ops-33,3
+115,1,6,34,Chennai Velachery DS-4 Store Ops,dark_store_ops,14,1037,#dark-store-ops-34,3
+116,1,6,34,Chennai Velachery DS-4 Inventory,inventory_control,115,1038,#inventory-control-34,3
+117,1,6,34,Chennai Velachery DS-4 Fleet,fleet_ops,14,1039,#fleet-ops-34,3

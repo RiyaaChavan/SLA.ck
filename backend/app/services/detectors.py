@@ -137,6 +137,24 @@ def build_prompt_draft(organization_id: int, prompt: str, module: str | None) ->
     }
 
 
+def patch_detector(db: Session, detector_id: int, *, enabled: bool) -> dict:
+    detector = db.get(DetectorDefinition, detector_id)
+    if detector is None:
+        raise ValueError("Detector not found")
+    detector.enabled = enabled
+    db.add(detector)
+    log_event(
+        db,
+        organization_id=detector.organization_id,
+        entity_type="detector",
+        entity_id=detector.id,
+        event_type="updated",
+        payload={"enabled": enabled},
+    )
+    db.commit()
+    return next(item for item in list_detectors(db, detector.organization_id) if item["id"] == detector.id)
+
+
 def test_detector(db: Session, detector_id: int) -> dict:
     detector = db.get(DetectorDefinition, detector_id)
     if detector is None:

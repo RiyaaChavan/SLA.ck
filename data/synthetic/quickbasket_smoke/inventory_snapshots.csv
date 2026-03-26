@@ -1,0 +1,409 @@
+snapshot_id,snapshot_ts,store_id,city_id,resource_type,resource_name,active_units,provisioned_units,utilization_pct,monthly_cost_inr,shift_staff_present,shift_staff_planned
+1,2026-03-27T07:44:00+05:30,1,1,picker_capacity,Bengaluru HSR DS-1 Picker Capacity,9,11,81.82,357000,9,11
+2,2026-03-27T07:44:00+05:30,1,1,packer_capacity,Bengaluru HSR DS-1 Packer Capacity,5,7,71.43,245000,5,7
+3,2026-03-27T07:44:00+05:30,1,1,driver_capacity,Bengaluru HSR DS-1 Driver Capacity,24,27,88.89,614000,24,27
+4,2026-03-27T07:44:00+05:30,1,1,dispatch_bays,Bengaluru HSR DS-1 Dispatch Bays,5,5,100.0,162000,24,27
+5,2026-03-27T07:44:00+05:30,1,1,cold_storage,Bengaluru HSR DS-1 Cold Storage,185,290,63.79,209400,14,18
+6,2026-03-27T07:44:00+05:30,1,1,saas_licenses,Bengaluru HSR DS-1 Operations SaaS Seats,15,24,62.5,52440,14,18
+7,2026-03-27T07:27:00+05:30,2,1,picker_capacity,Bengaluru Indiranagar DS-2 Picker Capacity,11,13,84.62,381000,11,13
+8,2026-03-27T07:27:00+05:30,2,1,packer_capacity,Bengaluru Indiranagar DS-2 Packer Capacity,8,9,88.89,263000,8,9
+9,2026-03-27T07:27:00+05:30,2,1,driver_capacity,Bengaluru Indiranagar DS-2 Driver Capacity,22,26,84.62,606000,22,26
+10,2026-03-27T07:27:00+05:30,2,1,dispatch_bays,Bengaluru Indiranagar DS-2 Dispatch Bays,5,5,100.0,162000,22,26
+11,2026-03-27T07:27:00+05:30,2,1,cold_storage,Bengaluru Indiranagar DS-2 Cold Storage,309,375,82.4,231500,19,22
+12,2026-03-27T07:27:00+05:30,2,1,saas_licenses,Bengaluru Indiranagar DS-2 Operations SaaS Seats,21,28,75.0,53680,19,22
+13,2026-03-27T07:43:00+05:30,3,1,picker_capacity,Bengaluru Whitefield DS-3 Picker Capacity,9,10,90.0,345000,9,10
+14,2026-03-27T07:43:00+05:30,3,1,packer_capacity,Bengaluru Whitefield DS-3 Packer Capacity,6,7,85.71,245000,6,7
+15,2026-03-27T07:43:00+05:30,3,1,driver_capacity,Bengaluru Whitefield DS-3 Driver Capacity,27,31,87.1,646000,27,31
+16,2026-03-27T07:43:00+05:30,3,1,dispatch_bays,Bengaluru Whitefield DS-3 Dispatch Bays,5,5,100.0,162000,27,31
+17,2026-03-27T07:43:00+05:30,3,1,cold_storage,Bengaluru Whitefield DS-3 Cold Storage,269,298,90.27,211480,15,17
+18,2026-03-27T07:43:00+05:30,3,1,saas_licenses,Bengaluru Whitefield DS-3 Operations SaaS Seats,19,23,82.61,52130,15,17
+19,2026-03-27T07:43:00+05:30,4,1,picker_capacity,Bengaluru Koramangala DS-4 Picker Capacity,8,10,80.0,345000,8,10
+20,2026-03-27T07:43:00+05:30,4,1,packer_capacity,Bengaluru Koramangala DS-4 Packer Capacity,6,7,85.71,245000,6,7
+21,2026-03-27T07:43:00+05:30,4,1,driver_capacity,Bengaluru Koramangala DS-4 Driver Capacity,23,26,88.46,606000,23,26
+22,2026-03-27T07:43:00+05:30,4,1,dispatch_bays,Bengaluru Koramangala DS-4 Dispatch Bays,5,5,100.0,162000,23,26
+23,2026-03-27T07:43:00+05:30,4,1,cold_storage,Bengaluru Koramangala DS-4 Cold Storage,171,226,75.66,192760,14,17
+24,2026-03-27T07:43:00+05:30,4,1,saas_licenses,Bengaluru Koramangala DS-4 Operations SaaS Seats,16,23,69.57,52130,14,17
+25,2026-03-27T07:23:00+05:30,5,1,picker_capacity,Bengaluru Hebbal DS-5 Picker Capacity,7,8,87.5,321000,7,8
+26,2026-03-27T07:23:00+05:30,5,1,packer_capacity,Bengaluru Hebbal DS-5 Packer Capacity,2,4,50.0,218000,2,4
+27,2026-03-27T07:23:00+05:30,5,1,driver_capacity,Bengaluru Hebbal DS-5 Driver Capacity,13,16,81.25,526000,13,16
+28,2026-03-27T07:23:00+05:30,5,1,dispatch_bays,Bengaluru Hebbal DS-5 Dispatch Bays,3,3,100.0,130000,13,16
+29,2026-03-27T07:23:00+05:30,5,1,cold_storage,Bengaluru Hebbal DS-5 Cold Storage,173,204,84.8,187040,9,12
+30,2026-03-27T07:23:00+05:30,5,1,saas_licenses,Bengaluru Hebbal DS-5 Operations SaaS Seats,15,18,83.33,50580,9,12
+31,2026-03-27T07:04:00+05:30,6,1,picker_capacity,Bengaluru Jayanagar DS-6 Picker Capacity,8,10,80.0,345000,8,10
+32,2026-03-27T07:04:00+05:30,6,1,packer_capacity,Bengaluru Jayanagar DS-6 Packer Capacity,3,4,75.0,218000,3,4
+33,2026-03-27T07:04:00+05:30,6,1,driver_capacity,Bengaluru Jayanagar DS-6 Driver Capacity,19,22,86.36,574000,19,22
+34,2026-03-27T07:04:00+05:30,6,1,dispatch_bays,Bengaluru Jayanagar DS-6 Dispatch Bays,3,3,100.0,130000,19,22
+35,2026-03-27T07:04:00+05:30,6,1,cold_storage,Bengaluru Jayanagar DS-6 Cold Storage,75,123,60.98,165980,11,14
+36,2026-03-27T07:04:00+05:30,6,1,saas_licenses,Bengaluru Jayanagar DS-6 Operations SaaS Seats,16,20,80.0,51200,11,14
+37,2026-03-27T07:27:00+05:30,7,1,picker_capacity,Bengaluru HSR DS-7 Picker Capacity,9,11,81.82,357000,9,11
+38,2026-03-27T07:27:00+05:30,7,1,packer_capacity,Bengaluru HSR DS-7 Packer Capacity,9,10,90.0,272000,9,10
+39,2026-03-27T07:27:00+05:30,7,1,driver_capacity,Bengaluru HSR DS-7 Driver Capacity,22,25,88.0,598000,22,25
+40,2026-03-27T07:27:00+05:30,7,1,dispatch_bays,Bengaluru HSR DS-7 Dispatch Bays,5,5,100.0,162000,22,25
+41,2026-03-27T07:27:00+05:30,7,1,cold_storage,Bengaluru HSR DS-7 Cold Storage,250,353,70.82,225780,18,21
+42,2026-03-27T07:27:00+05:30,7,1,saas_licenses,Bengaluru HSR DS-7 Operations SaaS Seats,22,27,81.48,53370,18,21
+43,2026-03-27T07:23:00+05:30,8,2,picker_capacity,Mumbai Powai DS-1 Picker Capacity,6,7,85.71,309000,6,7
+44,2026-03-27T07:23:00+05:30,8,2,packer_capacity,Mumbai Powai DS-1 Packer Capacity,3,4,75.0,218000,3,4
+45,2026-03-27T07:23:00+05:30,8,2,driver_capacity,Mumbai Powai DS-1 Driver Capacity,15,19,78.95,550000,15,19
+46,2026-03-27T07:23:00+05:30,8,2,dispatch_bays,Mumbai Powai DS-1 Dispatch Bays,3,3,100.0,130000,15,19
+47,2026-03-27T07:23:00+05:30,8,2,cold_storage,Mumbai Powai DS-1 Cold Storage,105,140,75.0,170400,9,11
+48,2026-03-27T07:23:00+05:30,8,2,saas_licenses,Mumbai Powai DS-1 Operations SaaS Seats,11,17,64.71,50270,9,11
+49,2026-03-27T07:44:00+05:30,9,2,picker_capacity,Mumbai Andheri DS-2 Picker Capacity,10,12,83.33,369000,10,12
+50,2026-03-27T07:44:00+05:30,9,2,packer_capacity,Mumbai Andheri DS-2 Packer Capacity,9,10,90.0,272000,9,10
+51,2026-03-27T07:44:00+05:30,9,2,driver_capacity,Mumbai Andheri DS-2 Driver Capacity,28,32,87.5,654000,28,32
+52,2026-03-27T07:44:00+05:30,9,2,dispatch_bays,Mumbai Andheri DS-2 Dispatch Bays,5,5,100.0,162000,28,32
+53,2026-03-27T07:44:00+05:30,9,2,cold_storage,Mumbai Andheri DS-2 Cold Storage,258,292,88.36,209920,19,22
+54,2026-03-27T07:44:00+05:30,9,2,saas_licenses,Mumbai Andheri DS-2 Operations SaaS Seats,22,28,78.57,53680,19,22
+55,2026-03-27T07:42:00+05:30,10,2,picker_capacity,Mumbai Bandra DS-3 Picker Capacity,15,17,88.24,429000,15,17
+56,2026-03-27T07:42:00+05:30,10,2,packer_capacity,Mumbai Bandra DS-3 Packer Capacity,8,10,80.0,272000,8,10
+57,2026-03-27T07:42:00+05:30,10,2,driver_capacity,Mumbai Bandra DS-3 Driver Capacity,34,37,91.89,694000,34,37
+58,2026-03-27T07:42:00+05:30,10,2,dispatch_bays,Mumbai Bandra DS-3 Dispatch Bays,7,7,100.0,194000,34,37
+59,2026-03-27T07:42:00+05:30,10,2,cold_storage,Mumbai Bandra DS-3 Cold Storage,275,417,65.95,242420,23,27
+60,2026-03-27T07:42:00+05:30,10,2,saas_licenses,Mumbai Bandra DS-3 Operations SaaS Seats,26,33,78.79,55230,23,27
+61,2026-03-27T07:39:00+05:30,11,2,picker_capacity,Mumbai Thane DS-4 Picker Capacity,7,9,77.78,333000,7,9
+62,2026-03-27T07:39:00+05:30,11,2,packer_capacity,Mumbai Thane DS-4 Packer Capacity,5,6,83.33,236000,5,6
+63,2026-03-27T07:39:00+05:30,11,2,driver_capacity,Mumbai Thane DS-4 Driver Capacity,21,24,87.5,590000,21,24
+64,2026-03-27T07:39:00+05:30,11,2,dispatch_bays,Mumbai Thane DS-4 Dispatch Bays,3,3,100.0,130000,21,24
+65,2026-03-27T07:39:00+05:30,11,2,cold_storage,Mumbai Thane DS-4 Cold Storage,89,124,71.77,166240,12,15
+66,2026-03-27T07:39:00+05:30,11,2,saas_licenses,Mumbai Thane DS-4 Operations SaaS Seats,14,21,66.67,51510,12,15
+67,2026-03-27T07:20:00+05:30,12,2,picker_capacity,Mumbai Ghatkopar DS-5 Picker Capacity,12,14,85.71,393000,12,14
+68,2026-03-27T07:20:00+05:30,12,2,packer_capacity,Mumbai Ghatkopar DS-5 Packer Capacity,9,10,90.0,272000,9,10
+69,2026-03-27T07:20:00+05:30,12,2,driver_capacity,Mumbai Ghatkopar DS-5 Driver Capacity,25,29,86.21,630000,25,29
+70,2026-03-27T07:20:00+05:30,12,2,dispatch_bays,Mumbai Ghatkopar DS-5 Dispatch Bays,5,5,100.0,162000,25,29
+71,2026-03-27T07:20:00+05:30,12,2,cold_storage,Mumbai Ghatkopar DS-5 Cold Storage,174,262,66.41,202120,21,24
+72,2026-03-27T07:20:00+05:30,12,2,saas_licenses,Mumbai Ghatkopar DS-5 Operations SaaS Seats,26,30,86.67,54300,21,24
+73,2026-03-27T07:30:00+05:30,13,2,picker_capacity,Mumbai Navi Mumbai DS-6 Picker Capacity,9,10,90.0,345000,9,10
+74,2026-03-27T07:30:00+05:30,13,2,packer_capacity,Mumbai Navi Mumbai DS-6 Packer Capacity,8,9,88.89,263000,8,9
+75,2026-03-27T07:30:00+05:30,13,2,driver_capacity,Mumbai Navi Mumbai DS-6 Driver Capacity,25,29,86.21,630000,25,29
+76,2026-03-27T07:30:00+05:30,13,2,dispatch_bays,Mumbai Navi Mumbai DS-6 Dispatch Bays,5,5,100.0,162000,25,29
+77,2026-03-27T07:30:00+05:30,13,2,cold_storage,Mumbai Navi Mumbai DS-6 Cold Storage,236,275,85.82,205500,17,19
+78,2026-03-27T07:30:00+05:30,13,2,saas_licenses,Mumbai Navi Mumbai DS-6 Operations SaaS Seats,22,25,88.0,52750,17,19
+79,2026-03-27T07:10:00+05:30,14,2,picker_capacity,Mumbai Powai DS-7 Picker Capacity,8,10,80.0,345000,8,10
+80,2026-03-27T07:10:00+05:30,14,2,packer_capacity,Mumbai Powai DS-7 Packer Capacity,7,8,87.5,254000,7,8
+81,2026-03-27T07:10:00+05:30,14,2,driver_capacity,Mumbai Powai DS-7 Driver Capacity,22,26,84.62,606000,22,26
+82,2026-03-27T07:10:00+05:30,14,2,dispatch_bays,Mumbai Powai DS-7 Dispatch Bays,5,5,100.0,162000,22,26
+83,2026-03-27T07:10:00+05:30,14,2,cold_storage,Mumbai Powai DS-7 Cold Storage,196,283,69.26,207580,15,18
+84,2026-03-27T07:10:00+05:30,14,2,saas_licenses,Mumbai Powai DS-7 Operations SaaS Seats,15,24,62.5,52440,15,18
+85,2026-03-27T07:22:00+05:30,15,3,picker_capacity,Delhi NCR Gurugram DS-1 Picker Capacity,9,10,90.0,345000,9,10
+86,2026-03-27T07:22:00+05:30,15,3,packer_capacity,Delhi NCR Gurugram DS-1 Packer Capacity,9,10,90.0,272000,9,10
+87,2026-03-27T07:22:00+05:30,15,3,driver_capacity,Delhi NCR Gurugram DS-1 Driver Capacity,27,31,87.1,646000,27,31
+88,2026-03-27T07:22:00+05:30,15,3,dispatch_bays,Delhi NCR Gurugram DS-1 Dispatch Bays,5,5,100.0,162000,27,31
+89,2026-03-27T07:22:00+05:30,15,3,cold_storage,Delhi NCR Gurugram DS-1 Cold Storage,207,240,86.25,196400,18,20
+90,2026-03-27T07:22:00+05:30,15,3,saas_licenses,Delhi NCR Gurugram DS-1 Operations SaaS Seats,19,26,73.08,53060,18,20
+91,2026-03-27T07:39:00+05:30,16,3,picker_capacity,Delhi NCR Noida DS-2 Picker Capacity,7,8,87.5,321000,7,8
+92,2026-03-27T07:39:00+05:30,16,3,packer_capacity,Delhi NCR Noida DS-2 Packer Capacity,3,4,75.0,218000,3,4
+93,2026-03-27T07:39:00+05:30,16,3,driver_capacity,Delhi NCR Noida DS-2 Driver Capacity,14,18,77.78,542000,14,18
+94,2026-03-27T07:39:00+05:30,16,3,dispatch_bays,Delhi NCR Noida DS-2 Dispatch Bays,3,3,100.0,130000,14,18
+95,2026-03-27T07:39:00+05:30,16,3,cold_storage,Delhi NCR Noida DS-2 Cold Storage,119,192,61.98,183920,10,12
+96,2026-03-27T07:39:00+05:30,16,3,saas_licenses,Delhi NCR Noida DS-2 Operations SaaS Seats,13,18,72.22,50580,10,12
+97,2026-03-27T07:12:00+05:30,17,3,picker_capacity,Delhi NCR Dwarka DS-3 Picker Capacity,5,7,71.43,309000,5,7
+98,2026-03-27T07:12:00+05:30,17,3,packer_capacity,Delhi NCR Dwarka DS-3 Packer Capacity,4,6,66.67,236000,4,6
+99,2026-03-27T07:12:00+05:30,17,3,driver_capacity,Delhi NCR Dwarka DS-3 Driver Capacity,13,16,81.25,526000,13,16
+100,2026-03-27T07:12:00+05:30,17,3,dispatch_bays,Delhi NCR Dwarka DS-3 Dispatch Bays,3,3,100.0,130000,13,16
+101,2026-03-27T07:12:00+05:30,17,3,cold_storage,Delhi NCR Dwarka DS-3 Cold Storage,140,197,71.07,185220,9,13
+102,2026-03-27T07:12:00+05:30,17,3,saas_licenses,Delhi NCR Dwarka DS-3 Operations SaaS Seats,16,19,84.21,50890,9,13
+103,2026-03-27T07:30:00+05:30,18,3,picker_capacity,Delhi NCR Saket DS-4 Picker Capacity,7,8,87.5,321000,7,8
+104,2026-03-27T07:30:00+05:30,18,3,packer_capacity,Delhi NCR Saket DS-4 Packer Capacity,2,4,50.0,218000,2,4
+105,2026-03-27T07:30:00+05:30,18,3,driver_capacity,Delhi NCR Saket DS-4 Driver Capacity,15,18,83.33,542000,15,18
+106,2026-03-27T07:30:00+05:30,18,3,dispatch_bays,Delhi NCR Saket DS-4 Dispatch Bays,3,3,100.0,130000,15,18
+107,2026-03-27T07:30:00+05:30,18,3,cold_storage,Delhi NCR Saket DS-4 Cold Storage,87,126,69.05,166760,9,12
+108,2026-03-27T07:30:00+05:30,18,3,saas_licenses,Delhi NCR Saket DS-4 Operations SaaS Seats,14,18,77.78,50580,9,12
+109,2026-03-27T07:19:00+05:30,19,3,picker_capacity,Delhi NCR Rohini DS-5 Picker Capacity,11,12,91.67,369000,11,12
+110,2026-03-27T07:19:00+05:30,19,3,packer_capacity,Delhi NCR Rohini DS-5 Packer Capacity,8,10,80.0,272000,8,10
+111,2026-03-27T07:19:00+05:30,19,3,driver_capacity,Delhi NCR Rohini DS-5 Driver Capacity,25,29,86.21,630000,25,29
+112,2026-03-27T07:19:00+05:30,19,3,dispatch_bays,Delhi NCR Rohini DS-5 Dispatch Bays,5,5,100.0,162000,25,29
+113,2026-03-27T07:19:00+05:30,19,3,cold_storage,Delhi NCR Rohini DS-5 Cold Storage,214,292,73.29,209920,19,22
+114,2026-03-27T07:19:00+05:30,19,3,saas_licenses,Delhi NCR Rohini DS-5 Operations SaaS Seats,22,28,78.57,53680,19,22
+115,2026-03-27T07:25:00+05:30,20,3,picker_capacity,Delhi NCR Indirapuram DS-6 Picker Capacity,6,7,85.71,309000,6,7
+116,2026-03-27T07:25:00+05:30,20,3,packer_capacity,Delhi NCR Indirapuram DS-6 Packer Capacity,4,5,80.0,227000,4,5
+117,2026-03-27T07:25:00+05:30,20,3,driver_capacity,Delhi NCR Indirapuram DS-6 Driver Capacity,16,19,84.21,550000,16,19
+118,2026-03-27T07:25:00+05:30,20,3,dispatch_bays,Delhi NCR Indirapuram DS-6 Dispatch Bays,2,3,66.67,130000,16,19
+119,2026-03-27T07:25:00+05:30,20,3,cold_storage,Delhi NCR Indirapuram DS-6 Cold Storage,137,161,85.09,175860,10,12
+120,2026-03-27T07:25:00+05:30,20,3,saas_licenses,Delhi NCR Indirapuram DS-6 Operations SaaS Seats,15,18,83.33,50580,10,12
+121,2026-03-27T07:42:00+05:30,21,4,picker_capacity,Hyderabad Madhapur DS-1 Picker Capacity,8,10,80.0,345000,8,10
+122,2026-03-27T07:42:00+05:30,21,4,packer_capacity,Hyderabad Madhapur DS-1 Packer Capacity,6,8,75.0,254000,6,8
+123,2026-03-27T07:42:00+05:30,21,4,driver_capacity,Hyderabad Madhapur DS-1 Driver Capacity,23,26,88.46,606000,23,26
+124,2026-03-27T07:42:00+05:30,21,4,dispatch_bays,Hyderabad Madhapur DS-1 Dispatch Bays,5,5,100.0,162000,23,26
+125,2026-03-27T07:42:00+05:30,21,4,cold_storage,Hyderabad Madhapur DS-1 Cold Storage,318,367,86.65,229420,14,18
+126,2026-03-27T07:42:00+05:30,21,4,saas_licenses,Hyderabad Madhapur DS-1 Operations SaaS Seats,19,24,79.17,52440,14,18
+127,2026-03-27T07:17:00+05:30,22,4,picker_capacity,Hyderabad Gachibowli DS-2 Picker Capacity,13,14,92.86,393000,13,14
+128,2026-03-27T07:17:00+05:30,22,4,packer_capacity,Hyderabad Gachibowli DS-2 Packer Capacity,8,10,80.0,272000,8,10
+129,2026-03-27T07:17:00+05:30,22,4,driver_capacity,Hyderabad Gachibowli DS-2 Driver Capacity,20,24,83.33,590000,20,24
+130,2026-03-27T07:17:00+05:30,22,4,dispatch_bays,Hyderabad Gachibowli DS-2 Dispatch Bays,5,5,100.0,162000,20,24
+131,2026-03-27T07:17:00+05:30,22,4,cold_storage,Hyderabad Gachibowli DS-2 Cold Storage,221,295,74.92,210700,21,24
+132,2026-03-27T07:17:00+05:30,22,4,saas_licenses,Hyderabad Gachibowli DS-2 Operations SaaS Seats,24,30,80.0,54300,21,24
+133,2026-03-27T07:29:00+05:30,23,4,picker_capacity,Hyderabad Kondapur DS-3 Picker Capacity,13,14,92.86,393000,13,14
+134,2026-03-27T07:29:00+05:30,23,4,packer_capacity,Hyderabad Kondapur DS-3 Packer Capacity,8,9,88.89,263000,8,9
+135,2026-03-27T07:29:00+05:30,23,4,driver_capacity,Hyderabad Kondapur DS-3 Driver Capacity,24,28,85.71,622000,24,28
+136,2026-03-27T07:29:00+05:30,23,4,dispatch_bays,Hyderabad Kondapur DS-3 Dispatch Bays,5,5,100.0,162000,24,28
+137,2026-03-27T07:29:00+05:30,23,4,cold_storage,Hyderabad Kondapur DS-3 Cold Storage,216,321,67.29,217460,21,23
+138,2026-03-27T07:29:00+05:30,23,4,saas_licenses,Hyderabad Kondapur DS-3 Operations SaaS Seats,18,29,62.07,53990,21,23
+139,2026-03-27T07:31:00+05:30,24,4,picker_capacity,Hyderabad Banjara Hills DS-4 Picker Capacity,11,12,91.67,369000,11,12
+140,2026-03-27T07:31:00+05:30,24,4,packer_capacity,Hyderabad Banjara Hills DS-4 Packer Capacity,6,7,85.71,245000,6,7
+141,2026-03-27T07:31:00+05:30,24,4,driver_capacity,Hyderabad Banjara Hills DS-4 Driver Capacity,28,31,90.32,646000,28,31
+142,2026-03-27T07:31:00+05:30,24,4,dispatch_bays,Hyderabad Banjara Hills DS-4 Dispatch Bays,5,5,100.0,162000,28,31
+143,2026-03-27T07:31:00+05:30,24,4,cold_storage,Hyderabad Banjara Hills DS-4 Cold Storage,176,268,65.67,203680,17,19
+144,2026-03-27T07:31:00+05:30,24,4,saas_licenses,Hyderabad Banjara Hills DS-4 Operations SaaS Seats,20,25,80.0,52750,17,19
+145,2026-03-27T07:14:00+05:30,25,4,picker_capacity,Hyderabad Kukatpally DS-5 Picker Capacity,13,14,92.86,393000,13,14
+146,2026-03-27T07:14:00+05:30,25,4,packer_capacity,Hyderabad Kukatpally DS-5 Packer Capacity,8,9,88.89,263000,8,9
+147,2026-03-27T07:14:00+05:30,25,4,driver_capacity,Hyderabad Kukatpally DS-5 Driver Capacity,20,24,83.33,590000,20,24
+148,2026-03-27T07:14:00+05:30,25,4,dispatch_bays,Hyderabad Kukatpally DS-5 Dispatch Bays,5,5,100.0,162000,20,24
+149,2026-03-27T07:14:00+05:30,25,4,cold_storage,Hyderabad Kukatpally DS-5 Cold Storage,177,225,78.67,192500,21,23
+150,2026-03-27T07:14:00+05:30,25,4,saas_licenses,Hyderabad Kukatpally DS-5 Operations SaaS Seats,18,29,62.07,53990,21,23
+151,2026-03-27T07:43:00+05:30,26,5,picker_capacity,Pune Baner DS-1 Picker Capacity,7,9,77.78,333000,7,9
+152,2026-03-27T07:43:00+05:30,26,5,packer_capacity,Pune Baner DS-1 Packer Capacity,3,4,75.0,218000,3,4
+153,2026-03-27T07:43:00+05:30,26,5,driver_capacity,Pune Baner DS-1 Driver Capacity,19,22,86.36,574000,19,22
+154,2026-03-27T07:43:00+05:30,26,5,dispatch_bays,Pune Baner DS-1 Dispatch Bays,3,3,100.0,130000,19,22
+155,2026-03-27T07:43:00+05:30,26,5,cold_storage,Pune Baner DS-1 Cold Storage,83,133,62.41,168580,10,13
+156,2026-03-27T07:43:00+05:30,26,5,saas_licenses,Pune Baner DS-1 Operations SaaS Seats,11,19,57.89,50890,10,13
+157,2026-03-27T07:44:00+05:30,27,5,picker_capacity,Pune Kothrud DS-2 Picker Capacity,10,11,90.91,357000,10,11
+158,2026-03-27T07:44:00+05:30,27,5,packer_capacity,Pune Kothrud DS-2 Packer Capacity,7,8,87.5,254000,7,8
+159,2026-03-27T07:44:00+05:30,27,5,driver_capacity,Pune Kothrud DS-2 Driver Capacity,21,24,87.5,590000,21,24
+160,2026-03-27T07:44:00+05:30,27,5,dispatch_bays,Pune Kothrud DS-2 Dispatch Bays,5,5,100.0,162000,21,24
+161,2026-03-27T07:44:00+05:30,27,5,cold_storage,Pune Kothrud DS-2 Cold Storage,234,368,63.59,229680,17,19
+162,2026-03-27T07:44:00+05:30,27,5,saas_licenses,Pune Kothrud DS-2 Operations SaaS Seats,21,25,84.0,52750,17,19
+163,2026-03-27T07:03:00+05:30,28,5,picker_capacity,Pune Wakad DS-3 Picker Capacity,10,12,83.33,369000,10,12
+164,2026-03-27T07:03:00+05:30,28,5,packer_capacity,Pune Wakad DS-3 Packer Capacity,8,10,80.0,272000,8,10
+165,2026-03-27T07:03:00+05:30,28,5,driver_capacity,Pune Wakad DS-3 Driver Capacity,23,26,88.46,606000,23,26
+166,2026-03-27T07:03:00+05:30,28,5,dispatch_bays,Pune Wakad DS-3 Dispatch Bays,5,5,100.0,162000,23,26
+167,2026-03-27T07:03:00+05:30,28,5,cold_storage,Pune Wakad DS-3 Cold Storage,190,321,59.19,217460,18,22
+168,2026-03-27T07:03:00+05:30,28,5,saas_licenses,Pune Wakad DS-3 Operations SaaS Seats,19,28,67.86,53680,18,22
+169,2026-03-27T07:17:00+05:30,29,5,picker_capacity,Pune Viman Nagar DS-4 Picker Capacity,10,11,90.91,357000,10,11
+170,2026-03-27T07:17:00+05:30,29,5,packer_capacity,Pune Viman Nagar DS-4 Packer Capacity,7,9,77.78,263000,7,9
+171,2026-03-27T07:17:00+05:30,29,5,driver_capacity,Pune Viman Nagar DS-4 Driver Capacity,22,25,88.0,598000,22,25
+172,2026-03-27T07:17:00+05:30,29,5,dispatch_bays,Pune Viman Nagar DS-4 Dispatch Bays,5,5,100.0,162000,22,25
+173,2026-03-27T07:17:00+05:30,29,5,cold_storage,Pune Viman Nagar DS-4 Cold Storage,157,263,59.7,202380,17,20
+174,2026-03-27T07:17:00+05:30,29,5,saas_licenses,Pune Viman Nagar DS-4 Operations SaaS Seats,20,26,76.92,53060,17,20
+175,2026-03-27T07:19:00+05:30,30,5,picker_capacity,Pune Hadapsar DS-5 Picker Capacity,8,10,80.0,345000,8,10
+176,2026-03-27T07:19:00+05:30,30,5,packer_capacity,Pune Hadapsar DS-5 Packer Capacity,3,5,60.0,227000,3,5
+177,2026-03-27T07:19:00+05:30,30,5,driver_capacity,Pune Hadapsar DS-5 Driver Capacity,14,18,77.78,542000,14,18
+178,2026-03-27T07:19:00+05:30,30,5,dispatch_bays,Pune Hadapsar DS-5 Dispatch Bays,3,3,100.0,130000,14,18
+179,2026-03-27T07:19:00+05:30,30,5,cold_storage,Pune Hadapsar DS-5 Cold Storage,105,153,68.63,173780,11,15
+180,2026-03-27T07:19:00+05:30,30,5,saas_licenses,Pune Hadapsar DS-5 Operations SaaS Seats,16,21,76.19,51510,11,15
+181,2026-03-27T07:36:00+05:30,31,6,picker_capacity,Chennai OMR DS-1 Picker Capacity,12,14,85.71,393000,12,14
+182,2026-03-27T07:36:00+05:30,31,6,packer_capacity,Chennai OMR DS-1 Packer Capacity,10,11,90.91,281000,10,11
+183,2026-03-27T07:36:00+05:30,31,6,driver_capacity,Chennai OMR DS-1 Driver Capacity,36,39,92.31,710000,36,39
+184,2026-03-27T07:36:00+05:30,31,6,dispatch_bays,Chennai OMR DS-1 Dispatch Bays,7,7,100.0,194000,36,39
+185,2026-03-27T07:36:00+05:30,31,6,cold_storage,Chennai OMR DS-1 Cold Storage,302,461,65.51,253860,22,25
+186,2026-03-27T07:36:00+05:30,31,6,saas_licenses,Chennai OMR DS-1 Operations SaaS Seats,21,31,67.74,54610,22,25
+187,2026-03-27T07:15:00+05:30,32,6,picker_capacity,Chennai Adyar DS-2 Picker Capacity,11,13,84.62,381000,11,13
+188,2026-03-27T07:15:00+05:30,32,6,packer_capacity,Chennai Adyar DS-2 Packer Capacity,7,9,77.78,263000,7,9
+189,2026-03-27T07:15:00+05:30,32,6,driver_capacity,Chennai Adyar DS-2 Driver Capacity,23,26,88.46,606000,23,26
+190,2026-03-27T07:15:00+05:30,32,6,dispatch_bays,Chennai Adyar DS-2 Dispatch Bays,5,5,100.0,162000,23,26
+191,2026-03-27T07:15:00+05:30,32,6,cold_storage,Chennai Adyar DS-2 Cold Storage,192,240,80.0,196400,18,22
+192,2026-03-27T07:15:00+05:30,32,6,saas_licenses,Chennai Adyar DS-2 Operations SaaS Seats,22,28,78.57,53680,18,22
+193,2026-03-27T07:18:00+05:30,33,6,picker_capacity,Chennai Anna Nagar DS-3 Picker Capacity,4,6,66.67,297000,4,6
+194,2026-03-27T07:18:00+05:30,33,6,packer_capacity,Chennai Anna Nagar DS-3 Packer Capacity,2,4,50.0,218000,2,4
+195,2026-03-27T07:18:00+05:30,33,6,driver_capacity,Chennai Anna Nagar DS-3 Driver Capacity,14,17,82.35,534000,14,17
+196,2026-03-27T07:18:00+05:30,33,6,dispatch_bays,Chennai Anna Nagar DS-3 Dispatch Bays,3,3,100.0,130000,14,17
+197,2026-03-27T07:18:00+05:30,33,6,cold_storage,Chennai Anna Nagar DS-3 Cold Storage,88,145,60.69,171700,6,10
+198,2026-03-27T07:18:00+05:30,33,6,saas_licenses,Chennai Anna Nagar DS-3 Operations SaaS Seats,11,16,68.75,49960,6,10
+199,2026-03-27T07:05:00+05:30,34,6,picker_capacity,Chennai Velachery DS-4 Picker Capacity,7,8,87.5,321000,7,8
+200,2026-03-27T07:05:00+05:30,34,6,packer_capacity,Chennai Velachery DS-4 Packer Capacity,3,4,75.0,218000,3,4
+201,2026-03-27T07:05:00+05:30,34,6,driver_capacity,Chennai Velachery DS-4 Driver Capacity,19,22,86.36,574000,19,22
+202,2026-03-27T07:05:00+05:30,34,6,dispatch_bays,Chennai Velachery DS-4 Dispatch Bays,3,3,100.0,130000,19,22
+203,2026-03-27T07:05:00+05:30,34,6,cold_storage,Chennai Velachery DS-4 Cold Storage,101,125,80.8,166500,10,12
+204,2026-03-27T07:05:00+05:30,34,6,saas_licenses,Chennai Velachery DS-4 Operations SaaS Seats,14,18,77.78,50580,10,12
+205,2026-03-28T07:37:00+05:30,1,1,picker_capacity,Bengaluru HSR DS-1 Picker Capacity,13,14,92.86,393000,13,14
+206,2026-03-28T07:37:00+05:30,1,1,packer_capacity,Bengaluru HSR DS-1 Packer Capacity,7,8,87.5,254000,7,8
+207,2026-03-28T07:37:00+05:30,1,1,driver_capacity,Bengaluru HSR DS-1 Driver Capacity,27,30,90.0,638000,27,30
+208,2026-03-28T07:37:00+05:30,1,1,dispatch_bays,Bengaluru HSR DS-1 Dispatch Bays,5,5,100.0,162000,27,30
+209,2026-03-28T07:37:00+05:30,1,1,cold_storage,Bengaluru HSR DS-1 Cold Storage,179,290,61.72,209400,20,22
+210,2026-03-28T07:37:00+05:30,1,1,saas_licenses,Bengaluru HSR DS-1 Operations SaaS Seats,18,28,64.29,53680,20,22
+211,2026-03-28T07:21:00+05:30,2,1,picker_capacity,Bengaluru Indiranagar DS-2 Picker Capacity,8,10,80.0,345000,8,10
+212,2026-03-28T07:21:00+05:30,2,1,packer_capacity,Bengaluru Indiranagar DS-2 Packer Capacity,8,9,88.89,263000,8,9
+213,2026-03-28T07:21:00+05:30,2,1,driver_capacity,Bengaluru Indiranagar DS-2 Driver Capacity,23,27,85.19,614000,23,27
+214,2026-03-28T07:21:00+05:30,2,1,dispatch_bays,Bengaluru Indiranagar DS-2 Dispatch Bays,5,5,100.0,162000,23,27
+215,2026-03-28T07:21:00+05:30,2,1,cold_storage,Bengaluru Indiranagar DS-2 Cold Storage,335,375,89.33,231500,16,19
+216,2026-03-28T07:21:00+05:30,2,1,saas_licenses,Bengaluru Indiranagar DS-2 Operations SaaS Seats,20,25,80.0,52750,16,19
+217,2026-03-28T07:31:00+05:30,3,1,picker_capacity,Bengaluru Whitefield DS-3 Picker Capacity,9,11,81.82,357000,9,11
+218,2026-03-28T07:31:00+05:30,3,1,packer_capacity,Bengaluru Whitefield DS-3 Packer Capacity,6,7,85.71,245000,6,7
+219,2026-03-28T07:31:00+05:30,3,1,driver_capacity,Bengaluru Whitefield DS-3 Driver Capacity,26,29,89.66,630000,26,29
+220,2026-03-28T07:31:00+05:30,3,1,dispatch_bays,Bengaluru Whitefield DS-3 Dispatch Bays,5,5,100.0,162000,26,29
+221,2026-03-28T07:31:00+05:30,3,1,cold_storage,Bengaluru Whitefield DS-3 Cold Storage,184,298,61.74,211480,15,18
+222,2026-03-28T07:31:00+05:30,3,1,saas_licenses,Bengaluru Whitefield DS-3 Operations SaaS Seats,16,24,66.67,52440,15,18
+223,2026-03-28T07:37:00+05:30,4,1,picker_capacity,Bengaluru Koramangala DS-4 Picker Capacity,10,11,90.91,357000,10,11
+224,2026-03-28T07:37:00+05:30,4,1,packer_capacity,Bengaluru Koramangala DS-4 Packer Capacity,6,7,85.71,245000,6,7
+225,2026-03-28T07:37:00+05:30,4,1,driver_capacity,Bengaluru Koramangala DS-4 Driver Capacity,25,28,89.29,622000,25,28
+226,2026-03-28T07:37:00+05:30,4,1,dispatch_bays,Bengaluru Koramangala DS-4 Dispatch Bays,5,5,100.0,162000,25,28
+227,2026-03-28T07:37:00+05:30,4,1,cold_storage,Bengaluru Koramangala DS-4 Cold Storage,173,226,76.55,192760,16,18
+228,2026-03-28T07:37:00+05:30,4,1,saas_licenses,Bengaluru Koramangala DS-4 Operations SaaS Seats,19,24,79.17,52440,16,18
+229,2026-03-28T07:39:00+05:30,5,1,picker_capacity,Bengaluru Hebbal DS-5 Picker Capacity,7,8,87.5,321000,7,8
+230,2026-03-28T07:39:00+05:30,5,1,packer_capacity,Bengaluru Hebbal DS-5 Packer Capacity,2,4,50.0,218000,2,4
+231,2026-03-28T07:39:00+05:30,5,1,driver_capacity,Bengaluru Hebbal DS-5 Driver Capacity,21,24,87.5,590000,21,24
+232,2026-03-28T07:39:00+05:30,5,1,dispatch_bays,Bengaluru Hebbal DS-5 Dispatch Bays,3,3,100.0,130000,21,24
+233,2026-03-28T07:39:00+05:30,5,1,cold_storage,Bengaluru Hebbal DS-5 Cold Storage,162,204,79.41,187040,9,12
+234,2026-03-28T07:39:00+05:30,5,1,saas_licenses,Bengaluru Hebbal DS-5 Operations SaaS Seats,11,18,61.11,50580,9,12
+235,2026-03-28T07:42:00+05:30,6,1,picker_capacity,Bengaluru Jayanagar DS-6 Picker Capacity,6,8,75.0,321000,6,8
+236,2026-03-28T07:42:00+05:30,6,1,packer_capacity,Bengaluru Jayanagar DS-6 Packer Capacity,3,4,75.0,218000,3,4
+237,2026-03-28T07:42:00+05:30,6,1,driver_capacity,Bengaluru Jayanagar DS-6 Driver Capacity,16,20,80.0,558000,16,20
+238,2026-03-28T07:42:00+05:30,6,1,dispatch_bays,Bengaluru Jayanagar DS-6 Dispatch Bays,3,3,100.0,130000,16,20
+239,2026-03-28T07:42:00+05:30,6,1,cold_storage,Bengaluru Jayanagar DS-6 Cold Storage,95,123,77.24,165980,9,12
+240,2026-03-28T07:42:00+05:30,6,1,saas_licenses,Bengaluru Jayanagar DS-6 Operations SaaS Seats,12,18,66.67,50580,9,12
+241,2026-03-28T07:06:00+05:30,7,1,picker_capacity,Bengaluru HSR DS-7 Picker Capacity,10,11,90.91,357000,10,11
+242,2026-03-28T07:06:00+05:30,7,1,packer_capacity,Bengaluru HSR DS-7 Packer Capacity,7,9,77.78,263000,7,9
+243,2026-03-28T07:06:00+05:30,7,1,driver_capacity,Bengaluru HSR DS-7 Driver Capacity,22,25,88.0,598000,22,25
+244,2026-03-28T07:06:00+05:30,7,1,dispatch_bays,Bengaluru HSR DS-7 Dispatch Bays,5,5,100.0,162000,22,25
+245,2026-03-28T07:06:00+05:30,7,1,cold_storage,Bengaluru HSR DS-7 Cold Storage,206,353,58.36,225780,17,20
+246,2026-03-28T07:06:00+05:30,7,1,saas_licenses,Bengaluru HSR DS-7 Operations SaaS Seats,18,26,69.23,53060,17,20
+247,2026-03-28T07:34:00+05:30,8,2,picker_capacity,Mumbai Powai DS-1 Picker Capacity,5,6,83.33,297000,5,6
+248,2026-03-28T07:34:00+05:30,8,2,packer_capacity,Mumbai Powai DS-1 Packer Capacity,6,7,85.71,245000,6,7
+249,2026-03-28T07:34:00+05:30,8,2,driver_capacity,Mumbai Powai DS-1 Driver Capacity,20,24,83.33,590000,20,24
+250,2026-03-28T07:34:00+05:30,8,2,dispatch_bays,Mumbai Powai DS-1 Dispatch Bays,3,3,100.0,130000,20,24
+251,2026-03-28T07:34:00+05:30,8,2,cold_storage,Mumbai Powai DS-1 Cold Storage,92,140,65.71,170400,11,13
+252,2026-03-28T07:34:00+05:30,8,2,saas_licenses,Mumbai Powai DS-1 Operations SaaS Seats,15,19,78.95,50890,11,13
+253,2026-03-28T07:39:00+05:30,9,2,picker_capacity,Mumbai Andheri DS-2 Picker Capacity,12,13,92.31,381000,12,13
+254,2026-03-28T07:39:00+05:30,9,2,packer_capacity,Mumbai Andheri DS-2 Packer Capacity,7,9,77.78,263000,7,9
+255,2026-03-28T07:39:00+05:30,9,2,driver_capacity,Mumbai Andheri DS-2 Driver Capacity,27,31,87.1,646000,27,31
+256,2026-03-28T07:39:00+05:30,9,2,dispatch_bays,Mumbai Andheri DS-2 Dispatch Bays,5,5,100.0,162000,27,31
+257,2026-03-28T07:39:00+05:30,9,2,cold_storage,Mumbai Andheri DS-2 Cold Storage,242,292,82.88,209920,19,22
+258,2026-03-28T07:39:00+05:30,9,2,saas_licenses,Mumbai Andheri DS-2 Operations SaaS Seats,19,28,67.86,53680,19,22
+259,2026-03-28T07:31:00+05:30,10,2,picker_capacity,Mumbai Bandra DS-3 Picker Capacity,17,18,94.44,441000,17,18
+260,2026-03-28T07:31:00+05:30,10,2,packer_capacity,Mumbai Bandra DS-3 Packer Capacity,12,13,92.31,299000,12,13
+261,2026-03-28T07:31:00+05:30,10,2,driver_capacity,Mumbai Bandra DS-3 Driver Capacity,36,40,90.0,718000,36,40
+262,2026-03-28T07:31:00+05:30,10,2,dispatch_bays,Mumbai Bandra DS-3 Dispatch Bays,7,7,100.0,194000,36,40
+263,2026-03-28T07:31:00+05:30,10,2,cold_storage,Mumbai Bandra DS-3 Cold Storage,264,417,63.31,242420,29,31
+264,2026-03-28T07:31:00+05:30,10,2,saas_licenses,Mumbai Bandra DS-3 Operations SaaS Seats,28,37,75.68,56470,29,31
+265,2026-03-28T07:44:00+05:30,11,2,picker_capacity,Mumbai Thane DS-4 Picker Capacity,6,8,75.0,321000,6,8
+266,2026-03-28T07:44:00+05:30,11,2,packer_capacity,Mumbai Thane DS-4 Packer Capacity,4,5,80.0,227000,4,5
+267,2026-03-28T07:44:00+05:30,11,2,driver_capacity,Mumbai Thane DS-4 Driver Capacity,16,19,84.21,550000,16,19
+268,2026-03-28T07:44:00+05:30,11,2,dispatch_bays,Mumbai Thane DS-4 Dispatch Bays,3,3,100.0,130000,16,19
+269,2026-03-28T07:44:00+05:30,11,2,cold_storage,Mumbai Thane DS-4 Cold Storage,111,124,89.52,166240,10,13
+270,2026-03-28T07:44:00+05:30,11,2,saas_licenses,Mumbai Thane DS-4 Operations SaaS Seats,14,19,73.68,50890,10,13
+271,2026-03-28T07:11:00+05:30,12,2,picker_capacity,Mumbai Ghatkopar DS-5 Picker Capacity,11,12,91.67,369000,11,12
+272,2026-03-28T07:11:00+05:30,12,2,packer_capacity,Mumbai Ghatkopar DS-5 Packer Capacity,7,9,77.78,263000,7,9
+273,2026-03-28T07:11:00+05:30,12,2,driver_capacity,Mumbai Ghatkopar DS-5 Driver Capacity,21,24,87.5,590000,21,24
+274,2026-03-28T07:11:00+05:30,12,2,dispatch_bays,Mumbai Ghatkopar DS-5 Dispatch Bays,5,5,100.0,162000,21,24
+275,2026-03-28T07:11:00+05:30,12,2,cold_storage,Mumbai Ghatkopar DS-5 Cold Storage,162,262,61.83,202120,18,21
+276,2026-03-28T07:11:00+05:30,12,2,saas_licenses,Mumbai Ghatkopar DS-5 Operations SaaS Seats,24,27,88.89,53370,18,21
+277,2026-03-28T07:43:00+05:30,13,2,picker_capacity,Mumbai Navi Mumbai DS-6 Picker Capacity,12,14,85.71,393000,12,14
+278,2026-03-28T07:43:00+05:30,13,2,packer_capacity,Mumbai Navi Mumbai DS-6 Packer Capacity,7,9,77.78,263000,7,9
+279,2026-03-28T07:43:00+05:30,13,2,driver_capacity,Mumbai Navi Mumbai DS-6 Driver Capacity,22,25,88.0,598000,22,25
+280,2026-03-28T07:43:00+05:30,13,2,dispatch_bays,Mumbai Navi Mumbai DS-6 Dispatch Bays,5,5,100.0,162000,22,25
+281,2026-03-28T07:43:00+05:30,13,2,cold_storage,Mumbai Navi Mumbai DS-6 Cold Storage,164,275,59.64,205500,19,23
+282,2026-03-28T07:43:00+05:30,13,2,saas_licenses,Mumbai Navi Mumbai DS-6 Operations SaaS Seats,24,29,82.76,53990,19,23
+283,2026-03-28T07:38:00+05:30,14,2,picker_capacity,Mumbai Powai DS-7 Picker Capacity,12,14,85.71,393000,12,14
+284,2026-03-28T07:38:00+05:30,14,2,packer_capacity,Mumbai Powai DS-7 Packer Capacity,6,7,85.71,245000,6,7
+285,2026-03-28T07:38:00+05:30,14,2,driver_capacity,Mumbai Powai DS-7 Driver Capacity,24,27,88.89,614000,24,27
+286,2026-03-28T07:38:00+05:30,14,2,dispatch_bays,Mumbai Powai DS-7 Dispatch Bays,5,5,100.0,162000,24,27
+287,2026-03-28T07:38:00+05:30,14,2,cold_storage,Mumbai Powai DS-7 Cold Storage,217,283,76.68,207580,18,21
+288,2026-03-28T07:38:00+05:30,14,2,saas_licenses,Mumbai Powai DS-7 Operations SaaS Seats,19,27,70.37,53370,18,21
+289,2026-03-28T07:23:00+05:30,15,3,picker_capacity,Delhi NCR Gurugram DS-1 Picker Capacity,9,11,81.82,357000,9,11
+290,2026-03-28T07:23:00+05:30,15,3,packer_capacity,Delhi NCR Gurugram DS-1 Packer Capacity,8,10,80.0,272000,8,10
+291,2026-03-28T07:23:00+05:30,15,3,driver_capacity,Delhi NCR Gurugram DS-1 Driver Capacity,28,32,87.5,654000,28,32
+292,2026-03-28T07:23:00+05:30,15,3,dispatch_bays,Delhi NCR Gurugram DS-1 Dispatch Bays,5,5,100.0,162000,28,32
+293,2026-03-28T07:23:00+05:30,15,3,cold_storage,Delhi NCR Gurugram DS-1 Cold Storage,211,240,87.92,196400,17,21
+294,2026-03-28T07:23:00+05:30,15,3,saas_licenses,Delhi NCR Gurugram DS-1 Operations SaaS Seats,24,27,88.89,53370,17,21
+295,2026-03-28T07:26:00+05:30,16,3,picker_capacity,Delhi NCR Noida DS-2 Picker Capacity,4,6,66.67,297000,4,6
+296,2026-03-28T07:26:00+05:30,16,3,packer_capacity,Delhi NCR Noida DS-2 Packer Capacity,4,5,80.0,227000,4,5
+297,2026-03-28T07:26:00+05:30,16,3,driver_capacity,Delhi NCR Noida DS-2 Driver Capacity,15,19,78.95,550000,15,19
+298,2026-03-28T07:26:00+05:30,16,3,dispatch_bays,Delhi NCR Noida DS-2 Dispatch Bays,3,3,100.0,130000,15,19
+299,2026-03-28T07:26:00+05:30,16,3,cold_storage,Delhi NCR Noida DS-2 Cold Storage,153,192,79.69,183920,8,11
+300,2026-03-28T07:26:00+05:30,16,3,saas_licenses,Delhi NCR Noida DS-2 Operations SaaS Seats,10,17,58.82,50270,8,11
+301,2026-03-28T07:11:00+05:30,17,3,picker_capacity,Delhi NCR Dwarka DS-3 Picker Capacity,5,7,71.43,309000,5,7
+302,2026-03-28T07:11:00+05:30,17,3,packer_capacity,Delhi NCR Dwarka DS-3 Packer Capacity,4,5,80.0,227000,4,5
+303,2026-03-28T07:11:00+05:30,17,3,driver_capacity,Delhi NCR Dwarka DS-3 Driver Capacity,20,23,86.96,582000,20,23
+304,2026-03-28T07:11:00+05:30,17,3,dispatch_bays,Delhi NCR Dwarka DS-3 Dispatch Bays,3,3,100.0,130000,20,23
+305,2026-03-28T07:11:00+05:30,17,3,cold_storage,Delhi NCR Dwarka DS-3 Cold Storage,152,197,77.16,185220,9,12
+306,2026-03-28T07:11:00+05:30,17,3,saas_licenses,Delhi NCR Dwarka DS-3 Operations SaaS Seats,11,18,61.11,50580,9,12
+307,2026-03-28T07:03:00+05:30,18,3,picker_capacity,Delhi NCR Saket DS-4 Picker Capacity,8,9,88.89,333000,8,9
+308,2026-03-28T07:03:00+05:30,18,3,packer_capacity,Delhi NCR Saket DS-4 Packer Capacity,2,4,50.0,218000,2,4
+309,2026-03-28T07:03:00+05:30,18,3,driver_capacity,Delhi NCR Saket DS-4 Driver Capacity,17,21,80.95,566000,17,21
+310,2026-03-28T07:03:00+05:30,18,3,dispatch_bays,Delhi NCR Saket DS-4 Dispatch Bays,3,3,100.0,130000,17,21
+311,2026-03-28T07:03:00+05:30,18,3,cold_storage,Delhi NCR Saket DS-4 Cold Storage,104,126,82.54,166760,10,13
+312,2026-03-28T07:03:00+05:30,18,3,saas_licenses,Delhi NCR Saket DS-4 Operations SaaS Seats,14,19,73.68,50890,10,13
+313,2026-03-28T07:35:00+05:30,19,3,picker_capacity,Delhi NCR Rohini DS-5 Picker Capacity,9,11,81.82,357000,9,11
+314,2026-03-28T07:35:00+05:30,19,3,packer_capacity,Delhi NCR Rohini DS-5 Packer Capacity,9,10,90.0,272000,9,10
+315,2026-03-28T07:35:00+05:30,19,3,driver_capacity,Delhi NCR Rohini DS-5 Driver Capacity,27,30,90.0,638000,27,30
+316,2026-03-28T07:35:00+05:30,19,3,dispatch_bays,Delhi NCR Rohini DS-5 Dispatch Bays,5,5,100.0,162000,27,30
+317,2026-03-28T07:35:00+05:30,19,3,cold_storage,Delhi NCR Rohini DS-5 Cold Storage,239,292,81.85,209920,18,21
+318,2026-03-28T07:35:00+05:30,19,3,saas_licenses,Delhi NCR Rohini DS-5 Operations SaaS Seats,21,27,77.78,53370,18,21
+319,2026-03-28T07:06:00+05:30,20,3,picker_capacity,Delhi NCR Indirapuram DS-6 Picker Capacity,6,8,75.0,321000,6,8
+320,2026-03-28T07:06:00+05:30,20,3,packer_capacity,Delhi NCR Indirapuram DS-6 Packer Capacity,6,7,85.71,245000,6,7
+321,2026-03-28T07:06:00+05:30,20,3,driver_capacity,Delhi NCR Indirapuram DS-6 Driver Capacity,20,24,83.33,590000,20,24
+322,2026-03-28T07:06:00+05:30,20,3,dispatch_bays,Delhi NCR Indirapuram DS-6 Dispatch Bays,3,3,100.0,130000,20,24
+323,2026-03-28T07:06:00+05:30,20,3,cold_storage,Delhi NCR Indirapuram DS-6 Cold Storage,170,161,105.59,175860,12,15
+324,2026-03-28T07:06:00+05:30,20,3,saas_licenses,Delhi NCR Indirapuram DS-6 Operations SaaS Seats,16,21,76.19,51510,12,15
+325,2026-03-28T07:42:00+05:30,21,4,picker_capacity,Hyderabad Madhapur DS-1 Picker Capacity,10,11,90.91,357000,10,11
+326,2026-03-28T07:42:00+05:30,21,4,packer_capacity,Hyderabad Madhapur DS-1 Packer Capacity,6,7,85.71,245000,6,7
+327,2026-03-28T07:42:00+05:30,21,4,driver_capacity,Hyderabad Madhapur DS-1 Driver Capacity,29,32,90.62,654000,29,32
+328,2026-03-28T07:42:00+05:30,21,4,dispatch_bays,Hyderabad Madhapur DS-1 Dispatch Bays,5,5,100.0,162000,29,32
+329,2026-03-28T07:42:00+05:30,21,4,cold_storage,Hyderabad Madhapur DS-1 Cold Storage,319,367,86.92,229420,16,18
+330,2026-03-28T07:42:00+05:30,21,4,saas_licenses,Hyderabad Madhapur DS-1 Operations SaaS Seats,20,24,83.33,52440,16,18
+331,2026-03-28T07:20:00+05:30,22,4,picker_capacity,Hyderabad Gachibowli DS-2 Picker Capacity,9,13,69.23,381000,9,13
+332,2026-03-28T07:20:00+05:30,22,4,packer_capacity,Hyderabad Gachibowli DS-2 Packer Capacity,5,7,71.43,245000,5,7
+333,2026-03-28T07:20:00+05:30,22,4,driver_capacity,Hyderabad Gachibowli DS-2 Driver Capacity,28,31,90.32,646000,28,31
+334,2026-03-28T07:20:00+05:30,22,4,dispatch_bays,Hyderabad Gachibowli DS-2 Dispatch Bays,4,5,80.0,162000,28,31
+335,2026-03-28T07:20:00+05:30,22,4,cold_storage,Hyderabad Gachibowli DS-2 Cold Storage,233,295,78.98,210700,14,20
+336,2026-03-28T07:20:00+05:30,22,4,saas_licenses,Hyderabad Gachibowli DS-2 Operations SaaS Seats,16,26,61.54,53060,14,20
+337,2026-03-28T07:09:00+05:30,23,4,picker_capacity,Hyderabad Kondapur DS-3 Picker Capacity,9,13,69.23,381000,9,13
+338,2026-03-28T07:09:00+05:30,23,4,packer_capacity,Hyderabad Kondapur DS-3 Packer Capacity,5,7,71.43,245000,5,7
+339,2026-03-28T07:09:00+05:30,23,4,driver_capacity,Hyderabad Kondapur DS-3 Driver Capacity,26,30,86.67,638000,26,30
+340,2026-03-28T07:09:00+05:30,23,4,dispatch_bays,Hyderabad Kondapur DS-3 Dispatch Bays,5,5,100.0,162000,26,30
+341,2026-03-28T07:09:00+05:30,23,4,cold_storage,Hyderabad Kondapur DS-3 Cold Storage,279,321,86.92,217460,14,20
+342,2026-03-28T07:09:00+05:30,23,4,saas_licenses,Hyderabad Kondapur DS-3 Operations SaaS Seats,18,26,69.23,53060,14,20
+343,2026-03-28T07:28:00+05:30,24,4,picker_capacity,Hyderabad Banjara Hills DS-4 Picker Capacity,11,12,91.67,369000,11,12
+344,2026-03-28T07:28:00+05:30,24,4,packer_capacity,Hyderabad Banjara Hills DS-4 Packer Capacity,8,9,88.89,263000,8,9
+345,2026-03-28T07:28:00+05:30,24,4,driver_capacity,Hyderabad Banjara Hills DS-4 Driver Capacity,29,32,90.62,654000,29,32
+346,2026-03-28T07:28:00+05:30,24,4,dispatch_bays,Hyderabad Banjara Hills DS-4 Dispatch Bays,5,5,100.0,162000,29,32
+347,2026-03-28T07:28:00+05:30,24,4,cold_storage,Hyderabad Banjara Hills DS-4 Cold Storage,170,268,63.43,203680,19,21
+348,2026-03-28T07:28:00+05:30,24,4,saas_licenses,Hyderabad Banjara Hills DS-4 Operations SaaS Seats,23,27,85.19,53370,19,21
+349,2026-03-28T07:09:00+05:30,25,4,picker_capacity,Hyderabad Kukatpally DS-5 Picker Capacity,9,10,90.0,345000,9,10
+350,2026-03-28T07:09:00+05:30,25,4,packer_capacity,Hyderabad Kukatpally DS-5 Packer Capacity,7,8,87.5,254000,7,8
+351,2026-03-28T07:09:00+05:30,25,4,driver_capacity,Hyderabad Kukatpally DS-5 Driver Capacity,25,29,86.21,630000,25,29
+352,2026-03-28T07:09:00+05:30,25,4,dispatch_bays,Hyderabad Kukatpally DS-5 Dispatch Bays,5,5,100.0,162000,25,29
+353,2026-03-28T07:09:00+05:30,25,4,cold_storage,Hyderabad Kukatpally DS-5 Cold Storage,138,225,61.33,192500,16,18
+354,2026-03-28T07:09:00+05:30,25,4,saas_licenses,Hyderabad Kukatpally DS-5 Operations SaaS Seats,16,24,66.67,52440,16,18
+355,2026-03-28T07:13:00+05:30,26,5,picker_capacity,Pune Baner DS-1 Picker Capacity,4,6,66.67,297000,4,6
+356,2026-03-28T07:13:00+05:30,26,5,packer_capacity,Pune Baner DS-1 Packer Capacity,5,7,71.43,245000,5,7
+357,2026-03-28T07:13:00+05:30,26,5,driver_capacity,Pune Baner DS-1 Driver Capacity,18,22,81.82,574000,18,22
+358,2026-03-28T07:13:00+05:30,26,5,dispatch_bays,Pune Baner DS-1 Dispatch Bays,3,3,100.0,130000,18,22
+359,2026-03-28T07:13:00+05:30,26,5,cold_storage,Pune Baner DS-1 Cold Storage,93,133,69.92,168580,9,13
+360,2026-03-28T07:13:00+05:30,26,5,saas_licenses,Pune Baner DS-1 Operations SaaS Seats,16,19,84.21,50890,9,13
+361,2026-03-28T07:16:00+05:30,27,5,picker_capacity,Pune Kothrud DS-2 Picker Capacity,12,14,85.71,393000,12,14
+362,2026-03-28T07:16:00+05:30,27,5,packer_capacity,Pune Kothrud DS-2 Packer Capacity,9,10,90.0,272000,9,10
+363,2026-03-28T07:16:00+05:30,27,5,driver_capacity,Pune Kothrud DS-2 Driver Capacity,21,25,84.0,598000,21,25
+364,2026-03-28T07:16:00+05:30,27,5,dispatch_bays,Pune Kothrud DS-2 Dispatch Bays,5,5,100.0,162000,21,25
+365,2026-03-28T07:16:00+05:30,27,5,cold_storage,Pune Kothrud DS-2 Cold Storage,282,368,76.63,229680,21,24
+366,2026-03-28T07:16:00+05:30,27,5,saas_licenses,Pune Kothrud DS-2 Operations SaaS Seats,26,30,86.67,54300,21,24
+367,2026-03-28T07:41:00+05:30,28,5,picker_capacity,Pune Wakad DS-3 Picker Capacity,10,12,83.33,369000,10,12
+368,2026-03-28T07:41:00+05:30,28,5,packer_capacity,Pune Wakad DS-3 Packer Capacity,8,10,80.0,272000,8,10
+369,2026-03-28T07:41:00+05:30,28,5,driver_capacity,Pune Wakad DS-3 Driver Capacity,24,28,85.71,622000,24,28
+370,2026-03-28T07:41:00+05:30,28,5,dispatch_bays,Pune Wakad DS-3 Dispatch Bays,5,5,100.0,162000,24,28
+371,2026-03-28T07:41:00+05:30,28,5,cold_storage,Pune Wakad DS-3 Cold Storage,284,321,88.47,217460,18,22
+372,2026-03-28T07:41:00+05:30,28,5,saas_licenses,Pune Wakad DS-3 Operations SaaS Seats,23,28,82.14,53680,18,22
+373,2026-03-28T07:14:00+05:30,29,5,picker_capacity,Pune Viman Nagar DS-4 Picker Capacity,10,11,90.91,357000,10,11
+374,2026-03-28T07:14:00+05:30,29,5,packer_capacity,Pune Viman Nagar DS-4 Packer Capacity,6,8,75.0,254000,6,8
+375,2026-03-28T07:14:00+05:30,29,5,driver_capacity,Pune Viman Nagar DS-4 Driver Capacity,24,31,77.42,646000,24,31
+376,2026-03-28T07:14:00+05:30,29,5,dispatch_bays,Pune Viman Nagar DS-4 Dispatch Bays,4,5,80.0,162000,24,31
+377,2026-03-28T07:14:00+05:30,29,5,cold_storage,Pune Viman Nagar DS-4 Cold Storage,153,263,58.17,202380,16,19
+378,2026-03-28T07:14:00+05:30,29,5,saas_licenses,Pune Viman Nagar DS-4 Operations SaaS Seats,17,25,68.0,52750,16,19
+379,2026-03-28T07:25:00+05:30,30,5,picker_capacity,Pune Hadapsar DS-5 Picker Capacity,9,10,90.0,345000,9,10
+380,2026-03-28T07:25:00+05:30,30,5,packer_capacity,Pune Hadapsar DS-5 Packer Capacity,2,4,50.0,218000,2,4
+381,2026-03-28T07:25:00+05:30,30,5,driver_capacity,Pune Hadapsar DS-5 Driver Capacity,19,22,86.36,574000,19,22
+382,2026-03-28T07:25:00+05:30,30,5,dispatch_bays,Pune Hadapsar DS-5 Dispatch Bays,3,3,100.0,130000,19,22
+383,2026-03-28T07:25:00+05:30,30,5,cold_storage,Pune Hadapsar DS-5 Cold Storage,135,153,88.24,173780,11,14
+384,2026-03-28T07:25:00+05:30,30,5,saas_licenses,Pune Hadapsar DS-5 Operations SaaS Seats,17,20,85.0,51200,11,14
+385,2026-03-28T07:24:00+05:30,31,6,picker_capacity,Chennai OMR DS-1 Picker Capacity,15,17,88.24,429000,15,17
+386,2026-03-28T07:24:00+05:30,31,6,packer_capacity,Chennai OMR DS-1 Packer Capacity,9,10,90.0,272000,9,10
+387,2026-03-28T07:24:00+05:30,31,6,driver_capacity,Chennai OMR DS-1 Driver Capacity,33,36,91.67,686000,33,36
+388,2026-03-28T07:24:00+05:30,31,6,dispatch_bays,Chennai OMR DS-1 Dispatch Bays,7,7,100.0,194000,33,36
+389,2026-03-28T07:24:00+05:30,31,6,cold_storage,Chennai OMR DS-1 Cold Storage,334,461,72.45,253860,24,27
+390,2026-03-28T07:24:00+05:30,31,6,saas_licenses,Chennai OMR DS-1 Operations SaaS Seats,22,33,66.67,55230,24,27
+391,2026-03-28T07:17:00+05:30,32,6,picker_capacity,Chennai Adyar DS-2 Picker Capacity,12,14,85.71,393000,12,14
+392,2026-03-28T07:17:00+05:30,32,6,packer_capacity,Chennai Adyar DS-2 Packer Capacity,8,9,88.89,263000,8,9
+393,2026-03-28T07:17:00+05:30,32,6,driver_capacity,Chennai Adyar DS-2 Driver Capacity,20,24,83.33,590000,20,24
+394,2026-03-28T07:17:00+05:30,32,6,dispatch_bays,Chennai Adyar DS-2 Dispatch Bays,5,5,100.0,162000,20,24
+395,2026-03-28T07:17:00+05:30,32,6,cold_storage,Chennai Adyar DS-2 Cold Storage,198,240,82.5,196400,20,23
+396,2026-03-28T07:17:00+05:30,32,6,saas_licenses,Chennai Adyar DS-2 Operations SaaS Seats,25,29,86.21,53990,20,23
+397,2026-03-28T07:34:00+05:30,33,6,picker_capacity,Chennai Anna Nagar DS-3 Picker Capacity,5,7,71.43,309000,5,7
+398,2026-03-28T07:34:00+05:30,33,6,packer_capacity,Chennai Anna Nagar DS-3 Packer Capacity,3,5,60.0,227000,3,5
+399,2026-03-28T07:34:00+05:30,33,6,driver_capacity,Chennai Anna Nagar DS-3 Driver Capacity,21,24,87.5,590000,21,24
+400,2026-03-28T07:34:00+05:30,33,6,dispatch_bays,Chennai Anna Nagar DS-3 Dispatch Bays,3,3,100.0,130000,21,24
+401,2026-03-28T07:34:00+05:30,33,6,cold_storage,Chennai Anna Nagar DS-3 Cold Storage,89,145,61.38,171700,8,12
+402,2026-03-28T07:34:00+05:30,33,6,saas_licenses,Chennai Anna Nagar DS-3 Operations SaaS Seats,15,18,83.33,50580,8,12
+403,2026-03-28T07:16:00+05:30,34,6,picker_capacity,Chennai Velachery DS-4 Picker Capacity,6,7,85.71,309000,6,7
+404,2026-03-28T07:16:00+05:30,34,6,packer_capacity,Chennai Velachery DS-4 Packer Capacity,5,7,71.43,245000,5,7
+405,2026-03-28T07:16:00+05:30,34,6,driver_capacity,Chennai Velachery DS-4 Driver Capacity,15,19,78.95,550000,15,19
+406,2026-03-28T07:16:00+05:30,34,6,dispatch_bays,Chennai Velachery DS-4 Dispatch Bays,3,3,100.0,130000,15,19
+407,2026-03-28T07:16:00+05:30,34,6,cold_storage,Chennai Velachery DS-4 Cold Storage,93,125,74.4,166500,11,14
+408,2026-03-28T07:16:00+05:30,34,6,saas_licenses,Chennai Velachery DS-4 Operations SaaS Seats,14,20,70.0,51200,11,14

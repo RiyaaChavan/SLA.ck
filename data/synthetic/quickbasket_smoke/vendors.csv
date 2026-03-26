@@ -1,0 +1,11 @@
+vendor_id,org_id,vendor_name,vendor_category,city_scope,risk_rating,billing_cycle,payment_terms_days
+1,1,FlashFleet Partners,last_mile_partner,all_india,0.41,weekly,14
+2,1,SwiftDrop Logistics,last_mile_partner,regional,0.46,weekly,10
+3,1,PackRight Materials,packaging_supplier,all_india,0.28,monthly,30
+4,1,FreshWrap Consumables,packaging_supplier,regional,0.34,monthly,21
+5,1,CoolChain Services,cold_chain_supplier,regional,0.31,monthly,21
+6,1,NorthStar Cold Logistics,cold_chain_supplier,all_india,0.37,monthly,30
+7,1,ShiftPilot Staffing,staffing_agency,regional,0.43,weekly,14
+8,1,BlueCrew Workforce,staffing_agency,all_india,0.39,weekly,14
+9,1,OpsGrid SaaS,software_saas,all_india,0.18,monthly,30
+10,1,RouteSense Cloud,software_saas,all_india,0.22,monthly,30

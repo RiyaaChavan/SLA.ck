@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import Session
 
 from app.db.session import get_db
@@ -15,11 +16,14 @@ from app.schemas.api import (
     AuditFeedItem,
     CaseDetailOut,
     CaseSummaryOut,
+    DataSourceConnectIn,
+    DataSourceConnectOut,
     DataSourceSummaryOut,
     DataSourceUploadIn,
     DashboardOverview,
     DetectorDefinitionCreateIn,
     DetectorDefinitionOut,
+    DetectorDefinitionPatchIn,
     DetectorDraftOut,
     DetectorPromptDraftIn,
     DetectorTestOut,
@@ -29,9 +33,16 @@ from app.schemas.api import (
     LiveWorkItemOut,
     OrganizationOut,
     RecommendationDecisionIn,
+    RelationalSourceImportIn,
+    RelationalSourceImportOut,
     ReportRequest,
     ResourceOverview,
+    SavedAnomalyQueryOut,
     SeedResponse,
+    SyntheticBundleImportIn,
+    SyntheticBundleImportOut,
+    DatasetPreviewOut,
+    DatasetSummaryOut,
     SlaExtractionApproveIn,
     SlaExtractionBatchOut,
     SlaExtractionReviewResult,
@@ -40,6 +51,7 @@ from app.schemas.api import (
     SlaRulebookEntryCreateIn,
     SlaRulebookEntryOut,
     SlaRulebookEntryUpdateIn,
+    SourceAgentMemoryOut,
 )
 from app.services.action_center import (
     approve_action_request,
@@ -56,9 +68,12 @@ from app.services.detectors import (
     build_prompt_draft,
     create_detector as create_detector_definition,
     list_detectors,
+    patch_detector as patch_detector_record,
     test_detector,
 )
 from app.services.impact import impact_overview
+from app.services.ingestion.bundle_importer import import_synthetic_bundle
+from app.services.ingestion.relational_source import import_quick_commerce_relational_source
 from app.services.live_ops import list_live_ops
 from app.services.query.investigator import run_investigation
 from app.services.reporting.reporter import generate_pdf_report, list_reports
@@ -73,6 +88,13 @@ from app.services.sla_rulebook import (
     list_rulebook_entries,
 )
 from app.services.sla.rulebook import archive_rulebook_entry, create_rulebook_entry, update_rulebook_entry
+from app.services.source_agents import (
+    connect_relational_source,
+    get_source_agent_memory,
+    list_saved_anomaly_queries,
+    list_source_datasets,
+    preview_source_dataset,
+)
 from app.services.workflow.approval import decide_recommendation
 
 
@@ -87,6 +109,40 @@ def healthcheck() -> dict[str, str]:
 @router.post("/bootstrap/seed", response_model=SeedResponse)
 def bootstrap_seed(reset: bool = False, db: Session = Depends(get_db)) -> SeedResponse:
     return SeedResponse.model_validate(seed_database(db, reset=reset))
+
+
+@router.post("/bootstrap/import-synthetic-bundle", response_model=SyntheticBundleImportOut)
+def bootstrap_import_synthetic_bundle(
+    payload: SyntheticBundleImportIn, db: Session = Depends(get_db)
+) -> SyntheticBundleImportOut:
+    try:
+        return SyntheticBundleImportOut.model_validate(
+            import_synthetic_bundle(
+                db,
+                bundle_name=payload.bundle_name,
+                bundle_path=payload.bundle_path,
+                reset=payload.reset,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/bootstrap/import-relational-source", response_model=RelationalSourceImportOut)
+def bootstrap_import_relational_source(
+    payload: RelationalSourceImportIn, db: Session = Depends(get_db)
+) -> RelationalSourceImportOut:
+    try:
+        return RelationalSourceImportOut.model_validate(
+            import_quick_commerce_relational_source(
+                db,
+                database_url=payload.database_url,
+                schema=payload.schema_name,
+                reset=payload.reset,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.get("/organizations", response_model=list[OrganizationOut])
@@ -194,6 +250,86 @@ def upload_data_source(
     )
 
 
+@router.post("/data-sources/connect-relational", response_model=DataSourceConnectOut)
+def connect_data_source_relational(
+    payload: DataSourceConnectIn, db: Session = Depends(get_db)
+) -> DataSourceConnectOut:
+    try:
+        return DataSourceConnectOut.model_validate(
+            connect_relational_source(
+                db,
+                database_url=payload.database_url,
+                schema_name=payload.schema_name,
+                reset=payload.reset,
+                schema_notes=payload.schema_notes,
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.get("/data-sources/{organization_id}/datasets", response_model=list[DatasetSummaryOut])
+def get_data_source_datasets(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[DatasetSummaryOut]:
+    try:
+        return [
+            DatasetSummaryOut.model_validate(item)
+            for item in list_source_datasets(db, organization_id)
+        ]
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/data-sources/{organization_id}/datasets/{dataset_name}/preview",
+    response_model=DatasetPreviewOut,
+)
+def get_data_source_dataset_preview(
+    organization_id: int,
+    dataset_name: str,
+    limit: int = 25,
+    db: Session = Depends(get_db),
+) -> DatasetPreviewOut:
+    try:
+        return DatasetPreviewOut.model_validate(
+            preview_source_dataset(db, organization_id, dataset_name, limit=limit)
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except OperationalError as exc:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Cannot reach the connected source database. "
+                "Use an absolute SQLite path or a database host the API process can access."
+            ),
+        ) from exc
+
+
+@router.get("/data-sources/{organization_id}/agent-memory", response_model=SourceAgentMemoryOut)
+def get_data_source_agent_memory_route(
+    organization_id: int, db: Session = Depends(get_db)
+) -> SourceAgentMemoryOut:
+    try:
+        return SourceAgentMemoryOut.model_validate(get_source_agent_memory(db, organization_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get(
+    "/data-sources/{organization_id}/anomaly-queries",
+    response_model=list[SavedAnomalyQueryOut],
+)
+def get_data_source_anomaly_queries(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[SavedAnomalyQueryOut]:
+    return [
+        SavedAnomalyQueryOut.model_validate(item)
+        for item in list_saved_anomaly_queries(db, organization_id)
+    ]
+
+
 @router.get("/detectors/{organization_id}", response_model=list[DetectorDefinitionOut])
 def get_detectors(
     organization_id: int, db: Session = Depends(get_db)
@@ -215,6 +351,18 @@ def create_detector(
     return DetectorDefinitionOut.model_validate(
         create_detector_definition(db, organization_id, payload.model_dump())
     )
+
+
+@router.patch("/detectors/{detector_id}", response_model=DetectorDefinitionOut)
+def patch_detector(
+    detector_id: int, payload: DetectorDefinitionPatchIn, db: Session = Depends(get_db)
+) -> DetectorDefinitionOut:
+    try:
+        return DetectorDefinitionOut.model_validate(
+            patch_detector_record(db, detector_id, enabled=payload.enabled)
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.post("/detectors/{detector_id}/test", response_model=DetectorTestOut)

@@ -5,12 +5,17 @@ import type {
   CaseDetail,
   CaseSummary,
   CasesListParams,
+  DataSourceConnectResult,
   DataSourceSummary,
+  DatasetPreview,
+  DatasetSummary,
   DetectorDefinition,
   DetectorDraft,
   DetectorTestResult,
   ImpactOverview,
   LiveWorkItem,
+  SavedAnomalyQuery,
+  SourceAgentMemory,
   SlaExtractionBatch,
   SlaRulebookEntry,
 } from "../../domain/business-sentry";
@@ -94,9 +99,18 @@ export type BusinessSentryAdapter = {
   listLiveOps(organizationId: number): Promise<LiveWorkItem[]>;
   listDataSources(organizationId: number): Promise<DataSourceSummary[]>;
   uploadDataSource(organizationId: number, fileName: string): Promise<DataSourceUploadResponse>;
+  connectRelationalSource(databaseUrl: string, schema: string, schemaNotes?: string): Promise<DataSourceConnectResult>;
+  listSourceDatasets(organizationId: number): Promise<DatasetSummary[]>;
+  previewSourceDataset(organizationId: number, datasetName: string): Promise<DatasetPreview>;
+  getSourceAgentMemory(organizationId: number): Promise<SourceAgentMemory | null>;
+  listSavedAnomalyQueries(organizationId: number): Promise<SavedAnomalyQuery[]>;
   listDetectors(organizationId: number): Promise<DetectorDefinition[]>;
   createDetector(organizationId: number, body: Partial<DetectorDefinition>): Promise<DetectorCreateResponse>;
-  promptDraftDetector(prompt: string): Promise<{ draft: DetectorDraft }>;
+  promptDraftDetector(
+    organizationId: number,
+    prompt: string,
+    module?: string | null,
+  ): Promise<{ draft: DetectorDraft }>;
   testDetector(detectorId: string): Promise<DetectorTestResult>;
   updateDetectorEnabled(detectorId: string, enabled: boolean): Promise<DetectorDefinition | null>;
   listSlaRules(organizationId: number): Promise<SlaRulebookEntry[]>;

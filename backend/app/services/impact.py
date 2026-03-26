@@ -37,7 +37,13 @@ def impact_overview(db: Session, organization_id: int) -> dict:
         vendor_rollup[item["vendor"]]["projected_impact"] += item["projected_impact"]
         vendor_rollup[item["vendor"]]["case_count"] += 1
 
-    workflows = db.query(Workflow).filter(Workflow.organization_id == organization_id).all()
+    workflows = (
+        db.query(Workflow)
+        .filter(Workflow.organization_id == organization_id)
+        .filter(Workflow.resolved_at.is_(None))
+        .filter(Workflow.status.in_(("open", "pending", "active")))
+        .all()
+    )
     team_backlog: dict[str, dict[str, float]] = defaultdict(
         lambda: {"overload_hours": 0.0, "projected_impact": 0.0}
     )

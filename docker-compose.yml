@@ -1,4 +1,15 @@
 services:
+  source-postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: ${SOURCE_POSTGRES_USER:-source_demo}
+      POSTGRES_PASSWORD: ${SOURCE_POSTGRES_PASSWORD:-source_demo}
+      POSTGRES_DB: ${SOURCE_POSTGRES_DB:-source_demo}
+    ports:
+      - "5433:5432"
+    volumes:
+      - source_postgres_data:/var/lib/postgresql/data
+
   postgres:
     image: postgres:16
     environment:
@@ -29,6 +40,9 @@ services:
     depends_on:
       - postgres
       - redis
+    volumes:
+      - ./backend:/app
+      - ./data:/data
     ports:
       - "8000:8000"
 
@@ -45,3 +59,4 @@ services:
 
 volumes:
   postgres_data:
+  source_postgres_data:

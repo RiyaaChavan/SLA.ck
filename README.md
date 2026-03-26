@@ -75,3 +75,90 @@ Enterprise-like datasets are generated from YAML profiles in [`data/seed_profile
 - sample source schemas for normalization
 
 The backend converts these profiles into normalized relational data, then scans for alerts and generates executive PDF reports.
+
+## Quick-Commerce Synthetic Data
+
+A richer Blinkit-style synthetic dataset is available under [`data/synthetic/quickbasket_india`](./data/synthetic/quickbasket_india). It includes dark stores, teams, employees, drivers, orders, delivery events, inventory snapshots, work items, invoices, and ground-truth anomalies.
+
+To regenerate it:
+
+```bash
+cd backend
+uv run python ../scripts/generate_quickbasket_synthetic_data.py --output-dir ../data/synthetic/quickbasket_india --days 14
+```
+
+The generation spec used for this bundle lives in [`docs/blinkit_synthetic_data_guide.md`](./docs/blinkit_synthetic_data_guide.md).
+
+### Load It Into The App Database
+
+The website should consume normalized Business Sentry entities, not QuickBasket-specific tables. To test that path, import the synthetic bundle into the app database through the generic bundle adapter.
+
+Start the Docker stack with PostgreSQL:
+
+```bash
+docker compose up --build -d postgres redis backend frontend
+```
+
+Then import the bundle into the app DB:
+
+```bash
+cd backend
+uv run python ../scripts/import_synthetic_bundle_to_app.py --bundle-name quickbasket_india
+```
+
+Or through the API:
+
+```bash
+curl -X POST http://localhost:8000/api/bootstrap/import-synthetic-bundle \
+  -H "Content-Type: application/json" \
+  -d '{"bundle_name":"quickbasket_india","reset":true}'
+```
+
+The importer maps the raw quick-commerce CSVs into the app’s generic models:
+
+- `work_items -> Workflow`
+- `invoices -> Invoice`
+- `contracts -> Contract`
+- `inventory_snapshots -> ResourceSnapshot`
+- `teams -> Department`
+- `vendors -> Vendor`
+
+That keeps the product dynamic: the synthetic bundle is just one ingestion adapter, not a hardcoded UI-specific dataset.
+
+### Load It Through An External Postgres Source
+
+If you want to test the SaaS against a real source database instead of local CSV files, the repo now includes a separate Dockerized Postgres source path.
+
+Start the app database and the raw source database:
+
+```bash
+docker compose up --build -d postgres source-postgres redis backend frontend
+```
+
+Load the raw bundle into the source Postgres instance:
+
+```bash
+cd backend
+uv run python ../scripts/load_synthetic_bundle_into_postgres.py \
+  --database-url postgresql+psycopg://source_demo:source_demo@localhost:5433/source_demo \
+  --schema synthetic_demo
+```
+
+Then import that relational source into the app through the generic relational adapter:
+
+```bash
+curl -X POST http://localhost:8000/api/bootstrap/import-relational-source \
+  -H "Content-Type: application/json" \
+  -d '{"database_url":"postgresql+psycopg://source_demo:source_demo@source-postgres:5432/source_demo","schema":"synthetic_demo","reset":true}'
+```
+
+Or from the CLI:
+
+```bash
+cd backend
+uv run python ../scripts/import_relational_source_to_app.py \
+  --database-url postgresql+psycopg://source_demo:source_demo@localhost:5433/source_demo \
+  --schema synthetic_demo
+```
+
+This path keeps the app generic: the UI sees normalized `Workflow`, `Invoice`, `ResourceSnapshot`, `Department`, and `Vendor` records, while `Data Sources` still shows the connected raw source tables and their schemas.

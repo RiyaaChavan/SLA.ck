@@ -1,46 +1,21 @@
+import { NavLink } from "react-router-dom";
+import { PageHeader } from "../components/business-sentry/PageHeader";
 import { SectionCard } from "../components/shared/SectionCard";
 import { StatCard } from "../components/shared/StatCard";
-import { PageHeader } from "../components/business-sentry/PageHeader";
-import { StateBlock } from "../components/business-sentry/StateBlock";
+import { demoAnomalyHits, demoAnomalyQueries, demoImpactOverview } from "../demo/businessSentryHardcoded";
 import { formatMoneyInr, formatModuleLabel } from "../lib/formatters";
-import { useImpactOverview } from "../hooks/useBusinessSentry";
-import { NavLink } from "react-router-dom";
 
 type ImpactPageProps = {
   organizationId?: number;
 };
 
-export function ImpactPage({ organizationId }: ImpactPageProps) {
-  const q = useImpactOverview(organizationId);
-
-  if (!organizationId) {
-    return (
-      <div className="page-content">
-        <StateBlock title="Select a workspace" description="Choose an organization in the sidebar after bootstrapping data." />
-      </div>
-    );
-  }
-
-  if (q.isPending) {
-    return (
-      <div className="page-content">
-        <StateBlock title="Loading impact" loading />
-      </div>
-    );
-  }
-
-  if (q.isError || !q.data) {
-    return (
-      <div className="page-content">
-        <StateBlock title="Could not load impact" description={(q.error as Error)?.message ?? "Unknown error"} />
-      </div>
-    );
-  }
-
-  const d = q.data;
+export function ImpactPage(_: ImpactPageProps) {
+  const d = demoImpactOverview;
   const funnel = d.approval_execution_funnel;
   const maxBar = Math.max(
-    ...d.realized_vs_projected.realized_savings.map((v, i) => Math.max(v, d.realized_vs_projected.projected_savings[i] ?? 0)),
+    ...d.realized_vs_projected.realized_savings.map((v, i) =>
+      Math.max(v, d.realized_vs_projected.projected_savings[i] ?? 0),
+    ),
     1,
   );
 
@@ -48,7 +23,7 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
     <div className="page-content">
       <PageHeader
         title="Anomalies"
-        subtitle={`Dashboard for ${d.organization.name} — money at risk, savings trend, and approval funnel.`}
+        subtitle={`Live anomaly dashboard for ${d.organization.name} — financial leakage, SLA exposure, and action-ready cases.`}
       />
 
       <div className="stat-grid">
@@ -57,7 +32,7 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
             key={m.label}
             label={m.label}
             value={
-              m.label.toLowerCase().includes("case") || m.label.toLowerCase().includes("breach")
+              m.label.toLowerCase().includes("anomal") || m.label.toLowerCase().includes("action")
                 ? String(Math.round(m.value))
                 : formatMoneyInr(m.value)
             }
@@ -67,23 +42,23 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
       </div>
 
       <div className="split-grid">
-        <SectionCard title="Realized vs projected savings" subtitle="Weekly trend (demo currency)">
+        <SectionCard title="Realized vs projected savings" subtitle="Weekly recovery trend">
           <div className="bs-chart-bars">
             {d.realized_vs_projected.periods.map((p, i) => {
-              const r = d.realized_vs_projected.realized_savings[i] ?? 0;
-              const pr = d.realized_vs_projected.projected_savings[i] ?? 0;
+              const realized = d.realized_vs_projected.realized_savings[i] ?? 0;
+              const projected = d.realized_vs_projected.projected_savings[i] ?? 0;
               return (
                 <div key={p} className="bs-chart-col">
                   <div className="bs-chart-bars-inner">
                     <div
                       className="bs-bar bs-bar-realized"
-                      style={{ height: `${(r / maxBar) * 100}%` }}
-                      title={formatMoneyInr(r)}
+                      style={{ height: `${(realized / maxBar) * 100}%` }}
+                      title={formatMoneyInr(realized)}
                     />
                     <div
                       className="bs-bar bs-bar-projected"
-                      style={{ height: `${(pr / maxBar) * 100}%` }}
-                      title={formatMoneyInr(pr)}
+                      style={{ height: `${(projected / maxBar) * 100}%` }}
+                      title={formatMoneyInr(projected)}
                     />
                   </div>
                   <span className="bs-chart-label">{p}</span>
@@ -101,7 +76,7 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Approval / execution funnel" subtitle="Action pipeline volume">
+        <SectionCard title="Approval / execution funnel" subtitle="Current action pipeline">
           <div className="bs-funnel">
             <div className="bs-funnel-row">
               <span>Pending approval</span>
@@ -136,13 +111,17 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Top teams by overload" subtitle="Open items and SLA breach risk">
+        <SectionCard title="Top teams by overload" subtitle="Open items and breach pressure">
           <div className="bs-table-simple">
             {d.top_teams_by_overload.map((t) => (
               <div key={t.team} className="bs-table-row">
                 <span>{t.team}</span>
                 <span className="bs-muted">{t.open_items} open</span>
-                <span className={`badge badge-${t.sla_breach_risk === "high" ? "critical" : t.sla_breach_risk === "medium" ? "high" : "default"}`}>
+                <span
+                  className={`badge badge-${
+                    t.sla_breach_risk === "high" ? "critical" : t.sla_breach_risk === "medium" ? "high" : "default"
+                  }`}
+                >
                   {t.sla_breach_risk}
                 </span>
               </div>
@@ -151,7 +130,30 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
         </SectionCard>
       </div>
 
-      <SectionCard title="Recent high-risk cases" subtitle="Latest ranked issues" flush>
+      <SectionCard title="Detector hits" subtitle="Live anomaly tiles driven by the saved preset SQL">
+        <div className="bs-query-list">
+          {demoAnomalyHits.map((hit) => {
+            const sourceQuery = demoAnomalyQueries.find((query) => query.id === hit.queryId);
+            return (
+              <div key={hit.queryId} className="bs-query-card">
+                <div className="bs-query-head">
+                  <strong>{sourceQuery?.name ?? hit.title}</strong>
+                  <span className="badge badge-critical">{hit.triggeredCases} hits</span>
+                </div>
+                <div className="card-subtitle">{hit.title}</div>
+                <div className="bs-inline-meta" style={{ marginTop: 10 }}>
+                  <span className="bs-pill">{hit.owner}</span>
+                  <span className="bs-pill">{formatMoneyInr(hit.impactInr)} at risk</span>
+                  <span className="bs-pill">{sourceQuery?.category ?? "detector"}</span>
+                </div>
+                {sourceQuery ? <pre className="bs-code-block">{sourceQuery.sql_text}</pre> : null}
+              </div>
+            );
+          })}
+        </div>
+      </SectionCard>
+
+      <SectionCard title="Recent high-risk cases" subtitle="Latest ranked anomalies" flush>
         <div className="table-wrapper">
           <table>
             <thead>

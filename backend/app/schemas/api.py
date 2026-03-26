@@ -9,6 +9,49 @@ class SeedResponse(BaseModel):
     reports_generated: int
 
 
+class SyntheticBundleImportIn(BaseModel):
+    bundle_name: str | None = "quickbasket_india"
+    bundle_path: str | None = None
+    reset: bool = True
+
+
+class SyntheticBundleImportOut(BaseModel):
+    organization_id: int
+    organization_name: str
+    bundle_dir: str
+    departments_created: int
+    vendors_created: int
+    contracts_created: int
+    workflows_created: int
+    invoices_created: int
+    resource_snapshots_created: int
+    source_uploads_created: int
+    raw_anomalies_available: int
+    alerts_generated: int
+
+
+class RelationalSourceImportIn(BaseModel):
+    database_url: str
+    schema_name: str = Field(default="public", validation_alias="schema", serialization_alias="schema")
+    reset: bool = True
+
+
+class RelationalSourceImportOut(BaseModel):
+    organization_id: int
+    organization_name: str
+    source_database: str
+    schema_name: str = Field(validation_alias="schema", serialization_alias="schema")
+    departments_created: int
+    vendors_created: int
+    contracts_created: int
+    workflows_created: int
+    invoices_created: int
+    resource_snapshots_created: int
+    source_uploads_created: int
+    raw_anomalies_available: int
+    alerts_generated: int
+
+
 class OrganizationOut(BaseModel):
     id: int
     name: str
@@ -266,6 +309,62 @@ class DataSourceUploadIn(BaseModel):
     sample_columns: list[str] = Field(default_factory=list)
 
 
+class DataSourceConnectIn(BaseModel):
+    database_url: str
+    schema_name: str = Field(default="public", validation_alias="schema", serialization_alias="schema")
+    schema_notes: str | None = None
+    reset: bool = True
+
+
+class DataSourceConnectOut(BaseModel):
+    organization_id: int
+    organization_name: str
+    source_database: str
+    schema_name: str = Field(validation_alias="schema", serialization_alias="schema")
+    source_uploads_created: int
+    alerts_generated: int
+
+
+class DatasetSummaryOut(BaseModel):
+    name: str
+    record_count: int
+    columns: list[str]
+    source_uri: str
+    schema_name: str = Field(validation_alias="schema", serialization_alias="schema")
+
+
+class DatasetPreviewOut(BaseModel):
+    name: str
+    columns: list[str]
+    rows: list[dict]
+    row_count: int
+    source_uri: str
+    schema_name: str = Field(validation_alias="schema", serialization_alias="schema")
+
+
+class SourceAgentMemoryOut(BaseModel):
+    id: int
+    status: str
+    engine_name: str
+    summary_text: str
+    dashboard_brief: str
+    schema_notes: str | None = None
+    memory_path: str | None = None
+    context_snapshot: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class SavedAnomalyQueryOut(BaseModel):
+    id: int
+    name: str
+    description: str
+    sql_text: str
+    category: str
+    enabled: bool
+    created_at: datetime
+
+
 class DetectorDefinitionBase(BaseModel):
     detector_key: str | None = None
     name: str
@@ -285,6 +384,10 @@ class DetectorDefinitionBase(BaseModel):
 
 class DetectorDefinitionCreateIn(DetectorDefinitionBase):
     pass
+
+
+class DetectorDefinitionPatchIn(BaseModel):
+    enabled: bool
 
 
 class DetectorDefinitionOut(DetectorDefinitionBase):
