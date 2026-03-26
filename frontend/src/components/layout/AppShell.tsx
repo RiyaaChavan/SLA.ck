@@ -338,22 +338,18 @@ export function AppShell({
   const isHome = location.pathname === "/";
 
   useEffect(() => {
-    if (isHome) {
-      document.body.classList.remove("theme-light");
-    } else {
-      document.body.classList.add("theme-light");
-    }
-  }, [isHome]);
+    document.body.classList.remove("theme-dep");
+  }, []);
 
   return (
-    <div className={`app-shell ${isHome ? "" : "theme-light"}`}>
+    <div className={`app-shell ${isHome ? "app-shell-home" : "app-shell-workspace"}`}>
       <header className="app-topnav">
         <div className="app-topnav-inner">
           <div className="app-topnav-brand">
             <Link to="/" className="app-topnav-logo-link">
               <span className="app-topnav-mark">BS</span>
               <span className="app-topnav-brand-text">
-                <span className="app-topnav-name">Business Sentry</span>
+                <span className="app-topnav-name">SLA.ck</span>
               </span>
             </Link>
           </div>
@@ -378,22 +374,27 @@ export function AppShell({
           </nav>
 
           <div className="app-topnav-actions">
-            <label className="topnav-workspace">
-              <span className="topnav-workspace-label">Workspace</span>
-              <select
-                className="topnav-workspace-select"
-                value={selectedOrganizationId ?? ""}
-                onChange={(e) => onOrganizationChange(Number(e.target.value))}
-                disabled={!organizations.length}
-              >
-                {organizations.length === 0 ? <option value="">None</option> : null}
-                {organizations.map((org) => (
-                  <option key={org.id} value={org.id}>
-                    {org.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {organizations.length ? (
+              <label className="topnav-workspace">
+                <span className="topnav-workspace-label">Workspace</span>
+                <select
+                  className="topnav-workspace-select"
+                  value={selectedOrganizationId ?? ""}
+                  onChange={(e) => onOrganizationChange(Number(e.target.value))}
+                >
+                  {organizations.map((org) => (
+                    <option key={org.id} value={org.id}>
+                      {org.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <div className="topnav-workspace-empty" aria-live="polite">
+                <span className="topnav-workspace-label">Workspace</span>
+                <span className="topnav-workspace-hint">Connect a source</span>
+              </div>
+            )}
             <button type="button" className="topnav-seed-btn" onClick={onSeed} disabled={seeding}>
               <IconPlus />
               {seeding ? "…" : "Seed"}

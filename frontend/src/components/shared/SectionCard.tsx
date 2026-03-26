@@ -5,11 +5,12 @@ type SectionCardProps = PropsWithChildren<{
   subtitle?: string;
   action?: ReactNode;
   flush?: boolean;
+  className?: string;
 }>;
 
-export function SectionCard({ title, subtitle, action, flush, children }: SectionCardProps) {
+export function SectionCard({ title, subtitle, action, flush, className, children }: SectionCardProps) {
   return (
-    <div className="card">
+    <div className={`card${className ? ` ${className}` : ""}`}>
       <div className="card-header">
         <div>
           <div className="card-title">{title}</div>

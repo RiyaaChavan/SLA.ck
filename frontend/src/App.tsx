@@ -28,7 +28,7 @@ export default function App() {
 
   useEffect(() => {
     if (!selectedOrganizationId && organizationsQuery.data?.length) {
-      setSelectedOrganizationId(organizationsQuery.data[0].id);
+      setSelectedOrganizationId(organizationsQuery.data[organizationsQuery.data.length - 1].id);
     }
   }, [organizationsQuery.data, selectedOrganizationId]);
 
@@ -74,7 +74,7 @@ export default function App() {
 
   const reportMutation = useMutation({
     mutationFn: () =>
-      api.generateReport(selectedOrganizationId!, "On-demand Business Sentry Executive Summary"),
+      api.generateReport(selectedOrganizationId!, "On-demand SLA.ck Executive Summary"),
     onSuccess: async () => {
       notify({
         tone: "success",
@@ -108,6 +108,16 @@ export default function App() {
     seeding: seedMutation.isPending,
   };
 
+  const handleSourceConnected = async (organizationId: number) => {
+    await queryClient.invalidateQueries({ queryKey: ["organizations"] });
+    setSelectedOrganizationId(organizationId);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["audit"] }),
+      queryClient.invalidateQueries({ queryKey: ["reports"] }),
+      queryClient.invalidateQueries({ queryKey: ["bs"] }),
+    ]);
+  };
+
   return (
     <Routes>
       <Route path="/" element={<AppShell {...orgProps}><Outlet /></AppShell>}>
@@ -127,7 +137,15 @@ export default function App() {
         <Route path="detectors" element={<DetectorsPage organizationId={selectedOrganizationId} />} />
         <Route path="sla-rulebook" element={<SlaRulebookPage organizationId={selectedOrganizationId} />} />
         <Route path="action-center" element={<ActionCenterPage organizationId={selectedOrganizationId} />} />
-        <Route path="data-sources" element={<DataSourcesPage organizationId={selectedOrganizationId} />} />
+        <Route
+          path="data-sources"
+          element={
+            <DataSourcesPage
+              organizationId={selectedOrganizationId}
+              onSourceConnected={handleSourceConnected}
+            />
+          }
+        />
         <Route
           path="audit"
           element={

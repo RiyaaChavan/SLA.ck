@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { ActionRequest, AutoModeSettings } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
+import type { ConfirmConfig } from "../components/shared/ConfirmModal";
 import { useNotifications } from "../components/shared/Notifications";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
@@ -19,10 +21,10 @@ type ActionCenterPageProps = {
 };
 
 const APPROVAL_STAGES = [
-  { id: "pending", label: "Pending Review" },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
-  { id: "executed", label: "Executed" },
+  { id: "pending", label: "Pending Review", colClass: "bs-kanban-column-pending", dotClass: "bs-kanban-col-dot-pending" },
+  { id: "approved", label: "Approved", colClass: "bs-kanban-column-approved", dotClass: "bs-kanban-col-dot-approved" },
+  { id: "rejected", label: "Rejected", colClass: "bs-kanban-column-rejected", dotClass: "bs-kanban-col-dot-rejected" },
+  { id: "executed", label: "Executed", colClass: "bs-kanban-column-executed", dotClass: "bs-kanban-col-dot-executed" },
 ];
 
 function humanizeActionType(raw: string | null | undefined): string {
@@ -54,6 +56,9 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
   const reject = useRejectAction(organizationId);
   const execute = useExecuteAction(organizationId);
   const putAuto = usePutAutoMode(organizationId);
+  const [pendingConfirm, setPendingConfirm] = useState<(ConfirmConfig & { onConfirm: () => void }) | null>(null);
+
+  const confirm = (cfg: ConfirmConfig & { onConfirm: () => void }) => setPendingConfirm(cfg);
 
   const getStage = (a: ActionRequest) => {
     if (a.execution_state === "executed") return "executed";
@@ -167,13 +172,16 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
         <StateBlock title="Failed to load actions" />
       ) : (
         <div
-          className="bs-kanban-board bs-actions-kanban"
+          className="bs-kanban-board bs-kanban-board-approvals"
           style={{ ["--bs-kanban-cols" as string]: String(APPROVAL_STAGES.length) }}
         >
           {columns.map((col) => (
-            <div key={col.id} className="bs-kanban-column">
+            <div key={col.id} className={`bs-kanban-column ${col.colClass}`}>
               <div className="bs-kanban-column-header">
-                <h3 className="bs-kanban-column-title">{col.label}</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span className={`bs-kanban-col-dot ${col.dotClass}`} />
+                  <h3 className="bs-kanban-column-title">{col.label}</h3>
+                </div>
                 <span className="bs-kanban-count">{col.items.length}</span>
               </div>
               <div className="bs-kanban-cards">
@@ -210,45 +218,59 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
                       )
                     }
                     onReject={() =>
-                      reject.mutate(
-                        {
-                          actionId: a.id,
-                          approver_name: a.required_approver,
-                        },
-                        {
-                          onSuccess: () => {
-                            notify({
-                              tone: "warning",
-                              title: "Action rejected",
-                              message: `${a.title} was rejected and will not execute.`,
-                            });
-                          },
-                          onError: () => {
-                            notify({
-                              tone: "error",
-                              title: "Reject failed",
-                              message: `Could not reject ${a.title}.`,
-                            });
-                          },
-                        },
-                      )
+                      confirm({
+                        title: "Reject this action?",
+                        message: `"${a.title}" will be rejected and marked as cancelled. This cannot be undone in the current session.`,
+                        confirmLabel: "Reject action",
+                        variant: "danger",
+                        onConfirm: () =>
+                          reject.mutate(
+                            {
+                              actionId: a.id,
+                              approver_name: a.required_approver,
+                            },
+                            {
+                              onSuccess: () => {
+                                notify({
+                                  tone: "warning",
+                                  title: "Action rejected",
+                                  message: `${a.title} was rejected and will not execute.`,
+                                });
+                              },
+                              onError: () => {
+                                notify({
+                                  tone: "error",
+                                  title: "Reject failed",
+                                  message: `Could not reject ${a.title}.`,
+                                });
+                              },
+                            },
+                          )
+                      })
                     }
                     onExecute={() =>
-                      execute.mutate(a.id, {
-                        onSuccess: () => {
-                          notify({
-                            tone: "success",
-                            title: "Action executed",
-                            message: `${a.title} has been executed.`,
-                          });
-                        },
-                        onError: () => {
-                          notify({
-                            tone: "error",
-                            title: "Execution failed",
-                            message: `Could not execute ${a.title}.`,
-                          });
-                        },
+                      confirm({
+                        title: "Execute this action?",
+                        message: `"${a.title}" will be executed immediately. Make sure all approvers have signed off before proceeding.`,
+                        confirmLabel: "Execute now",
+                        variant: "warning",
+                        onConfirm: () =>
+                          execute.mutate(a.id, {
+                            onSuccess: () => {
+                              notify({
+                                tone: "success",
+                                title: "Action executed",
+                                message: `${a.title} has been executed.`,
+                              });
+                            },
+                            onError: () => {
+                              notify({
+                                tone: "error",
+                                title: "Execution failed",
+                                message: `Could not execute ${a.title}.`,
+                              });
+                            },
+                          })
                       })
                     }
                   />
@@ -258,6 +280,17 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
           ))}
         </div>
       )}
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          {...pendingConfirm}
+          onConfirm={() => {
+            pendingConfirm.onConfirm();
+            setPendingConfirm(null);
+          }}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -288,6 +321,7 @@ function ActionCard({
     <div
       id={`bs-action-card-${a.id}`}
       className={`bs-kanban-card ${highlight ? "bs-action-card-highlight" : ""}`}
+      style={{ borderLeft: a.risk_level === "high" ? "2px solid rgba(239,68,68,0.6)" : "2px solid rgba(36,119,208,0.3)" }}
     >
       <div className="bs-kanban-card-header">
         <span className="bs-kanban-card-id">
@@ -401,9 +435,9 @@ function AutoModePanel({
         </div>
       </div>
       <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
-        {data.policies.map((p) => (
+        {data.policies.map((policy) => (
           <div
-            key={p.id}
+            key={policy.id}
             style={{
               display: "flex",
               flexWrap: "wrap",
@@ -415,27 +449,27 @@ function AutoModePanel({
             }}
           >
             <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-              <div style={{ fontWeight: 600 }}>{p.name}</div>
+              <div style={{ fontWeight: 600 }}>{policy.name}</div>
               <div className="td-sub" style={{ marginTop: 4 }}>
-                {p.module} · {p.scope} · {p.risk_level} risk
+                {policy.module} · {policy.scope} · {policy.risk_level} risk
               </div>
               <p className="td-sub" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
-                {p.condition_summary}
+                {policy.condition_summary}
               </p>
-              {p.allowed_actions.length > 0 ? (
+              {policy.allowed_actions.length > 0 ? (
                 <div className="td-sub" style={{ marginTop: 6, fontSize: 11 }}>
-                  Actions: {p.allowed_actions.join(", ")}
+                  Actions: {policy.allowed_actions.join(", ")}
                 </div>
               ) : null}
             </div>
             <label className="bs-toggle" style={{ flexShrink: 0 }}>
               <input
                 type="checkbox"
-                checked={p.enabled}
+                checked={policy.enabled}
                 disabled={saving}
-                onChange={(e) => onPolicyToggle(p.id, e.target.checked)}
+                onChange={(e) => onPolicyToggle(policy.id, e.target.checked)}
               />
-              <span>{p.enabled ? "On" : "Off"}</span>
+              <span>{policy.enabled ? "On" : "Off"}</span>
             </label>
           </div>
         ))}

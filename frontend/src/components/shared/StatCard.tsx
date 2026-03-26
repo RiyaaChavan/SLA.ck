@@ -1,23 +1,24 @@
 type StatCardProps = {
   label: string;
   value: string;
-  delta?: string;
+  detail?: string;
+  detailTone?: "positive" | "negative" | "neutral";
 };
 
-export function StatCard({ label, value, delta }: StatCardProps) {
-  const isNegative = delta?.startsWith("-");
-  const isPositive = delta && !isNegative;
-
+export function StatCard({
+  label,
+  value,
+  detail,
+  detailTone = "neutral",
+}: StatCardProps) {
   return (
     <div className="stat-card">
       <div className="stat-label">{label}</div>
       <div className="stat-value">{value}</div>
-      {delta ? (
-        <div className={`stat-delta ${isPositive ? "positive" : "negative"}`}>
-          {isPositive ? "↑" : "↓"} {delta}
-        </div>
+      {detail ? (
+        <div className={`stat-delta ${detailTone}`}>{detail}</div>
       ) : (
-        <div className="stat-delta neutral">— Stable</div>
+        <div className="stat-delta neutral">Current snapshot</div>
       )}
     </div>
   );

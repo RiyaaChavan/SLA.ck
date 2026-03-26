@@ -1,4 +1,4 @@
-import { useMemo, useState, useRef, useCallback, useEffect } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { SlaExtractionBatch, SlaExtractionCandidate, SlaRulebookEntry } from "../domain/business-sentry";
 import type {
@@ -7,6 +7,8 @@ import type {
 } from "../adapters/business-sentry/contract";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
+import type { ConfirmConfig } from "../components/shared/ConfirmModal";
 import { useNotifications } from "../components/shared/Notifications";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
@@ -27,6 +29,37 @@ type SlaRulebookPageProps = {
 };
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+
+type ExtractionRun = {
+  fileName: string;
+  progress: number;
+  startedAt: number;
+};
+
+function ExtractionProgressModal({ fileName, progress }: { fileName: string; progress: number }) {
+  return (
+    <div className="bs-modal-backdrop" role="presentation">
+      <div className="card bs-modal-card bs-sla-progress-modal" role="dialog" aria-modal="true" aria-labelledby="sla-progress-title">
+        <div className="card-body bs-sla-progress-body">
+          <div className="bs-sla-progress-kicker">SLA Extraction Runtime</div>
+          <div id="sla-progress-title" className="card-title bs-sla-progress-title">
+            Extracting SLA clauses from {fileName}
+          </div>
+          <p className="bs-sla-progress-copy">
+            Parsing the document, isolating obligations, and shaping review-ready SLA candidates.
+          </p>
+          <div className="bs-sla-progress-track" aria-hidden="true">
+            <div className="bs-sla-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="bs-sla-progress-meta">
+            <span>Processing contract</span>
+            <strong>{progress}%</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function SlaDropzone({ onUpload, isUploading }: { onUpload: (file: File) => void, isUploading: boolean }) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -128,16 +161,6 @@ function RuleEditModal({
   return (
     <div
       className="bs-modal-backdrop"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: 16,
-      }}
       role="presentation"
       onClick={onClose}
     >
@@ -154,41 +177,41 @@ function RuleEditModal({
           </div>
         </div>
         <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Name
+          <label className="bs-field">
+            <span>Name</span>
             <input className="bs-input" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Applies to (label)
+          <label className="bs-field">
+            <span>Applies to (label)</span>
             <input className="bs-input" value={appliesLabel} onChange={(e) => setAppliesLabel(e.target.value)} />
           </label>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Conditions
-            <textarea className="bs-input" rows={3} value={conditions} onChange={(e) => setConditions(e.target.value)} />
+          <label className="bs-field">
+            <span>Conditions</span>
+            <textarea className="bs-textarea" rows={3} value={conditions} onChange={(e) => setConditions(e.target.value)} />
           </label>
           <div style={{ display: "flex", gap: 8 }}>
-            <label className="td-sub" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-              Response (h)
+            <label className="bs-field" style={{ flex: 1 }}>
+              <span>Response (h)</span>
               <input className="bs-input" type="number" value={responseH} onChange={(e) => setResponseH(e.target.value)} />
             </label>
-            <label className="td-sub" style={{ flex: 1, display: "flex", flexDirection: "column", gap: 4 }}>
-              Resolution (h)
+            <label className="bs-field" style={{ flex: 1 }}>
+              <span>Resolution (h)</span>
               <input className="bs-input" type="number" value={resolutionH} onChange={(e) => setResolutionH(e.target.value)} />
             </label>
           </div>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Penalty (INR)
+          <label className="bs-field">
+            <span>Penalty (INR)</span>
             <input className="bs-input" type="number" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
           </label>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Escalation owner
+          <label className="bs-field">
+            <span>Escalation owner</span>
             <input className="bs-input" value={escalationOwner} onChange={(e) => setEscalationOwner(e.target.value)} />
           </label>
-          <label className="td-sub" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            Business hours logic
+          <label className="bs-field">
+            <span>Business hours logic</span>
             <input className="bs-input" value={bhLogic} onChange={(e) => setBhLogic(e.target.value)} />
           </label>
-          <label className="bs-toggle" style={{ marginTop: 4 }}>
+          <label className="bs-toggle">
             <input type="checkbox" checked={autoOk} onChange={(e) => setAutoOk(e.target.checked)} />
             <span>Auto action allowed</span>
           </label>
@@ -309,16 +332,6 @@ function CandidateEditModal({
   return (
     <div
       className="bs-modal-backdrop"
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.45)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        zIndex: 50,
-        padding: 16,
-      }}
       role="presentation"
       onClick={onClose}
     >
@@ -334,41 +347,41 @@ function CandidateEditModal({
           </div>
         </div>
         <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          <label className="td-sub bs-form-label">
-            Name
+          <label className="bs-field">
+            <span>Name</span>
             <input className="bs-input" value={name} onChange={(e) => setName(e.target.value)} />
           </label>
-          <label className="td-sub bs-form-label">
-            Applies to (label)
+          <label className="bs-field">
+            <span>Applies to (label)</span>
             <input className="bs-input" value={appliesLabel} onChange={(e) => setAppliesLabel(e.target.value)} />
           </label>
-          <label className="td-sub bs-form-label">
-            Conditions
-            <textarea className="bs-input" rows={3} value={conditions} onChange={(e) => setConditions(e.target.value)} />
+          <label className="bs-field">
+            <span>Conditions</span>
+            <textarea className="bs-textarea" rows={3} value={conditions} onChange={(e) => setConditions(e.target.value)} />
           </label>
           <div style={{ display: "flex", gap: 8 }}>
-            <label className="td-sub bs-form-label" style={{ flex: 1 }}>
-              Response (h)
+            <label className="bs-field" style={{ flex: 1 }}>
+              <span>Response (h)</span>
               <input className="bs-input" type="number" value={responseH} onChange={(e) => setResponseH(e.target.value)} />
             </label>
-            <label className="td-sub bs-form-label" style={{ flex: 1 }}>
-              Resolution (h)
+            <label className="bs-field" style={{ flex: 1 }}>
+              <span>Resolution (h)</span>
               <input className="bs-input" type="number" value={resolutionH} onChange={(e) => setResolutionH(e.target.value)} />
             </label>
           </div>
-          <label className="td-sub bs-form-label">
-            Penalty (INR)
+          <label className="bs-field">
+            <span>Penalty (INR)</span>
             <input className="bs-input" type="number" value={penalty} onChange={(e) => setPenalty(e.target.value)} />
           </label>
-          <label className="td-sub bs-form-label">
-            Escalation owner
+          <label className="bs-field">
+            <span>Escalation owner</span>
             <input className="bs-input" value={escalationOwner} onChange={(e) => setEscalationOwner(e.target.value)} />
           </label>
-          <label className="td-sub bs-form-label">
-            Business hours logic
+          <label className="bs-field">
+            <span>Business hours logic</span>
             <input className="bs-input" value={bhLogic} onChange={(e) => setBhLogic(e.target.value)} />
           </label>
-          <label className="bs-toggle" style={{ marginTop: 4 }}>
+          <label className="bs-toggle">
             <input type="checkbox" checked={autoOk} onChange={(e) => setAutoOk(e.target.checked)} />
             <span>Auto action allowed</span>
           </label>
@@ -434,6 +447,11 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
   const [editCandidate, setEditCandidate] = useState<SlaExtractionCandidate | null>(null);
   const [pendingCandidateEdits, setPendingCandidateEdits] = useState<Record<number, SlaExtractionCandidateEdit>>({});
   const discardCandidate = useDiscardSlaCandidate(organizationId);
+  const [pendingConfirm, setPendingConfirm] = useState<(ConfirmConfig & { onConfirm: () => void }) | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [extractionRun, setExtractionRun] = useState<ExtractionRun | null>(null);
+
+  const confirm = (cfg: ConfirmConfig & { onConfirm: () => void }) => setPendingConfirm(cfg);
 
   const candidateRulesForApprove = useCallback(
     (batch: SlaExtractionBatch): SlaExtractionCandidateEdit[] =>
@@ -495,6 +513,8 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
         title="SLAs"
         subtitle="Import contracts (PDF, docs, text, image) to extract rules, then browse and govern active SLAs."
       />
+
+      {message ? <div className="bs-banner bs-banner-ok">{message}</div> : null}
 
       <div className="bs-sla-toolbar">
         <p className="bs-sla-toolbar-hint td-sub">
@@ -701,20 +721,27 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                           aria-label="Delete extraction review, discard entire batch"
                           disabled={discard.isPending}
                           onClick={() => {
-                            if (!window.confirm(`Delete this extraction review and discard the entire batch “${b.source_document_name}”?`)) return;
-                            discard.mutate(b.id, {
-                              onSuccess: () => {
-                                notify({
-                                  tone: "warning",
-                                  title: "Review deleted",
-                                  message: `${b.source_document_name} was discarded from extraction review.`,
-                                });
-                              },
-                              onError: () => {
-                                notify({
-                                  tone: "error",
-                                  title: "Delete failed",
-                                  message: `Could not discard ${b.source_document_name}.`,
+                            confirm({
+                              title: "Delete this extraction batch?",
+                              message: `"${b.source_document_name}" and all its candidate rules will be permanently removed from extraction review.`,
+                              confirmLabel: "Discard batch",
+                              variant: "danger",
+                              onConfirm: () => {
+                                discard.mutate(b.id, {
+                                  onSuccess: () => {
+                                    notify({
+                                      tone: "warning",
+                                      title: "Review deleted",
+                                      message: `${b.source_document_name} was discarded from extraction review.`,
+                                    });
+                                  },
+                                  onError: () => {
+                                    notify({
+                                      tone: "error",
+                                      title: "Delete failed",
+                                      message: `Could not discard ${b.source_document_name}.`,
+                                    });
+                                  },
                                 });
                               },
                             });
@@ -835,125 +862,132 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                     aria-label="Remove candidate from extraction review"
                                     disabled={discardCandidate.isPending || b.status !== "pending_review"}
                                     onClick={() => {
-                                      if (!window.confirm(`Remove this candidate from the batch?`)) return;
-                                      setPendingCandidateEdits((prev) => {
-                                        const next = { ...prev };
-                                        delete next[c.id];
-                                        return next;
-                                      });
-                                      discardCandidate.mutate(String(c.id), {
-                                        onSuccess: () => {
-                                          notify({
-                                            tone: "warning",
-                                            title: "Candidate removed",
-                                            message: `${c.name} was removed from the extraction batch.`,
+                                      confirm({
+                                        title: "Discard candidate rule?",
+                                        message: `"${c.name}" will be removed from this extraction batch.`,
+                                        confirmLabel: "Discard",
+                                        variant: "danger",
+                                        onConfirm: () => {
+                                          setPendingCandidateEdits((prev) => {
+                                            const next = { ...prev };
+                                            delete next[c.id];
+                                            return next;
                                           });
-                                        },
-                                        onError: () => {
-                                          notify({
-                                            tone: "error",
-                                            title: "Remove failed",
-                                            message: `Could not remove ${c.name}.`,
+                                          discardCandidate.mutate(String(c.id), {
+                                            onSuccess: () => {
+                                              notify({
+                                                tone: "warning",
+                                                title: "Candidate removed",
+                                                message: `${c.name} was removed from the extraction batch.`,
+                                              });
+                                            },
+                                            onError: () => {
+                                              notify({
+                                                tone: "error",
+                                                title: "Remove failed",
+                                                message: `Could not remove ${c.name}.`,
+                                              });
+                                            },
                                           });
                                         },
                                       });
                                     }}
                                   >
                                     <TrashIcon />
-                                  </button>
-                                </div>
+                                </button>
                               </div>
-                            );
+                              </div>
+                      );
                           })}
-                        </div>
+                    </div>
                       )}
-                    </div>
                   </div>
-                );
+                  </div>
+          );
               })}
-            </div>
+        </div>
           )}
-        </>
+    </>
+  ) : (
+    <>
+      <div className="bs-toolbar bs-toolbar-rules">
+        <input
+          className="bs-input bs-input-grow"
+          placeholder="Search rules…"
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+        <span className="td-sub bs-rules-count">{activeRules.length} active</span>
+      </div>
+      {rulesQ.isPending ? (
+        <StateBlock title="Loading rules" loading />
+      ) : rulesQ.isError ? (
+        <StateBlock title="Failed to load rules" />
+      ) : activeRules.length === 0 ? (
+        <StateBlock
+          title="No active rules"
+          description="Approve candidates from the Extraction review tab or create rules via the API."
+        />
       ) : (
-        <>
-          <div className="bs-toolbar bs-toolbar-rules">
-            <input
-              className="bs-input bs-input-grow"
-              placeholder="Search rules…"
-              value={filter}
-              onChange={(e) => setFilter(e.target.value)}
-            />
-            <span className="td-sub bs-rules-count">{activeRules.length} active</span>
-          </div>
-          {rulesQ.isPending ? (
-            <StateBlock title="Loading rules" loading />
-          ) : rulesQ.isError ? (
-            <StateBlock title="Failed to load rules" />
-          ) : activeRules.length === 0 ? (
-            <StateBlock
-              title="No active rules"
-              description="Approve candidates from the Extraction review tab or create rules via the API."
-            />
-          ) : (
-            <div className="bs-rule-grid">
-              {activeRules.map((r) => (
-                <div key={r.id} className="card bs-rule-card">
-                  <div className="card-header bs-rule-card-header">
-                    <div>
-                      <div className="card-title">{r.name}</div>
-                      <div className="card-subtitle">{r.source_document_name}</div>
-                    </div>
-                    <div className="bs-rule-badges">
-                      {r.rule_version != null ? (
-                        <span className="badge badge-blue">v{r.rule_version}</span>
-                      ) : null}
-                      <span className="badge badge-default">{r.status}</span>
-                    </div>
+        <div className="bs-rule-grid">
+          {activeRules.map((r) => (
+            <div key={r.id} className="card bs-rule-card">
+              <div className="card-header bs-rule-card-header">
+                <div>
+                  <div className="card-title">{r.name}</div>
+                  <div className="card-subtitle">{r.source_document_name}</div>
+                </div>
+                <div className="bs-rule-badges">
+                  {r.rule_version != null ? (
+                    <span className="badge badge-blue">v{r.rule_version}</span>
+                  ) : null}
+                  <span className="badge badge-default">{r.status}</span>
+                </div>
+              </div>
+              <div className="card-body">
+                <p className="bs-rule-conditions td-sub">{r.conditions}</p>
+                <div className="bs-rule-meta">
+                  <div className="bs-rule-field">
+                    <span>Applies to</span>
+                    <strong>{r.applies_to}</strong>
                   </div>
-                  <div className="card-body">
-                    <p className="bs-rule-conditions td-sub">{r.conditions}</p>
-                    <div className="bs-rule-meta">
-                      <div className="bs-rule-field">
-                        <span>Applies to</span>
-                        <strong>{r.applies_to}</strong>
-                      </div>
-                      <div className="bs-rule-field">
-                        <span>Response</span>
-                        <strong>{r.response_deadline_hours}h</strong>
-                      </div>
-                      <div className="bs-rule-field">
-                        <span>Resolution</span>
-                        <strong>{r.resolution_deadline_hours}h</strong>
-                      </div>
-                      <div className="bs-rule-field">
-                        <span>Penalty</span>
-                        <strong>{formatMoneyInr(r.penalty_amount)}</strong>
-                      </div>
-                      <div className="bs-rule-field">
-                        <span>Escalation</span>
-                        <strong>{r.escalation_owner}</strong>
-                      </div>
-                    </div>
-                    <div className="bs-card-actions bs-rule-footer">
-                      <button
-                        type="button"
-                        className="btn btn-ghost btn-sm"
-                        disabled={updateRule.isPending}
-                        onClick={() => setEditRule(r)}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="btn btn-ghost-danger btn-sm"
-                        disabled={archiveRule.isPending}
-                        onClick={() => {
-                          if (
-                            !window.confirm(
-                              `Archive “${r.name}”? It will no longer match new live items until restored.`,
-                            )
-                          )
-                            return;
+                  <div className="bs-rule-field">
+                    <span>Response</span>
+                    <strong>{r.response_deadline_hours}h</strong>
+                  </div>
+                  <div className="bs-rule-field">
+                    <span>Resolution</span>
+                    <strong>{r.resolution_deadline_hours}h</strong>
+                  </div>
+                  <div className="bs-rule-field">
+                    <span>Penalty</span>
+                    <strong>{formatMoneyInr(r.penalty_amount)}</strong>
+                  </div>
+                  <div className="bs-rule-field">
+                    <span>Escalation</span>
+                    <strong>{r.escalation_owner}</strong>
+                  </div>
+                </div>
+                <div className="bs-card-actions bs-rule-footer">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    disabled={updateRule.isPending}
+                    onClick={() => setEditRule(r)}
+                  >
+                    Edit
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-ghost-danger btn-sm"
+                    disabled={archiveRule.isPending}
+                    onClick={() => {
+                      confirm({
+                        title: "Archive this SLA rule?",
+                        message: `"${r.name}" will be removed from the active rulebook. Detectors using it will no longer trigger on this SLA.`,
+                        confirmLabel: "Archive rule",
+                        variant: "warning",
+                        onConfirm: () => {
                           archiveRule.mutate(
                             { ruleId: r.id, reviewed_by: "Rulebook UI" },
                             {
@@ -973,17 +1007,19 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                               },
                             },
                           );
-                        }}
-                      >
-                        Archive
-                      </button>
-                    </div>
-                  </div>
+                        },
+                      });
+                    }}
+                  >
+                    Archive
+                  </button>
                 </div>
-              ))}
+              </div>
             </div>
-          )}
-        </>
+          ))}
+        </div>
+      )}
+    </>
       )}
 
       {editCandidate && candidateForEditModal ? (
@@ -1029,6 +1065,19 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
           }}
         />
       ) : null}
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          {...pendingConfirm}
+          onConfirm={() => {
+            pendingConfirm.onConfirm();
+            setPendingConfirm(null);
+          }}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      ) : null}
+
+      {extractionRun ? <ExtractionProgressModal fileName={extractionRun.fileName} progress={extractionRun.progress} /> : null}
     </div>
   );
 }

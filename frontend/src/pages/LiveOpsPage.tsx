@@ -25,6 +25,14 @@ const RISK_ORDER: Record<string, number> = {
   low: 1,
 };
 
+const COLUMN_META: Record<string, { label: string; dotClass: string; colClass: string }> = {
+  monitoring: { label: "Monitoring", dotClass: "bs-kanban-col-dot-monitoring", colClass: "bs-kanban-column-monitoring" },
+  escalation: { label: "Escalation", dotClass: "bs-kanban-col-dot-escalation", colClass: "bs-kanban-column-escalation" },
+  resolved: { label: "Resolved", dotClass: "bs-kanban-col-dot-resolved", colClass: "bs-kanban-column-resolved" },
+};
+
+
+
 function riskRank(risk: string): number {
   return RISK_ORDER[risk.toLowerCase()] ?? 0;
 }
@@ -273,6 +281,14 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
       <PageHeader
         title="Live Case Monitor"
         subtitle="Prioritized queue of active work items. Create tickets or approvals; drag cards to update stages locally."
+        actions={
+          <button type="button" className="btn btn-primary" onClick={() => {
+            const el = document.querySelector('.bs-liveops-intake-grid');
+            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          }}>
+            + New Ticket
+          </button>
+        }
       />
 
       {intakeBanner ? (
@@ -460,20 +476,39 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
           className="bs-kanban-board"
           style={{ ["--bs-kanban-cols" as string]: String(columns.length) }}
         >
-          {columns.map((col) => (
+          {columns.map((col) => {
+            const meta = COLUMN_META[col.stage] ?? { label: col.stage.replace("_", " "), dotClass: "", colClass: "" };
+            return (
             <div
               key={col.stage}
-              className="bs-kanban-column"
+              className={`bs-kanban-column ${meta.colClass}`}
               onDragOver={handleDragOver}
               onDrop={(e) => handleDrop(e, col.stage)}
             >
               <div className="bs-kanban-column-header">
-                <h3 className="bs-kanban-column-title">{col.stage.replace("_", " ")}</h3>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  {meta.dotClass ? <span className={`bs-kanban-col-dot ${meta.dotClass}`} /> : null}
+                  <h3 className="bs-kanban-column-title">{meta.label}</h3>
+                </div>
                 <span className="bs-kanban-count">{col.items.length}</span>
               </div>
               <div className="bs-kanban-cards">
                 {col.items.length === 0 ? (
-                  <div className="bs-kanban-empty">No items — drag cards here</div>
+                  <div
+                    style={{
+                      flex: 1, display: "flex", flexDirection: "column",
+                      alignItems: "center", justifyContent: "center",
+                      gap: 8, padding: "32px 16px",
+                      border: "1px dashed rgba(255,255,255,0.06)",
+                      borderRadius: 8, margin: "4px",
+                    }}
+                  >
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" style={{ color: "var(--text-3)", opacity: 0.5 }}>
+                      <circle cx="12" cy="12" r="10" />
+                      <path d="M8 12h8M12 8v8" />
+                    </svg>
+                    <span style={{ fontSize: 12, color: "var(--text-3)", opacity: 0.7, textAlign: "center" }}>Drag cards here</span>
+                  </div>
                 ) : null}
                 {col.items.map((r) => (
                   <div
@@ -571,7 +606,8 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                 ))}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <aside className="bs-liveops-rail" aria-label="Queue summary">
