@@ -68,3 +68,5 @@ docker/volumes/
 *.bak
 *.swp
 *.tmp
+
+*.local.*
