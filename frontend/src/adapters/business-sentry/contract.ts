@@ -1,5 +1,7 @@
 import type {
   ActionRequest,
+  AgenticIntakeResult,
+  ApprovalIntakePayload,
   AutoModePolicyUpdate,
   AutoModeSettings,
   CaseDetail,
@@ -13,6 +15,7 @@ import type {
   LiveWorkItem,
   SlaExtractionBatch,
   SlaRulebookEntry,
+  TicketIntakePayload,
 } from "../../domain/business-sentry";
 
 export type DataSourceUploadResponse = {
@@ -92,6 +95,8 @@ export type BusinessSentryAdapter = {
   listCases(organizationId: number, params: CasesListParams): Promise<CaseSummary[]>;
   getCaseDetail(caseId: string): Promise<CaseDetail | null>;
   listLiveOps(organizationId: number): Promise<LiveWorkItem[]>;
+  createTicketIntake(organizationId: number, body: TicketIntakePayload): Promise<AgenticIntakeResult>;
+  createApprovalIntake(organizationId: number, body: ApprovalIntakePayload): Promise<AgenticIntakeResult>;
   listDataSources(organizationId: number): Promise<DataSourceSummary[]>;
   uploadDataSource(organizationId: number, fileName: string): Promise<DataSourceUploadResponse>;
   listDetectors(organizationId: number): Promise<DetectorDefinition[]>;

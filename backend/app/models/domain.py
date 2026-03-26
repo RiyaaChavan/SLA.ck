@@ -123,6 +123,7 @@ class Workflow(Base, TimestampMixin):
     resolved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     estimated_value: Mapped[float] = mapped_column(Float)
     backlog_hours: Mapped[float] = mapped_column(Float)
+    intake_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
 
     organization: Mapped["Organization"] = relationship(back_populates="workflows")
 

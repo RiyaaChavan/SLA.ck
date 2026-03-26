@@ -3,6 +3,9 @@ from sqlalchemy.engine import Engine
 
 
 SQLITE_COLUMN_PATCHES: dict[str, list[tuple[str, str]]] = {
+    "workflows": [
+        ("intake_metadata", "JSON DEFAULT '{}'"),
+    ],
     "sla_extraction_batches": [
         ("document_type", "TEXT DEFAULT 'pdf'"),
         ("extraction_source", "TEXT DEFAULT 'text_parsed'"),

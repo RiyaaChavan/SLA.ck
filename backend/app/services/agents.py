@@ -145,7 +145,21 @@ class CerebrasLangChainAgent:
 
     def _fallback_recommendation(self, alert_context: dict[str, Any]) -> ActionRecommendationPayload:
         risk = str(alert_context.get("severity", "medium"))
-        title = f"Respond to {alert_context.get('title', 'operational alert')}"
+        atype = str(alert_context.get("type", "alert")).replace("_", " ").strip() or "alert"
+        raw_title = str(alert_context.get("title") or "Operational alert").strip()
+        payload = alert_context.get("payload") if isinstance(alert_context.get("payload"), dict) else {}
+        refs = payload.get("invoice_refs") if isinstance(payload.get("invoice_refs"), list) else []
+        if refs and str(alert_context.get("type")) == "duplicate_spend":
+            ref_line = ", ".join(str(r) for r in refs[:5])
+            if len(refs) > 5:
+                ref_line = f"{ref_line} (+{len(refs) - 5} more)"
+            raw_title = f"{raw_title} — {ref_line}"
+        title = f"{atype.title()}: {raw_title}"[:250]
+        desc = str(alert_context.get("description") or "").strip()
+        rationale = "Fallback recommendation generated because Cerebras agent is not configured."
+        if desc:
+            snippet = desc if len(desc) <= 220 else f"{desc[:220]}…"
+            rationale = f"{rationale} {snippet}"
         action_type = "open_review_task"
         steps = ["Review evidence", "Notify owner", "Track outcome"]
         if "sla" in str(alert_context.get("type", "")).lower():
@@ -153,7 +167,7 @@ class CerebrasLangChainAgent:
             steps = ["Escalate queue owner", "Reassign backlog", "Monitor SLA countdown"]
         return ActionRecommendationPayload(
             title=title,
-            rationale="Fallback recommendation generated because Cerebras agent is not configured.",
+            rationale=rationale,
             action_type=action_type,
             playbook_steps=steps,
             confidence=0.55 if risk == "medium" else 0.62,

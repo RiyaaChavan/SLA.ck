@@ -1,14 +1,21 @@
 import type {
   ActionRequest,
+  AgenticApprovalPreview,
+  AgenticClassification,
+  AgenticIntakeResult,
+  ApprovalIntakePayload,
   AutoModePolicy,
   AutoModePolicyUpdate,
   AutoModeSettings,
   CasesListParams,
+  DataSourceSummary,
   DetectorDefinition,
   LiveWorkItem,
+  LiveWorkItemIntakeContext,
   SlaExtractionBatch,
   SlaExtractionCandidate,
   SlaRulebookEntry,
+  TicketIntakePayload,
 } from "../../domain/business-sentry";
 import type {
   ActionDecisionBody,
@@ -118,6 +125,125 @@ function mapLiveWorkItem(r: ApiLiveWorkItemOut): LiveWorkItem {
     suggested_action: r.suggested_action,
     match_rationale: r.match_rationale ?? [],
     workflow_category: r.workflow_category ?? null,
+  };
+}
+
+type ApiAgenticClassificationOut = {
+  workflow_type: string;
+  workflow_category: string;
+  issue_type: string;
+  priority: string;
+  customer_tier: string;
+  business_unit: string;
+  department_name: string;
+  vendor_name?: string | null;
+  suggested_backlog_hours: number;
+  confidence: number;
+  rationale?: string[];
+};
+
+type ApiAgenticApprovalPreviewOut = {
+  should_auto_approve: boolean;
+  recommended_approver: string;
+  reasoning: string;
+  confidence: number;
+  metadata?: Record<string, unknown>;
+};
+
+type ApiAgenticIntakeResultOut = {
+  workflow_id: number;
+  classification: ApiAgenticClassificationOut;
+  live_item: ApiLiveWorkItemOut;
+  alert_id: number | null;
+  recommendation_id: number | null;
+  approval_preview: ApiAgenticApprovalPreviewOut | null;
+};
+
+function mapAgenticClassification(c: ApiAgenticClassificationOut): AgenticClassification {
+  return {
+    workflow_type: c.workflow_type,
+    workflow_category: c.workflow_category,
+    issue_type: c.issue_type,
+    priority: c.priority,
+    customer_tier: c.customer_tier,
+    business_unit: c.business_unit,
+    department_name: c.department_name,
+    vendor_name: c.vendor_name ?? null,
+    suggested_backlog_hours: c.suggested_backlog_hours,
+    confidence: c.confidence,
+    rationale: c.rationale ?? [],
+  };
+}
+
+function mapAgenticApprovalPreview(p: ApiAgenticApprovalPreviewOut): AgenticApprovalPreview {
+  return {
+    should_auto_approve: p.should_auto_approve,
+    recommended_approver: p.recommended_approver,
+    reasoning: p.reasoning,
+    confidence: p.confidence,
+    metadata: p.metadata,
+  };
+}
+
+function mapAgenticIntakeResult(raw: ApiAgenticIntakeResultOut): AgenticIntakeResult {
+  const classification = mapAgenticClassification(raw.classification);
+  const approval_preview = raw.approval_preview ? mapAgenticApprovalPreview(raw.approval_preview) : null;
+  const intakeContext: LiveWorkItemIntakeContext = {
+    workflow_id: raw.workflow_id,
+    classification,
+    approval_preview,
+    alert_id: raw.alert_id ?? null,
+    recommendation_id: raw.recommendation_id ?? null,
+  };
+  const live_item: LiveWorkItem = {
+    ...mapLiveWorkItem(raw.live_item),
+    intakeContext,
+  };
+  return {
+    workflow_id: raw.workflow_id,
+    classification,
+    live_item,
+    alert_id: raw.alert_id ?? null,
+    recommendation_id: raw.recommendation_id ?? null,
+    approval_preview,
+  };
+}
+
+type ApiDataSourceHistoryOut = {
+  uploaded_at: string | { toISOString(): string };
+  record_count: number;
+  file_path: string;
+};
+
+type ApiDataSourceSummaryOut = {
+  id: number;
+  name: string;
+  source_type: string;
+  status: string;
+  freshness_status: string;
+  last_synced_at: string | { toISOString(): string };
+  record_count: number;
+  schema_preview: string[];
+  health: string;
+  upload_history: ApiDataSourceHistoryOut[];
+};
+
+function mapDataSourceSummary(r: ApiDataSourceSummaryOut): DataSourceSummary {
+  return {
+    id: String(r.id),
+    name: r.name,
+    source_type: r.source_type,
+    status: r.status,
+    freshness_status: r.freshness_status,
+    last_synced_at: iso(r.last_synced_at),
+    record_count: r.record_count,
+    schema_preview: r.schema_preview ?? [],
+    health: r.health,
+    upload_history: (r.upload_history ?? []).map((h) => ({
+      at: iso(h.uploaded_at),
+      filename: h.file_path?.split(/[/\\]/).pop() ?? h.file_path ?? "—",
+      rows: h.record_count,
+    })),
   };
 }
 
@@ -254,6 +380,10 @@ type ApiActionOut = {
   execution_state: string;
   created_at: string | { toISOString(): string };
   updated_at: string | { toISOString(): string };
+  recommendation_id?: number | null;
+  alert_title?: string | null;
+  alert_type?: string | null;
+  action_type?: string | null;
 };
 
 function mapAction(a: ApiActionOut): ActionRequest {
@@ -278,6 +408,10 @@ function mapAction(a: ApiActionOut): ActionRequest {
     execution_state: a.execution_state,
     created_at: iso(a.created_at),
     updated_at: iso(a.updated_at),
+    recommendation_id: a.recommendation_id != null ? String(a.recommendation_id) : null,
+    alert_title: (a.alert_title ?? a.title ?? "").trim() || a.title,
+    alert_type: a.alert_type ?? null,
+    action_type: a.action_type ?? null,
   };
 }
 
@@ -359,7 +493,24 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
     const rows = await request<ApiLiveWorkItemOut[]>(`/live-ops/${organizationId}`);
     return rows.map(mapLiveWorkItem);
   },
-  listDataSources: (organizationId) => request(`/data-sources/${organizationId}`),
+  createTicketIntake: async (organizationId, body: TicketIntakePayload) => {
+    const raw = await request<ApiAgenticIntakeResultOut>(`/intake/tickets/${organizationId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return mapAgenticIntakeResult(raw);
+  },
+  createApprovalIntake: async (organizationId, body: ApprovalIntakePayload) => {
+    const raw = await request<ApiAgenticIntakeResultOut>(`/intake/approvals/${organizationId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return mapAgenticIntakeResult(raw);
+  },
+  listDataSources: async (organizationId) => {
+    const rows = await request<ApiDataSourceSummaryOut[]>(`/data-sources/${organizationId}`);
+    return rows.map(mapDataSourceSummary);
+  },
   uploadDataSource: (organizationId, fileName) =>
     request(`/data-sources/${organizationId}/upload`, {
       method: "POST",

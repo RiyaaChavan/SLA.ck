@@ -1,4 +1,13 @@
-import type { CaseSummary, CasesListParams, DetectorDefinition } from "../../domain/business-sentry";
+import type {
+  AgenticClassification,
+  AgenticIntakeResult,
+  ApprovalIntakePayload,
+  CaseSummary,
+  CasesListParams,
+  DetectorDefinition,
+  LiveWorkItem,
+  TicketIntakePayload,
+} from "../../domain/business-sentry";
 import type {
   ActionMutationResponse,
   BusinessSentryAdapter,
@@ -101,6 +110,127 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
   async listLiveOps(_organizationId) {
     await delay();
     return clone(MOCK_LIVE_OPS);
+  },
+
+  async createTicketIntake(_organizationId, body: TicketIntakePayload): Promise<AgenticIntakeResult> {
+    await delay();
+    const workflow_id = (Date.now() % 900_000) + 100_000;
+    const id = String(workflow_id);
+    const classification: AgenticClassification = {
+      workflow_type: "support_ticket",
+      workflow_category: "support",
+      issue_type: "support_ticket",
+      priority: "standard",
+      customer_tier: "standard",
+      business_unit: "support",
+      department_name: body.department_name?.trim() || "Operations",
+      vendor_name: body.vendor_name?.trim() || null,
+      suggested_backlog_hours: body.backlog_hours ?? 12,
+      confidence: 0.72,
+      rationale: ["Mock intake: ticket-like content classified as support.", "Department from payload or default."],
+    };
+    const approval_preview = null;
+    const intakeContext = {
+      workflow_id,
+      classification,
+      approval_preview,
+      alert_id: null as number | null,
+      recommendation_id: null as number | null,
+    };
+    const live_item: LiveWorkItem = {
+      id,
+      item_type: classification.workflow_type,
+      title: body.title,
+      team: classification.department_name,
+      owner_name: "Mock Queue Owner",
+      status: body.status ?? "open",
+      current_stage: "monitoring",
+      assigned_sla_name: "Mock SLA — P2 response",
+      response_deadline: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
+      resolution_deadline: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
+      time_remaining_minutes: 240,
+      predicted_breach_risk: "medium",
+      projected_penalty: 0,
+      projected_business_impact: 0,
+      linked_case_id: null,
+      suggested_action: "Triage in mock workspace",
+      match_rationale: ["Mock rule match for demo intake"],
+      workflow_category: classification.workflow_category,
+      intakeContext,
+    };
+    return {
+      workflow_id,
+      classification,
+      live_item,
+      alert_id: null,
+      recommendation_id: null,
+      approval_preview,
+    };
+  },
+
+  async createApprovalIntake(_organizationId, body: ApprovalIntakePayload): Promise<AgenticIntakeResult> {
+    await delay();
+    const workflow_id = (Date.now() % 900_000) + 200_000;
+    const id = String(workflow_id);
+    const classification: AgenticClassification = {
+      workflow_type: "approval_task",
+      workflow_category: "operations",
+      issue_type: "ops_task",
+      priority: "standard",
+      customer_tier: "standard",
+      business_unit: "operations",
+      department_name: body.department_name?.trim() || "Finance",
+      vendor_name: body.vendor_name?.trim() || null,
+      suggested_backlog_hours: body.backlog_hours ?? 24,
+      confidence: 0.68,
+      rationale: [
+        "Mock intake: approval flow from requested_action_type.",
+        String(body.requested_action_type ?? "default"),
+      ],
+    };
+    const approval_preview = {
+      should_auto_approve: false,
+      recommended_approver: "C. Nair",
+      reasoning: "Mock approver routing — human review suggested for this payload.",
+      confidence: 0.65,
+      metadata: {},
+    };
+    const intakeContext = {
+      workflow_id,
+      classification,
+      approval_preview,
+      alert_id: null as number | null,
+      recommendation_id: null as number | null,
+    };
+    const live_item: LiveWorkItem = {
+      id,
+      item_type: "approval_wait",
+      title: body.title,
+      team: classification.department_name,
+      owner_name: "Mock Approvals Queue",
+      status: body.status ?? "open",
+      current_stage: "monitoring",
+      assigned_sla_name: "Mock SLA — approval turnaround",
+      response_deadline: new Date(Date.now() + 8 * 3600 * 1000).toISOString(),
+      resolution_deadline: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
+      time_remaining_minutes: 480,
+      predicted_breach_risk: "low",
+      projected_penalty: 0,
+      projected_business_impact: 0,
+      linked_case_id: null,
+      suggested_action: "Route to recommended approver",
+      match_rationale: ["Mock approval SLA match"],
+      workflow_category: classification.workflow_category,
+      intakeContext,
+    };
+    return {
+      workflow_id,
+      classification,
+      live_item,
+      alert_id: null,
+      recommendation_id: null,
+      approval_preview,
+    };
   },
 
   async listDataSources(_organizationId) {
@@ -281,7 +411,13 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     await delay();
     const key = String(batchId);
     mockSlaBatches = mockSlaBatches.map((b) =>
-      String(b.id) === key ? { ...b, status: "discarded" } : b,
+      String(b.id) === key
+        ? {
+            ...b,
+            status: "discarded",
+            candidate_rules: b.candidate_rules.map((c) => ({ ...c, status: "discarded" as const })),
+          }
+        : b,
     );
     return { batch_id: key, status: "discarded" };
   },

@@ -132,6 +132,38 @@ export type CaseDetail = {
   timeline: TimelineEvent[];
 };
 
+/** Classification returned from agentic intake; also stored on the card for the detail drawer. */
+export type AgenticClassification = {
+  workflow_type: string;
+  workflow_category: string;
+  issue_type: string;
+  priority: string;
+  customer_tier: string;
+  business_unit: string;
+  department_name: string;
+  vendor_name?: string | null;
+  suggested_backlog_hours: number;
+  confidence: number;
+  rationale: string[];
+};
+
+export type AgenticApprovalPreview = {
+  should_auto_approve: boolean;
+  recommended_approver: string;
+  reasoning: string;
+  confidence: number;
+  metadata?: Record<string, unknown>;
+};
+
+/** Enrichment after POST /intake/...; list live-ops items omit this. */
+export type LiveWorkItemIntakeContext = {
+  workflow_id: number;
+  classification: AgenticClassification;
+  approval_preview: AgenticApprovalPreview | null;
+  alert_id: number | null;
+  recommendation_id: number | null;
+};
+
 export type LiveWorkItem = {
   id: string;
   item_type: string;
@@ -152,6 +184,33 @@ export type LiveWorkItem = {
   suggested_action: string;
   match_rationale: string[];
   workflow_category: string | null;
+  intakeContext?: LiveWorkItemIntakeContext;
+};
+
+/** Body for POST /intake/tickets/{organization_id} (matches TicketIntakeIn). */
+export type TicketIntakePayload = {
+  title: string;
+  description: string;
+  department_name?: string | null;
+  vendor_name?: string | null;
+  estimated_value?: number;
+  backlog_hours?: number | null;
+  status?: string;
+  region?: string;
+};
+
+/** Body for POST /intake/approvals/{organization_id} (matches ApprovalIntakeIn). */
+export type ApprovalIntakePayload = TicketIntakePayload & {
+  requested_action_type?: string;
+};
+
+export type AgenticIntakeResult = {
+  workflow_id: number;
+  classification: AgenticClassification;
+  live_item: LiveWorkItem;
+  alert_id: number | null;
+  recommendation_id: number | null;
+  approval_preview: AgenticApprovalPreview | null;
 };
 
 export type DetectorDefinition = {
@@ -245,6 +304,12 @@ export type ActionRequest = {
   execution_state: string;
   created_at: string;
   updated_at: string;
+  /** Joins to live-ops intake `recommendation_id` for deep links */
+  recommendation_id: string | null;
+  /** Distinct alert headline (vs agent recommendation title) */
+  alert_title: string;
+  alert_type: string | null;
+  action_type: string | null;
 };
 
 export type UploadHistoryEntry = {

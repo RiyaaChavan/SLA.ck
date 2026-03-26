@@ -13,11 +13,13 @@ from app.models.domain import (
     Approval,
     ApprovalDecision,
     Contract,
+    Department,
     Invoice,
     Recommendation,
     ResourceSnapshot,
     SLA,
     Severity,
+    Vendor,
     Workflow,
 )
 from app.services.agents import get_agent
@@ -187,6 +189,12 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
         contract.id: contract
         for contract in db.scalars(select(Contract).where(Contract.organization_id == organization_id)).all()
     }
+    vendors = {
+        v.id: v for v in db.scalars(select(Vendor).where(Vendor.organization_id == organization_id)).all()
+    }
+    departments = {
+        d.id: d for d in db.scalars(select(Department).where(Department.organization_id == organization_id)).all()
+    }
     duplicate_groups: dict[tuple[int, float, int], list[Invoice]] = defaultdict(list)
 
     for invoice in invoices:
@@ -203,7 +211,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
                 invoice_id=invoice.id,
                 type=AlertType.rate_mismatch,
                 severity=_severity(impact),
-                title="Billed rate exceeds contracted rate",
+                title=f"Rate over contract · {invoice.invoice_ref}",
                 description=(
                     f"Invoice {invoice.invoice_ref} was billed above the contracted rate "
                     f"for {contract.service_unit}."
@@ -231,7 +239,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
                 invoice_id=invoice.id,
                 type=AlertType.vendor_discrepancy,
                 severity=_severity(discrepancy),
-                title="Vendor billed more units than validated",
+                title=f"Units mismatch · {invoice.invoice_ref}",
                 description=f"Invoice {invoice.invoice_ref} is not supported by delivered unit logs.",
                 projected_impact=round(discrepancy, 2),
                 confidence_score=0.83,
@@ -252,6 +260,26 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
             continue
         base = group[0]
         impact = sum(item.amount for item in group[1:])
+        vendor_label = vendors[base.vendor_id].name if base.vendor_id in vendors else f"Vendor {base.vendor_id}"
+        dept_label = (
+            departments[base.department_id].name
+            if base.department_id in departments
+            else f"Dept {base.department_id}"
+        )
+        refs_preview = ", ".join(item.invoice_ref for item in group[:3])
+        if len(group) > 3:
+            refs_preview = f"{refs_preview} (+{len(group) - 3} more)"
+        title = (
+            f"Duplicate spend · {vendor_label} · {dept_label} · "
+            f"{len(group)}× @ {base.amount:,.2f} · {refs_preview}"
+        )
+        if len(title) > 255:
+            title = title[:252] + "..."
+        description = (
+            f"{len(group)} invoices match the same vendor ({vendor_label}), amount ({base.amount:,.2f}), "
+            f"and department ({dept_label}). References: "
+            f"{', '.join(item.invoice_ref for item in group)}."
+        )
         alert = Alert(
             organization_id=organization_id,
             department_id=base.department_id,
@@ -259,11 +287,14 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
             invoice_id=base.id,
             type=AlertType.duplicate_spend,
             severity=_severity(impact),
-            title="Potential duplicate invoice cluster",
-            description=f"{len(group)} invoices share the same amount and vendor signature.",
+            title=title,
+            description=description[:2000] if len(description) > 2000 else description,
             projected_impact=round(impact, 2),
             confidence_score=0.78,
-            payload={"invoice_ids": [item.id for item in group]},
+            payload={
+                "invoice_ids": [item.id for item in group],
+                "invoice_refs": [item.invoice_ref for item in group],
+            },
         )
         db.add(alert)
         db.flush()
@@ -295,6 +326,8 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
         impact = evaluation.risk.projected_business_impact or (
             evaluation.risk.projected_penalty + workflow.estimated_value * 0.03
         )
+        rule_name = evaluation.rule_match.rule_name or "SLA"
+        wf_label = workflow.workflow_type.replace("_", " ")
         alert = Alert(
             organization_id=organization_id,
             department_id=workflow.department_id,
@@ -302,7 +335,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
             workflow_id=workflow.id,
             type=AlertType.sla_risk,
             severity=_severity(impact),
-            title="Department delay is putting SLA at risk",
+            title=f"SLA risk · {wf_label} · {rule_name} · workflow {workflow.id}",
             description=(
                 f"Workflow {workflow.id} is operating at {evaluation.risk.predicted_breach_risk} "
                 f"risk with {max(delay_hours, 0):.1f} hours of delay exposure."
@@ -339,7 +372,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
                 resource_snapshot_id=snapshot.id,
                 type=AlertType.resource_overload,
                 severity=_severity(impact),
-                title="Resource capacity is overloaded",
+                title=f"Capacity overload · {snapshot.resource_name} ({snapshot.utilization_pct:.0f}%)",
                 description=f"{snapshot.resource_name} is running above sustainable utilization.",
                 projected_impact=round(impact, 2),
                 confidence_score=0.8,
@@ -362,7 +395,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
                 resource_snapshot_id=snapshot.id,
                 type=AlertType.resource_waste,
                 severity=_severity(impact),
-                title="Resource spend appears underutilized",
+                title=f"Underutilized capacity · {snapshot.resource_name} ({snapshot.utilization_pct:.0f}%)",
                 description=f"{snapshot.resource_name} is materially underused versus provisioned cost.",
                 projected_impact=round(impact, 2),
                 confidence_score=0.74,

@@ -12,6 +12,8 @@ export function createBusinessSentryAdapter(): BusinessSentryAdapter {
     listCases: LIVE_ENDPOINTS.cases ? h.listCases : m.listCases,
     getCaseDetail: LIVE_ENDPOINTS.caseDetail ? h.getCaseDetail : m.getCaseDetail,
     listLiveOps: LIVE_ENDPOINTS.liveOps ? h.listLiveOps : m.listLiveOps,
+    createTicketIntake: LIVE_ENDPOINTS.intakeTickets ? h.createTicketIntake : m.createTicketIntake,
+    createApprovalIntake: LIVE_ENDPOINTS.intakeApprovals ? h.createApprovalIntake : m.createApprovalIntake,
     listDataSources: LIVE_ENDPOINTS.dataSources ? h.listDataSources : m.listDataSources,
     uploadDataSource: LIVE_ENDPOINTS.dataSourcesUpload ? h.uploadDataSource : m.uploadDataSource,
     listDetectors: LIVE_ENDPOINTS.detectors ? h.listDetectors : m.listDetectors,

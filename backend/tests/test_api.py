@@ -246,3 +246,43 @@ def test_sla_file_upload_endpoint_extracts_from_text_document(client):
     updated_policies = auto_mode_update_response.json()["policies"]
     updated_policy = next(item for item in updated_policies if item["id"] == policy_id)
     assert updated_policy["enabled"] is False
+
+
+def test_agentic_ticket_intake_matches_premium_support_sla(client):
+    organization_id = bootstrap_dataset(client)
+
+    response = client.post(
+        f"/api/intake/tickets/{organization_id}",
+        json={
+            "title": "P1 premium checkout outage",
+            "description": "Premium users are blocked and need urgent support escalation.",
+            "estimated_value": 325000,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["classification"]["workflow_category"] == "support"
+    assert payload["classification"]["priority"] == "P1"
+    assert payload["classification"]["customer_tier"] == "premium"
+    assert payload["live_item"]["assigned_sla_name"] == "Premium Support Ticket SLA"
+    assert payload["live_item"]["predicted_breach_risk"] in {"high", "critical"}
+
+
+def test_agentic_approval_intake_returns_approval_preview(client):
+    organization_id = bootstrap_dataset(client)
+
+    response = client.post(
+        f"/api/intake/approvals/{organization_id}",
+        json={
+            "title": "Urgent vendor onboarding approval",
+            "description": "Procurement approval is blocking a launch-critical vendor rollout.",
+            "requested_action_type": "open_review_task",
+            "estimated_value": 540000,
+        },
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["classification"]["workflow_type"] == "procurement_approval"
+    assert payload["live_item"]["assigned_sla_name"] == "Approval Decision SLA"
+    assert payload["approval_preview"] is not None
+    assert "recommended_approver" in payload["approval_preview"]

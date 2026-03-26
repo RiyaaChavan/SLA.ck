@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
 import type { ActionRequest, AutoModeSettings } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
@@ -11,7 +12,6 @@ import {
   usePutAutoMode,
   useRejectAction,
 } from "../hooks/useBusinessSentry";
-import { NavLink } from "react-router-dom";
 
 type ActionCenterPageProps = {
   organizationId?: number;
@@ -21,10 +21,31 @@ const APPROVAL_STAGES = [
   { id: "pending", label: "Pending Review" },
   { id: "approved", label: "Approved" },
   { id: "rejected", label: "Rejected" },
-  { id: "executed", label: "Executed" }
+  { id: "executed", label: "Executed" },
 ];
 
+function humanizeActionType(raw: string | null | undefined): string {
+  if (!raw) return "";
+  return raw.replace(/_/g, " ");
+}
+
+function actionRiskBadgeClass(risk: string): string {
+  const x = risk.toLowerCase();
+  if (x === "critical" || x === "high") return "badge-critical";
+  if (x === "medium") return "badge-medium";
+  if (x === "low") return "badge-low";
+  return "badge-default";
+}
+
+function parseEvidenceLine(line: string): { label: string; value: string } | null {
+  const m = line.match(/^\s*([^:]+):\s*(.+)\s*$/);
+  if (!m) return null;
+  return { label: m[1].trim(), value: m[2].trim() };
+}
+
 export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const intakeRec = searchParams.get("intakeRec");
   const q = useActions(organizationId);
   const autoQ = useAutoMode(organizationId);
   const approve = useApproveAction(organizationId);
@@ -40,10 +61,25 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
   };
 
   const rows = q.data ?? [];
-  const columns = APPROVAL_STAGES.map(stage => ({
+  const columns = APPROVAL_STAGES.map((stage) => ({
     ...stage,
-    items: rows.filter(r => getStage(r) === stage.id)
+    items: rows.filter((r) => getStage(r) === stage.id),
   }));
+
+  const intakeMatch = useMemo(() => {
+    if (!intakeRec) return null;
+    return rows.find((r) => r.recommendation_id === intakeRec) ?? null;
+  }, [intakeRec, rows]);
+
+  useEffect(() => {
+    if (!intakeRec || !intakeMatch) return;
+    const el = document.getElementById(`bs-action-card-${intakeMatch.id}`);
+    if (!el) return;
+    const t = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }, 100);
+    return () => window.clearTimeout(t);
+  }, [intakeRec, intakeMatch, q.dataUpdatedAt]);
 
   if (!organizationId) {
     return (
@@ -59,6 +95,38 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
         title="Approvals"
         subtitle="Human-in-the-loop workflow before agents or workflows execute."
       />
+
+      {intakeRec ? (
+        <div
+          className={`bs-intake-rec-banner ${intakeMatch ? "bs-intake-rec-banner-ok" : "bs-intake-rec-banner-warn"}`}
+        >
+          <span>
+            {intakeMatch ? (
+              <>
+                Highlighting the action linked to recommendation <strong>#{intakeRec}</strong> (action #{intakeMatch.id}
+                , alert #{intakeMatch.case_id}).
+              </>
+            ) : (
+              <>
+                No action in this workspace matches recommendation <strong>#{intakeRec}</strong>. The list shows{" "}
+                <strong>action</strong> rows — confirm the id from intake, or switch organization. Pending items are
+                sorted by impact; the row may be in another approval column.
+              </>
+            )}
+          </span>
+          <button
+            type="button"
+            className="btn btn-ghost btn-sm"
+            onClick={() => {
+              const next = new URLSearchParams(searchParams);
+              next.delete("intakeRec");
+              setSearchParams(next, { replace: true });
+            }}
+          >
+            Clear
+          </button>
+        </div>
+      ) : null}
 
       <div style={{ marginBottom: 20 }}>
         <AutoModePanel
@@ -78,18 +146,22 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
       ) : q.isError ? (
         <StateBlock title="Failed to load actions" />
       ) : (
-        <div className="bs-kanban-board">
-          {columns.map(col => (
+        <div
+          className="bs-kanban-board bs-actions-kanban"
+          style={{ ["--bs-kanban-cols" as string]: String(APPROVAL_STAGES.length) }}
+        >
+          {columns.map((col) => (
             <div key={col.id} className="bs-kanban-column">
               <div className="bs-kanban-column-header">
                 <h3 className="bs-kanban-column-title">{col.label}</h3>
                 <span className="bs-kanban-count">{col.items.length}</span>
               </div>
               <div className="bs-kanban-cards">
-                {col.items.map(a => (
+                {col.items.map((a) => (
                   <ActionCard
                     key={a.id}
                     a={a}
+                    highlight={Boolean(intakeRec && a.recommendation_id === intakeRec)}
                     showApprove={col.id === "pending"}
                     showExecute={col.id === "approved"}
                     busy={approve.isPending || reject.isPending || execute.isPending}
@@ -119,6 +191,7 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
 
 function ActionCard({
   a,
+  highlight,
   showApprove,
   showExecute,
   busy,
@@ -127,6 +200,7 @@ function ActionCard({
   onExecute,
 }: {
   a: ActionRequest;
+  highlight: boolean;
   showApprove: boolean;
   showExecute: boolean;
   busy: boolean;
@@ -134,18 +208,57 @@ function ActionCard({
   onReject: () => void;
   onExecute: () => void;
 }) {
+  const parsedEvidence = a.evidence_pack_summary.map(parseEvidenceLine);
+  const hasStructured = parsedEvidence.every((p) => p !== null) && parsedEvidence.length > 0;
+
   return (
-    <div className="bs-kanban-card">
+    <div
+      id={`bs-action-card-${a.id}`}
+      className={`bs-kanban-card ${highlight ? "bs-action-card-highlight" : ""}`}
+    >
       <div className="bs-kanban-card-header">
-        <span className="bs-kanban-card-id">Case {a.case_id}</span>
-        <span className={`badge badge-${a.risk_level === "high" ? "critical" : "default"}`}>{a.risk_level}</span>
+        <span className="bs-kanban-card-id">
+          Action {a.id} · Alert {a.case_id}
+          {a.recommendation_id ? <> · Rec {a.recommendation_id}</> : null}
+        </span>
+        <span className={`badge ${actionRiskBadgeClass(a.risk_level)}`}>{a.risk_level}</span>
       </div>
-      <div className="bs-kanban-card-title">{a.title}</div>
-      <p className="td-sub" style={{ marginBottom: 12 }}>{a.rationale}</p>
+      <div className="bs-action-card-badges">
+        {a.alert_type ? (
+          <span className="bs-action-type-pill" title="Alert type">
+            {humanizeActionType(a.alert_type)}
+          </span>
+        ) : null}
+        {a.action_type ? (
+          <span className="bs-action-type-pill bs-action-type-pill-accent" title="Action type">
+            {humanizeActionType(a.action_type)}
+          </span>
+        ) : null}
+      </div>
+      <div className="bs-kanban-card-title">{a.alert_title}</div>
+      <div className="td-sub bs-action-proposed-line">
+        <span className="bs-muted">Proposed step:</span> {a.title}
+      </div>
+      <p className="td-sub bs-action-rationale">{a.rationale}</p>
       {a.evidence_pack_summary.length > 0 ? (
-        <p className="td-sub" style={{ marginBottom: 12, fontSize: 12 }}>
-          Evidence: {a.evidence_pack_summary.join(" · ")}
-        </p>
+        hasStructured ? (
+          <dl className="bs-action-evidence-dl">
+            {parsedEvidence.map((p, i) =>
+              p ? (
+                <div key={i} className="bs-action-evidence-row">
+                  <dt>{p.label}</dt>
+                  <dd>{p.value}</dd>
+                </div>
+              ) : null,
+            )}
+          </dl>
+        ) : (
+          <ul className="td-sub bs-action-evidence-list">
+            {a.evidence_pack_summary.map((line, i) => (
+              <li key={i}>{line}</li>
+            ))}
+          </ul>
+        )
       ) : null}
       <div className="bs-kanban-card-meta">
         <div className="bs-kanban-meta-item">
@@ -160,8 +273,12 @@ function ActionCard({
           <span className="bs-muted">Approver</span>
           <strong>{a.required_approver}</strong>
         </div>
+        <div className="bs-kanban-meta-item">
+          <span className="bs-muted">Next step</span>
+          <strong>{a.recommended_next_step}</strong>
+        </div>
       </div>
-      <div className="bs-card-actions" style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+      <div className="bs-card-actions bs-action-card-actions">
         {showApprove ? (
           <>
             <button type="button" className="btn btn-primary btn-sm" disabled={busy} onClick={onApprove} style={{ flex: 1 }}>
@@ -177,9 +294,11 @@ function ActionCard({
             Execute Action
           </button>
         ) : null}
-        {!showApprove && !showExecute && (
-          <span className="bs-muted" style={{ fontSize: 12 }}>Updated {formatDateTime(a.updated_at)}</span>
-        )}
+        {!showApprove && !showExecute ? (
+          <span className="bs-muted" style={{ fontSize: 12 }}>
+            Updated {formatDateTime(a.updated_at)}
+          </span>
+        ) : null}
       </div>
     </div>
   );

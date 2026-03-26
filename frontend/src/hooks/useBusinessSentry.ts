@@ -1,5 +1,11 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AutoModePolicyUpdate, CasesListParams } from "../domain/business-sentry";
+import type {
+  ApprovalIntakePayload,
+  AutoModePolicyUpdate,
+  CasesListParams,
+  SlaExtractionBatch,
+  TicketIntakePayload,
+} from "../domain/business-sentry";
 import { getBusinessSentryAdapter } from "../adapters/business-sentry";
 import type {
   SlaExtractionCandidateEdit,
@@ -37,6 +43,32 @@ export function useLiveOps(organizationId: number | undefined) {
     queryKey: ["bs", "liveOps", organizationId],
     queryFn: () => adapter.listLiveOps(organizationId!),
     enabled: Boolean(organizationId),
+  });
+}
+
+export function useCreateTicketIntake(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: TicketIntakePayload) => adapter.createTicketIntake(organizationId!, body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "liveOps", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "actions", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "cases", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+    },
+  });
+}
+
+export function useCreateApprovalIntake(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ApprovalIntakePayload) => adapter.createApprovalIntake(organizationId!, body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "liveOps", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "actions", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "cases", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+    },
   });
 }
 
@@ -149,7 +181,32 @@ export function useSlaBatchDiscard(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (batchId: string) => adapter.discardSlaBatch(batchId),
-    onSuccess: async () => {
+    onMutate: async (batchId) => {
+      if (organizationId == null) return {};
+      await qc.cancelQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
+      const prev = qc.getQueryData<SlaExtractionBatch[]>(["bs", "slaExtractions", organizationId]);
+      qc.setQueryData<SlaExtractionBatch[] | undefined>(["bs", "slaExtractions", organizationId], (old) => {
+        if (!old) return old;
+        return old.map((b) =>
+          String(b.id) === String(batchId)
+            ? {
+                ...b,
+                status: "discarded",
+                candidate_rules: b.candidate_rules.map((c) => ({ ...c, status: "discarded" })),
+              }
+            : b,
+        );
+      });
+      return { prev };
+    },
+    onError: (_err, _batchId, ctx) => {
+      if (organizationId == null) return;
+      if (ctx && "prev" in ctx && ctx.prev !== undefined) {
+        qc.setQueryData(["bs", "slaExtractions", organizationId], ctx.prev);
+      }
+    },
+    onSettled: async () => {
+      if (organizationId == null) return;
       await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
     },
   });
@@ -159,7 +216,30 @@ export function useDiscardSlaCandidate(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (candidateId: string) => adapter.discardSlaCandidate(candidateId),
-    onSuccess: async () => {
+    onMutate: async (candidateId) => {
+      if (organizationId == null) return {};
+      await qc.cancelQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
+      const prev = qc.getQueryData<SlaExtractionBatch[]>(["bs", "slaExtractions", organizationId]);
+      const key = String(candidateId);
+      qc.setQueryData<SlaExtractionBatch[] | undefined>(["bs", "slaExtractions", organizationId], (old) => {
+        if (!old) return old;
+        return old.map((b) => ({
+          ...b,
+          candidate_rules: b.candidate_rules.map((c) =>
+            String(c.id) === key ? { ...c, status: "discarded" } : c,
+          ),
+        }));
+      });
+      return { prev };
+    },
+    onError: (_err, _candidateId, ctx) => {
+      if (organizationId == null) return;
+      if (ctx && "prev" in ctx && ctx.prev !== undefined) {
+        qc.setQueryData(["bs", "slaExtractions", organizationId], ctx.prev);
+      }
+    },
+    onSettled: async () => {
+      if (organizationId == null) return;
       await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
     },
   });

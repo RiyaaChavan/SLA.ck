@@ -7,9 +7,11 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.domain import Action, Alert, AuditEvent, Organization
 from app.schemas.api import (
+    AgenticIntakeResultOut,
     ActionDecisionIn,
     ActionRequestOut,
     AlertOut,
+    ApprovalIntakeIn,
     AutoModeSettingsOut,
     AutoModeUpdateIn,
     AuditFeedItem,
@@ -40,6 +42,7 @@ from app.schemas.api import (
     SlaRulebookEntryCreateIn,
     SlaRulebookEntryOut,
     SlaRulebookEntryUpdateIn,
+    TicketIntakeIn,
 )
 from app.services.action_center import (
     approve_action_request,
@@ -59,6 +62,7 @@ from app.services.detectors import (
     test_detector,
 )
 from app.services.impact import impact_overview
+from app.services.agentic_intake import ingest_approval, ingest_ticket
 from app.services.live_ops import list_live_ops
 from app.services.query.investigator import run_investigation
 from app.services.reporting.reporter import generate_pdf_report, list_reports
@@ -173,6 +177,24 @@ def get_live_ops(
             sort=sort,
         )
     ]
+
+
+@router.post("/intake/tickets/{organization_id}", response_model=AgenticIntakeResultOut)
+def create_ticket_intake(
+    organization_id: int, payload: TicketIntakeIn, db: Session = Depends(get_db)
+) -> AgenticIntakeResultOut:
+    return AgenticIntakeResultOut.model_validate(
+        ingest_ticket(db, organization_id=organization_id, **payload.model_dump())
+    )
+
+
+@router.post("/intake/approvals/{organization_id}", response_model=AgenticIntakeResultOut)
+def create_approval_intake(
+    organization_id: int, payload: ApprovalIntakeIn, db: Session = Depends(get_db)
+) -> AgenticIntakeResultOut:
+    return AgenticIntakeResultOut.model_validate(
+        ingest_approval(db, organization_id=organization_id, **payload.model_dump())
+    )
 
 
 @router.get("/data-sources/{organization_id}", response_model=list[DataSourceSummaryOut])

@@ -48,7 +48,12 @@ def build_live_work_item(
     workflow: Workflow, department: Department | None, vendor: Vendor | None
 ) -> LiveWorkItemContract:
     category = workflow_category_for_type(workflow.workflow_type)
-    priority = "P1" if workflow.backlog_hours >= 48 else "standard"
+    metadata = workflow.intake_metadata or {}
+    priority = metadata.get("priority") or ("P1" if workflow.backlog_hours >= 48 else "standard")
+    customer_tier = metadata.get("customer_tier") or ("premium" if workflow.backlog_hours >= 60 else "standard")
+    issue_type = metadata.get("issue_type") or ("support_ticket" if category == "support" else "ops_task")
+    business_unit = metadata.get("business_unit") or (category if category != "finance" else "procurement")
+    workflow_name = metadata.get("workflow") or workflow.workflow_type
     return LiveWorkItemContract(
         id=workflow.id,
         organization_id=workflow.organization_id,
@@ -62,16 +67,16 @@ def build_live_work_item(
         backlog_hours=workflow.backlog_hours,
         owner_name=f"{department.name} Queue Owner" if department else "Operations Queue Owner",
         attributes={
-            "department": department.name if department else None,
-            "team": department.name if department else None,
-            "workflow": workflow.workflow_type,
-            "workflow_category": category,
+            "department": metadata.get("department") or (department.name if department else None),
+            "team": metadata.get("team") or (department.name if department else None),
+            "workflow": workflow_name,
+            "workflow_category": metadata.get("workflow_category") or category,
             "priority": priority,
-            "business_unit": category if category != "finance" else "procurement",
-            "issue_type": "support_ticket" if category == "support" else "ops_task",
-            "vendor_name": vendor.name if vendor else None,
-            "customer_tier": "premium" if workflow.backlog_hours >= 60 else "standard",
-            "region": "default",
+            "business_unit": business_unit,
+            "issue_type": issue_type,
+            "vendor_name": metadata.get("vendor_name") or (vendor.name if vendor else None),
+            "customer_tier": customer_tier,
+            "region": metadata.get("region") or "default",
         },
     )
 

@@ -464,6 +464,10 @@ class ActionRequestOut(BaseModel):
     execution_state: str
     created_at: datetime
     updated_at: datetime
+    recommendation_id: int | None = None
+    alert_title: str | None = None
+    alert_type: str | None = None
+    action_type: str | None = None
 
 
 class ActionDecisionIn(BaseModel):
@@ -499,3 +503,57 @@ class AutoModePolicyUpdateIn(BaseModel):
 
 class AutoModeUpdateIn(BaseModel):
     policies: list[AutoModePolicyUpdateIn]
+
+
+class AgenticClassificationOut(BaseModel):
+    workflow_type: str
+    workflow_category: str
+    issue_type: str
+    priority: str
+    customer_tier: str
+    business_unit: str
+    department_name: str
+    vendor_name: str | None = None
+    suggested_backlog_hours: float
+    confidence: float
+    rationale: list[str] = Field(default_factory=list)
+
+
+class TicketIntakeIn(BaseModel):
+    title: str
+    description: str
+    department_name: str | None = None
+    vendor_name: str | None = None
+    estimated_value: float = 150000.0
+    backlog_hours: float | None = None
+    status: str = "open"
+    region: str = "default"
+
+
+class ApprovalIntakeIn(BaseModel):
+    title: str
+    description: str
+    requested_action_type: str = "open_review_task"
+    department_name: str | None = None
+    vendor_name: str | None = None
+    estimated_value: float = 150000.0
+    backlog_hours: float | None = None
+    status: str = "open"
+    region: str = "default"
+
+
+class AgenticApprovalPreviewOut(BaseModel):
+    should_auto_approve: bool
+    recommended_approver: str
+    reasoning: str
+    confidence: float
+    metadata: dict = Field(default_factory=dict)
+
+
+class AgenticIntakeResultOut(BaseModel):
+    workflow_id: int
+    classification: AgenticClassificationOut
+    live_item: LiveWorkItemOut
+    alert_id: int | None = None
+    recommendation_id: int | None = None
+    approval_preview: AgenticApprovalPreviewOut | None = None

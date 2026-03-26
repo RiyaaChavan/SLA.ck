@@ -460,6 +460,10 @@ export const MOCK_ACTIONS_SEED: ActionRequest[] = [
     execution_state: "not_started",
     created_at: "2026-03-28T09:00:00Z",
     updated_at: "2026-03-28T09:00:00Z",
+    recommendation_id: "9001",
+    alert_title: "Dup cluster · TechSource · AP North · 3× @ 125,000 · FIN-001, FIN-002",
+    alert_type: "duplicate_spend",
+    action_type: "hold_payment_batch",
   },
   {
     id: "act-502",
@@ -476,6 +480,10 @@ export const MOCK_ACTIONS_SEED: ActionRequest[] = [
     execution_state: "ready",
     created_at: "2026-03-27T10:00:00Z",
     updated_at: "2026-03-28T08:00:00Z",
+    recommendation_id: "9002",
+    alert_title: "SLA risk · support ticket · Enterprise P1 · workflow 12",
+    alert_type: "sla_risk",
+    action_type: "reroute_queue",
   },
   {
     id: "act-503",
@@ -492,6 +500,10 @@ export const MOCK_ACTIONS_SEED: ActionRequest[] = [
     execution_state: "not_started",
     created_at: "2026-03-21T09:00:00Z",
     updated_at: "2026-03-22T11:00:00Z",
+    recommendation_id: "9003",
+    alert_title: "Units mismatch · INV-PO-8891-A",
+    alert_type: "vendor_discrepancy",
+    action_type: "open_review_task",
   },
   {
     id: "act-504",
@@ -508,6 +520,10 @@ export const MOCK_ACTIONS_SEED: ActionRequest[] = [
     execution_state: "executed",
     created_at: "2026-03-18T09:00:00Z",
     updated_at: "2026-03-25T16:00:00Z",
+    recommendation_id: "9004",
+    alert_title: "Rate over contract · CC-INV-2044",
+    alert_type: "rate_mismatch",
+    action_type: "notify_vendor",
   },
 ];
 

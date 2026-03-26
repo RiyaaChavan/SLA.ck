@@ -10,6 +10,7 @@ import { StateBlock } from "../components/business-sentry/StateBlock";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
   useArchiveSlaRule,
+  useDataSources,
   useDiscardSlaCandidate,
   useRescanAlerts,
   useSlaBatchApprove,
@@ -75,6 +76,28 @@ function SlaDropzone({ onUpload, isUploading }: { onUpload: (file: File) => void
         <div className="bs-dropzone-subtext">PDF, DOCX, images, or plain text</div>
       </div>
     </div>
+  );
+}
+
+function TrashIcon({ className }: { className?: string }) {
+  return (
+    <svg
+      className={className}
+      width={18}
+      height={18}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <polyline points="3 6 5 6 21 6" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+      <line x1="10" y1="11" x2="10" y2="17" />
+      <line x1="14" y1="11" x2="14" y2="17" />
+    </svg>
   );
 }
 
@@ -370,15 +393,18 @@ function CandidateEditModal({
 
 export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
-  const tab = useMemo(
-    () => (searchParams.get("tab") === "active" ? "active" : "extraction"),
-    [searchParams],
-  );
-  const setTab = (next: "extraction" | "active") => {
-    setSearchParams(next === "active" ? { tab: "active" } : { tab: "extraction" }, { replace: true });
+  const tab = useMemo(() => {
+    const t = searchParams.get("tab");
+    if (t === "active") return "active";
+    if (t === "sources") return "sources";
+    return "extraction";
+  }, [searchParams]);
+  const setTab = (next: "extraction" | "active" | "sources") => {
+    setSearchParams({ tab: next }, { replace: true });
   };
   const rulesQ = useSlaRules(organizationId);
   const extQ = useSlaExtractions(organizationId);
+  const dataSourcesQ = useDataSources(organizationId);
   const approve = useSlaBatchApprove(organizationId);
   const discard = useSlaBatchDiscard(organizationId);
   const upload = useSlaExtractionUpload(organizationId);
@@ -435,6 +461,16 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
         r.conditions.toLowerCase().includes(filter.toLowerCase())),
   );
 
+  const visibleExtractions = useMemo(() => {
+    const list = extQ.data ?? [];
+    return list.filter((b) => {
+      if (b.status === "discarded") return false;
+      const hasActive = b.candidate_rules.some((c) => (c.status ?? "pending") !== "discarded");
+      if (b.status === "pending_review" && !hasActive) return false;
+      return true;
+    });
+  }, [extQ.data]);
+
   return (
     <div className="page-content">
       <PageHeader
@@ -464,19 +500,73 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
         <button type="button" className={tab === "active" ? "bs-tab bs-tab-active" : "bs-tab"} onClick={() => setTab("active")}>
           Active rules
         </button>
+        <button type="button" className={tab === "sources" ? "bs-tab bs-tab-active" : "bs-tab"} onClick={() => setTab("sources")}>
+          Data sources
+        </button>
       </div>
 
-      {tab === "extraction" ? (
+      {tab === "sources" ? (
+        <>
+          {dataSourcesQ.isPending ? (
+            <StateBlock title="Loading data sources" loading />
+          ) : dataSourcesQ.isError ? (
+            <StateBlock title="Failed to load data sources" />
+          ) : (
+            <div className="bs-data-sources-list">
+              {(dataSourcesQ.data ?? []).length === 0 ? (
+                <StateBlock
+                  title="No data sources"
+                  description="Register connectors or uploads via the API; seeded orgs usually list SAP exports and documents here."
+                />
+              ) : null}
+              {(dataSourcesQ.data ?? []).map((ds) => (
+                <div key={ds.id} className="card bs-data-source-card">
+                  <div className="card-header">
+                    <div className="card-title">{ds.name}</div>
+                    <div className="card-subtitle td-sub">
+                      {ds.source_type} · {ds.status} · {ds.freshness_status} · {ds.health}
+                    </div>
+                  </div>
+                  <div className="card-body">
+                    <p className="td-sub" style={{ marginBottom: 8 }}>
+                      Last synced {formatDateTime(ds.last_synced_at)} · {ds.record_count.toLocaleString()} records
+                    </p>
+                    {ds.schema_preview.length > 0 ? (
+                      <div className="td-sub">
+                        <strong>Schema preview:</strong> {ds.schema_preview.join(", ")}
+                      </div>
+                    ) : null}
+                    {ds.upload_history.length > 0 ? (
+                      <ul className="td-sub" style={{ marginTop: 8, paddingLeft: 18 }}>
+                        {ds.upload_history.slice(0, 5).map((h, i) => (
+                          <li key={i}>
+                            {formatDateTime(h.at)} — {h.filename} ({h.rows} rows)
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </>
+      ) : tab === "extraction" ? (
         <>
           <SlaDropzone onUpload={(file) => upload.mutate({ file })} isUploading={upload.isPending} />
           {extQ.isPending ? (
             <StateBlock title="Loading extractions" loading />
           ) : extQ.isError ? (
             <StateBlock title="Failed to load extractions" />
+          ) : visibleExtractions.length === 0 ? (
+            <StateBlock
+              title="No extraction reviews"
+              description="Upload a document to extract rules. Discarded batches and reviews with no remaining candidates are hidden."
+            />
           ) : (
             <div className="bs-extraction-list">
-              {(extQ.data ?? []).map((b) => {
-                const activeCands = b.candidate_rules.filter((c) => c.status !== "discarded");
+              {visibleExtractions.map((b) => {
+                const activeCands = b.candidate_rules.filter((c) => (c.status ?? "pending") !== "discarded");
                 const discardedCount = b.candidate_rules.length - activeCands.length;
                 const pendingEditsCount = activeCands.filter((c) => pendingCandidateEdits[c.id]).length;
                 return (
@@ -524,14 +614,16 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                         </button>
                         <button
                           type="button"
-                          className="btn btn-ghost btn-sm"
+                          className="btn btn-ghost-danger btn-sm bs-sla-trash-btn"
+                          title="Delete extraction review (discard entire batch)"
+                          aria-label="Delete extraction review, discard entire batch"
                           disabled={discard.isPending}
                           onClick={() => {
-                            if (!window.confirm(`Discard entire batch “${b.source_document_name}”?`)) return;
+                            if (!window.confirm(`Delete this extraction review and discard the entire batch “${b.source_document_name}”?`)) return;
                             discard.mutate(b.id);
                           }}
                         >
-                          Discard batch
+                          <TrashIcon />
                         </button>
                       </div>
                     </div>
@@ -612,7 +704,9 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                   </button>
                                   <button
                                     type="button"
-                                    className="btn btn-ghost-danger btn-sm"
+                                    className="btn btn-ghost-danger btn-sm bs-sla-trash-btn"
+                                    title="Remove this candidate from the extraction review"
+                                    aria-label="Remove candidate from extraction review"
                                     disabled={discardCandidate.isPending || b.status !== "pending_review"}
                                     onClick={() => {
                                       if (!window.confirm(`Remove this candidate from the batch?`)) return;
@@ -624,7 +718,7 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                       discardCandidate.mutate(String(c.id));
                                     }}
                                   >
-                                    Discard
+                                    <TrashIcon />
                                   </button>
                                 </div>
                               </div>

@@ -699,4 +699,8 @@ def build_action_request(alert: Alert, context: dict[str, Any]) -> dict[str, Any
             action.executed_at if action else None,
             action.updated_at,
         ),
+        "recommendation_id": recommendation.id,
+        "alert_title": alert.title,
+        "alert_type": alert.type.value,
+        "action_type": action.action_type,
     }
