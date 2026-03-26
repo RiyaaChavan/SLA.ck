@@ -390,10 +390,10 @@ export function AppShell({
                 </select>
               </label>
             ) : (
-              <div className="topnav-workspace-empty" aria-live="polite">
+              <Link to="/onboarding" className="topnav-workspace-empty" aria-live="polite">
                 <span className="topnav-workspace-label">Workspace</span>
-                <span className="topnav-workspace-hint">Connect a source</span>
-              </div>
+                <span className="topnav-workspace-hint">Create workspace</span>
+              </Link>
             )}
             <button type="button" className="topnav-seed-btn" onClick={onSeed} disabled={seeding}>
               <IconPlus />

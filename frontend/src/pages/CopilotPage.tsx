@@ -11,7 +11,7 @@ export function CopilotPage({ organizationId, onSubmit }: CopilotPageProps) {
   if (!organizationId) {
     return (
       <div className="page-content">
-        <StateBlock title="Select a workspace" description="Copilot runs against the selected organization." />
+        <StateBlock title="Create a workspace" description="Create a workspace before running Copilot." />
       </div>
     );
   }

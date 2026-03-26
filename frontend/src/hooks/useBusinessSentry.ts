@@ -8,6 +8,7 @@ import type {
 } from "../domain/business-sentry";
 import { getBusinessSentryAdapter } from "../adapters/business-sentry";
 import type {
+  DataSourceUploadPayload,
   SlaExtractionCandidateEdit,
   SlaRulebookEntryUpdatePayload,
 } from "../adapters/business-sentry/contract";
@@ -145,7 +146,7 @@ export function useAutoMode(organizationId: number | undefined) {
 export function useDataSourceUpload(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (fileName: string) => adapter.uploadDataSource(organizationId!, fileName),
+    mutationFn: (body: DataSourceUploadPayload) => adapter.uploadDataSource(organizationId!, body),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "dataSources", organizationId] });
     },

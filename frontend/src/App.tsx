@@ -1,10 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
-import { Outlet, Route, Routes } from "react-router-dom";
+import type { ReactNode } from "react";
+import { Navigate, Outlet, Route, Routes, useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api/client";
+import type { CreateOrganizationInput } from "./api/client";
+import { getBusinessSentryAdapter } from "./adapters/business-sentry";
 import { AppShell } from "./components/layout/AppShell";
+import { StateBlock } from "./components/business-sentry/StateBlock";
 import { useNotifications } from "./components/shared/Notifications";
+import { buildConnectorStubPayload } from "./lib/dataSources";
 import { ActionCenterPage } from "./pages/ActionCenterPage";
 import { AuditPage } from "./pages/AuditPage";
 import { CasesPage } from "./pages/CasesPage";
@@ -15,10 +20,50 @@ import { ImpactPage } from "./pages/ImpactPage";
 import { CopilotPage } from "./pages/CopilotPage";
 import { LiveOpsPage } from "./pages/LiveOpsPage";
 import { SlaRulebookPage } from "./pages/SlaRulebookPage";
+import { WorkspaceOnboardingPage } from "./pages/WorkspaceOnboardingPage";
+
+type WorkspaceGateProps = {
+  loading: boolean;
+  error: boolean;
+  hasOrganizations: boolean;
+  organizationId?: number;
+  children: ReactNode;
+};
+
+function WorkspaceGate({
+  loading,
+  error,
+  hasOrganizations,
+  organizationId,
+  children,
+}: WorkspaceGateProps) {
+  if (loading || (hasOrganizations && !organizationId)) {
+    return (
+      <div className="page-content">
+        <StateBlock title="Loading workspace" loading />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="page-content">
+        <StateBlock title="Could not load workspaces" description="Refresh the page and try again." />
+      </div>
+    );
+  }
+
+  if (!hasOrganizations) {
+    return <Navigate to="/onboarding" replace />;
+  }
+
+  return <>{children}</>;
+}
 
 export default function App() {
   const { notify } = useNotifications();
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [selectedOrganizationId, setSelectedOrganizationId] = useState<number | undefined>();
 
   const organizationsQuery = useQuery({
@@ -99,16 +144,18 @@ export default function App() {
     api.investigate(selectedOrganizationId!, question);
 
   const currentReports = useMemo(() => reportsQuery.data ?? [], [reportsQuery.data]);
+  const organizations = organizationsQuery.data ?? [];
+  const hasOrganizations = organizations.length > 0;
 
   const orgProps = {
-    organizations: organizationsQuery.data ?? [],
+    organizations,
     selectedOrganizationId,
     onOrganizationChange: setSelectedOrganizationId,
     onSeed: () => seedMutation.mutate(),
     seeding: seedMutation.isPending,
   };
 
-  const handleSourceConnected = async (organizationId: number) => {
+  const syncSelectedOrganization = async (organizationId: number) => {
     await queryClient.invalidateQueries({ queryKey: ["organizations"] });
     setSelectedOrganizationId(organizationId);
     await Promise.all([
@@ -117,6 +164,51 @@ export default function App() {
       queryClient.invalidateQueries({ queryKey: ["bs"] }),
     ]);
   };
+
+  const workspaceMutation = useMutation({
+    mutationFn: async (body: CreateOrganizationInput) => {
+      const organization = await api.createOrganization(body);
+      let connectorStubCreated = true;
+      try {
+        await getBusinessSentryAdapter().uploadDataSource(
+          organization.id,
+          buildConnectorStubPayload(organization.name),
+        );
+      } catch {
+        connectorStubCreated = false;
+      }
+      return { organization, connectorStubCreated };
+    },
+    onSuccess: async ({ organization, connectorStubCreated }) => {
+      await syncSelectedOrganization(organization.id);
+      notify({
+        tone: connectorStubCreated ? "success" : "info",
+        title: connectorStubCreated ? "Workspace created" : "Workspace created with warning",
+        message: connectorStubCreated
+          ? "The workspace is ready and a starter connector stub was added."
+          : "The workspace was created, but the starter connector stub could not be added.",
+      });
+      navigate("/data-sources", { replace: true });
+    },
+    onError: (error) => {
+      notify({
+        tone: "error",
+        title: "Workspace creation failed",
+        message: error instanceof Error ? error.message : "Could not create the workspace.",
+      });
+    },
+  });
+
+  const guarded = (element: ReactNode) => (
+    <WorkspaceGate
+      loading={organizationsQuery.isPending}
+      error={organizationsQuery.isError}
+      hasOrganizations={hasOrganizations}
+      organizationId={selectedOrganizationId}
+    >
+      {element}
+    </WorkspaceGate>
+  );
 
   return (
     <Routes>
@@ -131,20 +223,29 @@ export default function App() {
             />
           }
         />
-        <Route path="impact" element={<ImpactPage organizationId={selectedOrganizationId} />} />
-        <Route path="cases" element={<CasesPage organizationId={selectedOrganizationId} />} />
-        <Route path="live-ops" element={<LiveOpsPage organizationId={selectedOrganizationId} />} />
-        <Route path="detectors" element={<DetectorsPage organizationId={selectedOrganizationId} />} />
-        <Route path="sla-rulebook" element={<SlaRulebookPage organizationId={selectedOrganizationId} />} />
-        <Route path="action-center" element={<ActionCenterPage organizationId={selectedOrganizationId} />} />
         <Route
-          path="data-sources"
+          path="onboarding"
           element={
-            <DataSourcesPage
-              organizationId={selectedOrganizationId}
-              onSourceConnected={handleSourceConnected}
+            <WorkspaceOnboardingPage
+              hasOrganizations={hasOrganizations}
+              creating={workspaceMutation.isPending}
+              onCreateWorkspace={(body) => workspaceMutation.mutateAsync(body).then(() => undefined)}
             />
           }
+        />
+        <Route path="impact" element={<ImpactPage organizationId={selectedOrganizationId} />} />
+        <Route path="cases" element={guarded(<CasesPage organizationId={selectedOrganizationId} />)} />
+        <Route path="live-ops" element={guarded(<LiveOpsPage organizationId={selectedOrganizationId} />)} />
+        <Route path="detectors" element={guarded(<DetectorsPage organizationId={selectedOrganizationId} />)} />
+        <Route path="sla-rulebook" element={guarded(<SlaRulebookPage organizationId={selectedOrganizationId} />)} />
+        <Route path="action-center" element={guarded(<ActionCenterPage organizationId={selectedOrganizationId} />)} />
+        <Route
+          path="data-sources"
+          element={guarded(
+            <DataSourcesPage
+              organizationId={selectedOrganizationId}
+            />
+          )}
         />
         <Route
           path="audit"
@@ -156,7 +257,10 @@ export default function App() {
             />
           }
         />
-        <Route path="copilot" element={<CopilotPage organizationId={selectedOrganizationId} onSubmit={investigate} />} />
+        <Route
+          path="copilot"
+          element={guarded(<CopilotPage organizationId={selectedOrganizationId} onSubmit={investigate} />)}
+        />
       </Route>
     </Routes>
   );

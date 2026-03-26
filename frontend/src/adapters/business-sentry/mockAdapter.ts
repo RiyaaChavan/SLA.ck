@@ -246,12 +246,12 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return clone(MOCK_DATA_SOURCES);
   },
 
-  async uploadDataSource(_organizationId, fileName) {
+  async uploadDataSource(_organizationId, body) {
     await delay();
     return {
       upload_id: `upl-${Date.now()}`,
       status: "accepted",
-      message: `Metadata recorded for ${fileName} (stub phase 1).`,
+      message: `Metadata recorded for ${body.file_name ?? body.name} (stub phase 1).`,
     };
   },
 

@@ -91,7 +91,7 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
   if (!organizationId) {
     return (
       <div className="page-content">
-        <StateBlock title="Select a workspace" />
+        <StateBlock title="Create a workspace" description="Create a workspace before reviewing approvals." />
       </div>
     );
   }

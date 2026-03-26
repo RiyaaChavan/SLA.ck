@@ -10,7 +10,7 @@ export const LIVE_ENDPOINTS = {
   intakeTickets: true,
   intakeApprovals: true,
   dataSources: true,
-  dataSourcesUpload: false,
+  dataSourcesUpload: true,
   detectors: false,
   detectorsCreate: false,
   detectorsPromptDraft: false,

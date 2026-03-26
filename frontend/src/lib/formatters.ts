@@ -19,6 +19,6 @@ export function formatPercent(p: number): string {
   return `${(p * 100).toFixed(0)}%`;
 }
 
-export function formatModuleLabel(module: string): string {
-  return module.replaceAll("_", " ");
+export function formatModuleLabel(module: string | undefined | null): string {
+  return (module ?? "general").replaceAll("_", " ");
 }

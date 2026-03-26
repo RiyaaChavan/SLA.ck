@@ -12,6 +12,7 @@ from app.schemas.api import (
     ActionDecisionIn,
     ActionRequestOut,
     AlertOut,
+    CreateOrganizationIn,
     ApprovalIntakeIn,
     AutoModeSettingsOut,
     AutoModeUpdateIn,
@@ -51,6 +52,7 @@ from app.services.action_center import (
     list_action_requests,
     reject_action_request,
 )
+from app.services.organizations import create_organization
 from app.services.auto_mode import get_auto_mode_settings, update_auto_mode_settings
 from app.services.alerts.detector import scan_organization_alerts
 from app.services.cases import get_case_detail, list_cases
@@ -100,6 +102,19 @@ def bootstrap_seed(reset: bool = False, db: Session = Depends(get_db)) -> SeedRe
 def list_organizations(db: Session = Depends(get_db)) -> list[OrganizationOut]:
     organizations = db.scalars(select(Organization).order_by(Organization.id.asc())).all()
     return [OrganizationOut.model_validate(item, from_attributes=True) for item in organizations]
+
+
+@router.post("/organizations", response_model=OrganizationOut, status_code=201)
+def create_organization_route(
+    payload: CreateOrganizationIn, db: Session = Depends(get_db)
+) -> OrganizationOut:
+    try:
+        organization = create_organization(db, **payload.model_dump())
+    except ValueError as exc:
+        detail = str(exc)
+        status_code = 409 if "already exists" in detail else 400
+        raise HTTPException(status_code=status_code, detail=detail) from exc
+    return OrganizationOut.model_validate(organization, from_attributes=True)
 
 
 @router.get("/impact/{organization_id}", response_model=ImpactOverviewOut)

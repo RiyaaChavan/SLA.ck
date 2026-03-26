@@ -22,6 +22,35 @@ def test_bootstrap_seed_generates_demo_data(client):
     assert dashboard["top_alerts"]
 
 
+def test_create_workspace_and_reject_duplicate_names(client):
+    create_response = client.post(
+        "/api/organizations",
+        json={
+            "name": "Northstar Ops",
+            "industry": "Retail operations",
+            "geography": "India",
+        },
+    )
+    assert create_response.status_code == 201
+    created = create_response.json()
+    assert created["name"] == "Northstar Ops"
+
+    list_response = client.get("/api/organizations")
+    assert list_response.status_code == 200
+    assert list_response.json()[0]["id"] == created["id"]
+
+    duplicate_response = client.post(
+        "/api/organizations",
+        json={
+            "name": "Northstar Ops",
+            "industry": "Retail operations",
+            "geography": "India",
+        },
+    )
+    assert duplicate_response.status_code == 409
+    assert duplicate_response.json()["detail"] == "Organization name already exists"
+
+
 def test_new_read_endpoints_return_seeded_payloads(client):
     organization_id = bootstrap_dataset(client)
 

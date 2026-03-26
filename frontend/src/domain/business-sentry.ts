@@ -29,6 +29,7 @@ export type RealizedVsProjected = {
   periods: string[];
   realized_savings: number[];
   projected_savings: number[];
+  capture_rate_pct?: number;
 };
 
 export type ApprovalExecutionFunnel = {
@@ -345,6 +346,46 @@ export type DataSourceSummary = {
   schema_preview: string[];
   health: string;
   upload_history: UploadHistoryEntry[];
+};
+
+export type DatasetSummary = {
+  name: string;
+  record_count: number;
+  columns: string[];
+  source_uri: string;
+  schema: string;
+};
+
+export type DatasetPreview = {
+  name: string;
+  schema: string;
+  source_uri: string;
+  row_count: number;
+  columns: string[];
+  rows: Array<Record<string, string | number | null>>;
+};
+
+export type SourceAgentMemory = {
+  id: number;
+  status: string;
+  engine_name: string;
+  summary_text: string;
+  dashboard_brief: string;
+  schema_notes: string;
+  memory_path: string;
+  context_snapshot: Record<string, unknown>;
+  created_at: string;
+  updated_at: string;
+};
+
+export type SavedAnomalyQuery = {
+  id: number;
+  name: string;
+  description: string;
+  category: string;
+  enabled: boolean;
+  created_at: string;
+  sql_text: string;
 };
 
 export type AutoModePolicy = {

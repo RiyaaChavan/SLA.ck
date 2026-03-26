@@ -9,6 +9,12 @@ import type {
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+export type CreateOrganizationInput = {
+  name: string;
+  industry: string;
+  geography: string;
+};
+
 type SeedResponse = {
   organizations_created: number;
   alerts_created: number;
@@ -29,6 +35,18 @@ type ExecutionResponse = {
   summary: string;
 };
 
+async function responseErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    if (typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail;
+    }
+  } catch {
+    // ignore parse failures and fall through
+  }
+  return response.statusText || `Request failed: ${response.status}`;
+}
+
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`${API_BASE}${path}`, {
     headers: {
@@ -39,13 +57,18 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
 
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status}`);
+    throw new Error(await responseErrorMessage(response));
   }
   return response.json() as Promise<T>;
 }
 
 export const api = {
   listOrganizations: () => request<Organization[]>("/organizations"),
+  createOrganization: (body: CreateOrganizationInput) =>
+    request<Organization>("/organizations", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   bootstrapSeed: (reset = false) =>
     request<SeedResponse>("/bootstrap/seed" + (reset ? "?reset=true" : ""), { method: "POST" }),
   getDashboard: (organizationId: number) => request<DashboardOverview>(`/dashboard/${organizationId}`),

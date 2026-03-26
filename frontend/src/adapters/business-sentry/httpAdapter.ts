@@ -20,12 +20,25 @@ import type {
 import type {
   ActionDecisionBody,
   BusinessSentryAdapter,
+  DataSourceUploadPayload,
   SlaExtractionCandidateEdit,
   SlaRulebookArchivePayload,
   SlaRulebookEntryUpdatePayload,
 } from "./contract";
 
 const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
+
+async function responseErrorMessage(response: Response): Promise<string> {
+  try {
+    const payload = (await response.json()) as { detail?: string };
+    if (typeof payload.detail === "string" && payload.detail.trim()) {
+      return payload.detail;
+    }
+  } catch {
+    // ignore parse errors and fall back to status text
+  }
+  return response.statusText || `Request failed: ${response.status}`;
+}
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
   const jsonBody =
@@ -39,7 +52,7 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
     ...options,
   });
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${path}`);
+    throw new Error(await responseErrorMessage(response));
   }
   return response.json() as Promise<T>;
 }
@@ -49,7 +62,7 @@ async function requestNoJsonBody<T>(path: string, options: RequestInit): Promise
   const { headers: _h, ...rest } = options;
   const response = await fetch(`${API_BASE}${path}`, rest);
   if (!response.ok) {
-    throw new Error(`Request failed: ${response.status} ${path}`);
+    throw new Error(await responseErrorMessage(response));
   }
   return response.json() as Promise<T>;
 }
@@ -545,11 +558,17 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
     const rows = await request<ApiDataSourceSummaryOut[]>(`/data-sources/${organizationId}`);
     return rows.map(mapDataSourceSummary);
   },
-  uploadDataSource: (organizationId, fileName) =>
-    request(`/data-sources/${organizationId}/upload`, {
+  uploadDataSource: async (organizationId, body: DataSourceUploadPayload) => {
+    const created = await request<ApiDataSourceSummaryOut>(`/data-sources/${organizationId}/upload`, {
       method: "POST",
-      body: JSON.stringify({ filename: fileName }),
-    }),
+      body: JSON.stringify(body),
+    });
+    return {
+      upload_id: String(created.id),
+      status: created.status,
+      message: `Connected ${created.name}.`,
+    };
+  },
   listDetectors: (organizationId) => request(`/detectors/${organizationId}`),
   createDetector: (organizationId, body) =>
     request(`/detectors/${organizationId}`, {

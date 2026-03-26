@@ -16,6 +16,12 @@ class OrganizationOut(BaseModel):
     geography: str
 
 
+class CreateOrganizationIn(BaseModel):
+    name: str = Field(min_length=1)
+    industry: str = Field(min_length=1)
+    geography: str = Field(min_length=1)
+
+
 class AlertOut(BaseModel):
     id: int
     organization_id: int

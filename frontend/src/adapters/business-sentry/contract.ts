@@ -24,6 +24,14 @@ export type DataSourceUploadResponse = {
   message: string;
 };
 
+export type DataSourceUploadPayload = {
+  name: string;
+  source_type: string;
+  record_count?: number;
+  file_name?: string | null;
+  sample_columns?: string[];
+};
+
 export type DetectorCreateResponse = {
   id: string;
   name: string;
@@ -98,7 +106,7 @@ export type BusinessSentryAdapter = {
   createTicketIntake(organizationId: number, body: TicketIntakePayload): Promise<AgenticIntakeResult>;
   createApprovalIntake(organizationId: number, body: ApprovalIntakePayload): Promise<AgenticIntakeResult>;
   listDataSources(organizationId: number): Promise<DataSourceSummary[]>;
-  uploadDataSource(organizationId: number, fileName: string): Promise<DataSourceUploadResponse>;
+  uploadDataSource(organizationId: number, body: DataSourceUploadPayload): Promise<DataSourceUploadResponse>;
   listDetectors(organizationId: number): Promise<DetectorDefinition[]>;
   createDetector(organizationId: number, body: Partial<DetectorDefinition>): Promise<DetectorCreateResponse>;
   promptDraftDetector(prompt: string): Promise<{ draft: DetectorDraft }>;
