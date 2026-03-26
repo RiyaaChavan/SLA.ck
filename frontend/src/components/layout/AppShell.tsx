@@ -338,15 +338,11 @@ export function AppShell({
   const isHome = location.pathname === "/";
 
   useEffect(() => {
-    if (isHome) {
-      document.body.classList.remove("theme-light");
-    } else {
-      document.body.classList.add("theme-light");
-    }
-  }, [isHome]);
+    document.body.classList.remove("theme-dep");
+  }, []);
 
   return (
-    <div className={`app-shell ${isHome ? "" : "theme-light"}`}>
+    <div className="app-shell">
       <header className="app-topnav">
         <div className="app-topnav-inner">
           <div className="app-topnav-brand">

@@ -1,6 +1,10 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useEffect, useState } from "react";
 import type { InvestigationResult } from "../types/api";
 import { pickCopilotScenario, type DemoQueryRun } from "../demo/businessSentryHardcoded";
+import Editor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/components/prism-sql";
+import "prismjs/themes/prism-tomorrow.css";
 
 type InvestigatePageProps = {
   onSubmit?: (question: string) => Promise<InvestigationResult>;
@@ -28,31 +32,65 @@ function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
 
+/* ── tiny inline SVG icons ── */
+const IconSend = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
+);
+const IconSparkle = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" /><path d="M19 15l.5 2 2 .5-2 .5-.5 2-.5-2-2-.5 2-.5.5-2z" /></svg>
+);
+const IconChevron = ({ open }: { open: boolean }) => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transition: "transform 200ms", transform: open ? "rotate(180deg)" : "rotate(0deg)" }}><polyline points="6 9 12 15 18 9" /></svg>
+);
+
 function AgentTrace({ stream }: { stream: StreamEvent[] }) {
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="bs-chat-trace">
-      <button type="button" className="bs-chat-trace-toggle" onClick={() => setOpen((v) => !v)}>
-        <span>Agent trace</span>
-        <span>{open ? "Hide" : "Show"}</span>
+    <div className="chat-trace">
+      <button type="button" className="chat-trace-toggle" onClick={() => setOpen((v) => !v)}>
+        <span className="chat-trace-label">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+          Agent trace · {stream.length} steps
+        </span>
+        <IconChevron open={open} />
       </button>
       {open ? (
-        <div className="bs-agent-stream">
-          {stream.map((event) =>
+        <div className="chat-trace-stream">
+          {stream.map((event, idx) =>
             event.kind === "reasoning" ? (
-              <div key={event.id} className="bs-agent-event">
-                <div className="bs-agent-event-kind">Reasoning</div>
-                <div>{event.text}</div>
+              <div key={event.id} className="chat-trace-event">
+                <div className="chat-trace-step-num">{idx + 1}</div>
+                <div>
+                  <div className="chat-trace-event-kind">Reasoning</div>
+                  <div className="chat-trace-event-text">{event.text}</div>
+                </div>
               </div>
             ) : (
-              <div key={event.id} className="bs-agent-event bs-agent-event-action">
-                <div className="bs-agent-event-head">
-                  <div className="bs-agent-event-kind">Action</div>
-                  <strong>{event.label}</strong>
+              <div key={event.id} className="chat-trace-event chat-trace-event-action">
+                <div className="chat-trace-step-num">{idx + 1}</div>
+                <div style={{ flex: 1 }}>
+                  <div className="chat-trace-event-head">
+                    <div className="chat-trace-event-kind">SQL query</div>
+                    <strong>{event.label}</strong>
+                  </div>
+                  <div className="chat-trace-event-note">{event.note}</div>
+                  <div className="bg-[#050810] border border-white/5 rounded-md overflow-hidden mt-3">
+                    <Editor
+                      value={event.sql}
+                      onValueChange={() => {}}
+                      highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+                      padding={16}
+                      disabled
+                      style={{
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 12.5,
+                        backgroundColor: "transparent",
+                        lineHeight: "1.6",
+                      }}
+                    />
+                  </div>
                 </div>
-                <div className="bs-agent-event-note">{event.note}</div>
-                <pre className="bs-code-block">{event.sql}</pre>
               </div>
             ),
           )}
@@ -64,15 +102,18 @@ function AgentTrace({ stream }: { stream: StreamEvent[] }) {
 
 function AssistantMessage({ turn }: { turn: ChatTurn }) {
   return (
-    <div className="bs-chat-row bs-chat-row-assistant">
-      <div className="bs-chat-avatar bs-chat-avatar-assistant">BS</div>
-      <div className="bs-chat-bubble bs-chat-bubble-assistant">
-        <div className="bs-chat-bubble-label">Business Sentry Copilot</div>
-        <div className="bs-agent-summary">{turn.summary}</div>
-        <div className="bs-agent-answer">{turn.result.explanation}</div>
+    <div className="chat-msg chat-msg-assistant">
+      <div className="chat-msg-avatar">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" /></svg>
+      </div>
+      <div className="chat-msg-body chat-msg-body-assistant">
+        <div className="chat-msg-sender">Business Sentry Copilot</div>
+
+        <div className="chat-answer-summary">{turn.summary}</div>
+        <div className="chat-answer-explanation">{turn.result.explanation}</div>
 
         {turn.result.rows.length ? (
-          <div className="table-wrapper bs-chat-table">
+          <div className="table-wrapper chat-answer-table">
             <table>
               <thead>
                 <tr>
@@ -94,9 +135,23 @@ function AssistantMessage({ turn }: { turn: ChatTurn }) {
           </div>
         ) : null}
 
-        <div>
-          <div className="sql-label">Final SQL</div>
-          <pre className="sql-box">{turn.result.sql}</pre>
+        <div className="chat-sql-section mt-4 mb-4">
+          <div className="chat-sql-label text-xs uppercase tracking-wider text-[#3283D0] font-mono mb-2">Final SQL Execution</div>
+          <div className="bg-[#050810] border border-white/5 shadow-inner rounded-md overflow-hidden">
+            <Editor
+              value={turn.result.sql}
+              onValueChange={() => {}}
+              highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+              padding={16}
+              disabled
+              style={{
+                fontFamily: "var(--font-mono, monospace)",
+                fontSize: 13,
+                backgroundColor: "transparent",
+                lineHeight: "1.6",
+              }}
+            />
+          </div>
         </div>
 
         <AgentTrace stream={turn.stream} />
@@ -106,11 +161,18 @@ function AssistantMessage({ turn }: { turn: ChatTurn }) {
 }
 
 export function InvestigatePage(_: InvestigatePageProps) {
-  const [question, setQuestion] = useState("");
   const [draftQuestion, setDraftQuestion] = useState(EXAMPLE_QUERIES[0]);
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveStream, setLiveStream] = useState<StreamEvent[]>([]);
+  const [currentQuestion, setCurrentQuestion] = useState("");
+  const threadRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (threadRef.current) {
+      threadRef.current.scrollTop = threadRef.current.scrollHeight;
+    }
+  }, [chat, liveStream]);
 
   const helperText = useMemo(() => {
     if (!loading) return "Ask about anomalies, SLA risk, warehouse capacity, or vendor leakage.";
@@ -139,7 +201,7 @@ export function InvestigatePage(_: InvestigatePageProps) {
     if (!input || loading) return;
 
     const scenario = pickCopilotScenario(input);
-    setQuestion(input);
+    setCurrentQuestion(input);
     setLoading(true);
     setLiveStream([]);
 
@@ -191,82 +253,114 @@ export function InvestigatePage(_: InvestigatePageProps) {
     setDraftQuestion("");
   };
 
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSubmit();
+    }
+  };
+
   return (
-    <div className="page-content bs-chat-page">
+    <div className="page-content chat-page">
       <div className="page-header">
         <div>
           <div className="page-title">Chat with data</div>
           <div className="page-subtitle">
-            Ask a question in plain English. The demo copilot responds like an agent-backed analyst, not a debug console.
+            Ask operational questions in plain English. The copilot reasons through your connected data like an analyst.
           </div>
         </div>
       </div>
 
-      <div className="bs-chat-shell">
-        <div className="bs-chat-thread">
-          {chat.length === 0 ? (
-            <div className="bs-chat-empty card">
-              <div className="card-body">
-                <div className="bs-chat-empty-title">Start with an operations question</div>
-                <div className="bs-chat-empty-copy">
-                  Ask about anomaly routing, vendor leakage, SLA breach risk, warehouses, drivers, or capacity.
-                </div>
-                <div className="bs-chat-suggestions">
-                  {EXAMPLE_QUERIES.map((item) => (
-                    <button
-                      key={item}
-                      type="button"
-                      className="bs-chat-suggestion"
-                      onClick={() => setDraftQuestion(item)}
-                    >
-                      {item}
-                    </button>
-                  ))}
-                </div>
+      <div className="chat-shell">
+        <div className="chat-thread" ref={threadRef}>
+          {chat.length === 0 && !loading ? (
+            <div className="chat-welcome">
+              <div className="chat-welcome-icon">
+                <IconSparkle />
+              </div>
+              <h2 className="chat-welcome-title">What would you like to investigate?</h2>
+              <p className="chat-welcome-copy">
+                Ask about anomaly routing, vendor leakage, SLA breach risk, warehouses, drivers, or capacity.
+                The copilot reasons across your connected datasets.
+              </p>
+              <div className="chat-welcome-suggestions">
+                {EXAMPLE_QUERIES.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    className="chat-welcome-suggestion"
+                    onClick={() => setDraftQuestion(item)}
+                  >
+                    <span className="chat-suggestion-arrow">→</span>
+                    {item}
+                  </button>
+                ))}
               </div>
             </div>
           ) : null}
 
           {chat.map((turn) => (
-            <div key={turn.id} className="bs-chat-turn">
-              <div className="bs-chat-row bs-chat-row-user">
-                <div className="bs-chat-bubble bs-chat-bubble-user">{turn.question}</div>
+            <div key={turn.id} className="chat-turn">
+              <div className="chat-msg chat-msg-user">
+                <div className="chat-msg-body chat-msg-body-user">{turn.question}</div>
               </div>
               <AssistantMessage turn={turn} />
             </div>
           ))}
 
           {loading ? (
-            <div className="bs-chat-turn">
-              <div className="bs-chat-row bs-chat-row-user">
-                <div className="bs-chat-bubble bs-chat-bubble-user">{question}</div>
+            <div className="chat-turn">
+              <div className="chat-msg chat-msg-user">
+                <div className="chat-msg-body chat-msg-body-user">{currentQuestion}</div>
               </div>
-              <div className="bs-chat-row bs-chat-row-assistant">
-                <div className="bs-chat-avatar bs-chat-avatar-assistant">BS</div>
-                <div className="bs-chat-bubble bs-chat-bubble-assistant">
-                  <div className="bs-chat-bubble-label">Business Sentry Copilot</div>
-                  <div className="bs-chat-thinking">
-                    <span className="bs-chat-thinking-dot" />
-                    <span className="bs-chat-thinking-dot" />
-                    <span className="bs-chat-thinking-dot" />
-                    <span>Working through the connected dataset…</span>
+              <div className="chat-msg chat-msg-assistant">
+                <div className="chat-msg-avatar">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" /></svg>
+                </div>
+                <div className="chat-msg-body chat-msg-body-assistant">
+                  <div className="chat-msg-sender">Business Sentry Copilot</div>
+                  <div className="chat-thinking">
+                    <span className="chat-thinking-dot" />
+                    <span className="chat-thinking-dot" />
+                    <span className="chat-thinking-dot" />
+                    <span className="chat-thinking-label">Working through the connected dataset…</span>
                   </div>
                   {liveStream.length ? (
-                    <div className="bs-agent-stream">
-                      {liveStream.map((event) =>
+                    <div className="chat-trace-stream chat-trace-stream-live">
+                      {liveStream.map((event, idx) =>
                         event.kind === "reasoning" ? (
-                          <div key={event.id} className="bs-agent-event">
-                            <div className="bs-agent-event-kind">Reasoning</div>
-                            <div>{event.text}</div>
+                          <div key={event.id} className="chat-trace-event chat-trace-event-live">
+                            <div className="chat-trace-step-num">{idx + 1}</div>
+                            <div>
+                              <div className="chat-trace-event-kind">Reasoning</div>
+                              <div className="chat-trace-event-text">{event.text}</div>
+                            </div>
                           </div>
                         ) : (
-                          <div key={event.id} className="bs-agent-event bs-agent-event-action">
-                            <div className="bs-agent-event-head">
-                              <div className="bs-agent-event-kind">Action</div>
-                              <strong>{event.label}</strong>
+                          <div key={event.id} className="chat-trace-event chat-trace-event-action chat-trace-event-live">
+                            <div className="chat-trace-step-num">{idx + 1}</div>
+                            <div style={{ flex: 1 }}>
+                              <div className="chat-trace-event-head">
+                                <div className="chat-trace-event-kind">SQL query</div>
+                                <strong>{event.label}</strong>
+                              </div>
+                              <div className="chat-trace-event-note">{event.note}</div>
+                              <div className="bg-[#050810] border border-white/5 rounded-md overflow-hidden mt-3">
+                                <Editor
+                                  value={event.sql}
+                                  onValueChange={() => {}}
+                                  highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+                                  padding={16}
+                                  disabled
+                                  style={{
+                                    fontFamily: "var(--font-mono, monospace)",
+                                    fontSize: 12.5,
+                                    backgroundColor: "transparent",
+                                    lineHeight: "1.6",
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <div className="bs-agent-event-note">{event.note}</div>
-                            <pre className="bs-code-block">{event.sql}</pre>
                           </div>
                         ),
                       )}
@@ -278,29 +372,35 @@ export function InvestigatePage(_: InvestigatePageProps) {
           ) : null}
         </div>
 
-        <div className="bs-chat-composer card">
-          <div className="card-body">
-            <div className="bs-chat-composer-top">
-              <textarea
-                className="investigate-textarea bs-chat-input"
-                value={draftQuestion}
-                onChange={(e) => setDraftQuestion(e.target.value)}
-                rows={3}
-                placeholder="Ask a question about anomalies, SLAs, vendors, resources, or operations."
-              />
-              <button type="button" className="btn btn-primary bs-chat-send" onClick={handleSubmit} disabled={loading || !draftQuestion.trim()}>
-                {loading ? "Running…" : "Send"}
-              </button>
-            </div>
-            <div className="bs-chat-composer-meta">
-              <span>{helperText}</span>
-              <div className="bs-chat-chip-row">
-                {EXAMPLE_QUERIES.map((item) => (
-                  <button key={item} type="button" className="bs-chat-chip" onClick={() => setDraftQuestion(item)}>
-                    {item}
-                  </button>
-                ))}
-              </div>
+        {/* ── Composer ── */}
+        <div className="chat-composer">
+          <div className="chat-composer-inner">
+            <textarea
+              className="chat-composer-input"
+              value={draftQuestion}
+              onChange={(e) => setDraftQuestion(e.target.value)}
+              onKeyDown={handleKeyDown}
+              rows={1}
+              placeholder="Ask about anomalies, SLAs, vendors, resources, or operations…"
+            />
+            <button
+              type="button"
+              className="chat-composer-send"
+              onClick={handleSubmit}
+              disabled={loading || !draftQuestion.trim()}
+              title="Send"
+            >
+              <IconSend />
+            </button>
+          </div>
+          <div className="chat-composer-footer">
+            <span className="chat-composer-hint">{helperText}</span>
+            <div className="chat-composer-chips">
+              {EXAMPLE_QUERIES.map((item) => (
+                <button key={item} type="button" className="chat-composer-chip" onClick={() => setDraftQuestion(item)}>
+                  {item}
+                </button>
+              ))}
             </div>
           </div>
         </div>

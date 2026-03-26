@@ -359,6 +359,11 @@ export type DetectorDraft = {
   logic_summary: string;
   query_logic: string;
   expected_output_fields: string[];
+  module: string;
+  business_domain: string;
+  severity: string;
+  linked_action_template: string;
+  linked_cost_formula: string;
 };
 
 export type DetectorTestResult = {

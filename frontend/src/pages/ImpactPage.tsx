@@ -4,6 +4,10 @@ import { SectionCard } from "../components/shared/SectionCard";
 import { StatCard } from "../components/shared/StatCard";
 import { demoAnomalyHits, demoAnomalyQueries, demoImpactOverview } from "../demo/businessSentryHardcoded";
 import { formatMoneyInr, formatModuleLabel } from "../lib/formatters";
+import Editor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/components/prism-sql";
+import "prismjs/themes/prism-tomorrow.css";
 
 type ImpactPageProps = {
   organizationId?: number;
@@ -146,7 +150,23 @@ export function ImpactPage(_: ImpactPageProps) {
                   <span className="bs-pill">{formatMoneyInr(hit.impactInr)} at risk</span>
                   <span className="bs-pill">{sourceQuery?.category ?? "detector"}</span>
                 </div>
-                {sourceQuery ? <pre className="bs-code-block">{sourceQuery.sql_text}</pre> : null}
+                {sourceQuery ? (
+                  <div className="bg-[#050810] border border-white/5 rounded-md overflow-hidden mt-3">
+                    <Editor
+                      value={sourceQuery.sql_text}
+                      onValueChange={() => {}}
+                      highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+                      padding={16}
+                      disabled
+                      style={{
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 12.5,
+                        backgroundColor: "transparent",
+                        lineHeight: "1.6",
+                      }}
+                    />
+                  </div>
+                ) : null}
               </div>
             );
           })}

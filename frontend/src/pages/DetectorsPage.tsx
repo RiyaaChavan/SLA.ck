@@ -2,6 +2,10 @@ import { useMemo, useState } from "react";
 import type { DetectorDefinition, DetectorDraft, DetectorTestResult } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { formatModuleLabel } from "../lib/formatters";
+import Editor from "react-simple-code-editor";
+import Prism from "prismjs";
+import "prismjs/components/prism-sql";
+import "prismjs/themes/prism-tomorrow.css";
 
 type DetectorsPageProps = {
   organizationId?: number;
@@ -98,6 +102,11 @@ function draftFromPrompt(prompt: string): DetectorDraft {
     query_logic:
       `-- Drafted from prompt\n-- ${prompt}\nselect store_id, vendor_id, count(*) as exception_count, sum(projected_impact_inr) as projected_impact_inr\nfrom anomaly_candidate_facts\nwhere exception_score >= 0.82\ngroup by 1,2\nhaving count(*) >= 3\norder by projected_impact_inr desc\nlimit 25;`,
     expected_output_fields: ["store_id", "vendor_id", "exception_count", "projected_impact_inr"],
+    module: "procurewatch",
+    business_domain: "general",
+    severity: "high",
+    linked_action_template: "Review and assign action",
+    linked_cost_formula: "projected_impact_inr * 1.0",
   };
 }
 
@@ -134,6 +143,22 @@ function testRowsForDetector(detectorId: string): DetectorTestResult {
   };
 }
 
+/* ── tiny inline SVG icons ── */
+const IconPlus = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+);
+const IconSave = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+);
+const IconCheck = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12" /></svg>
+);
+
+function severityDot(severity: string) {
+  const color = severity === "critical" ? "#ef4444" : severity === "high" ? "#f59e0b" : "#3b82f6";
+  return <span className="det-severity-dot" style={{ background: color }} />;
+}
+
 export function DetectorsPage(_: DetectorsPageProps) {
   const [detectors, setDetectors] = useState(DEMO_DETECTORS);
   const [selectedId, setSelectedId] = useState<string | null>(DEMO_DETECTORS[0]?.id ?? null);
@@ -147,6 +172,7 @@ export function DetectorsPage(_: DetectorsPageProps) {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [drafting, setDrafting] = useState(false);
+  const [savedToLibrary, setSavedToLibrary] = useState(false);
 
   const selected = useMemo(
     () => detectors.find((detector) => detector.id === selectedId) ?? null,
@@ -168,73 +194,133 @@ export function DetectorsPage(_: DetectorsPageProps) {
     setSaving(false);
   };
 
+  const saveToAnomalyLibrary = async () => {
+    if (!draftResult) return;
+    setSavedToLibrary(false);
+    await sleep(600);
+    const newDetector: DetectorDefinition = {
+      id: `det-drafted-${Date.now()}`,
+      name: draftResult.name,
+      description: draftResult.logic_summary,
+      module: draftResult.module,
+      business_domain: draftResult.business_domain,
+      severity: draftResult.severity,
+      owner_name: "You",
+      enabled: true,
+      logic_type: "sql_rule",
+      logic_summary: draftResult.logic_summary,
+      query_logic: draftResult.query_logic,
+      expected_output_fields: draftResult.expected_output_fields,
+      linked_action_template: draftResult.linked_action_template,
+      linked_cost_formula: draftResult.linked_cost_formula,
+      last_triggered_at: new Date().toISOString(),
+      issue_count: 0,
+    };
+    setDetectors((current) => [...current, newDetector]);
+    setSavedToLibrary(true);
+  };
+
   return (
     <div className="page-content bs-detectors-layout">
       <PageHeader
         title="Anomaly queries"
-        subtitle="Editable detector logic for vendor anomalies, SLA clusters, and resource optimization. Everything on this page is demo-driven and fully interactive."
+        subtitle="Editable detector logic for vendor anomalies, SLA clusters, and resource optimization."
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => setPromptOpen(true)}>
-            Prompt to draft
+          <button type="button" className="btn btn-primary" onClick={() => { setPromptOpen(true); setSavedToLibrary(false); setDraftResult(null); }}>
+            <IconPlus /> Prompt to draft
           </button>
         }
       />
 
-      <div className="bs-split-panels">
-        <div className="card bs-detector-list">
-          <div className="card-header">
-            <div className="card-title">Detector library</div>
-            <div className="card-subtitle">{detectors.length} definitions</div>
+      <div className="det-split">
+        {/* ── sidebar list ── */}
+        <div className="det-sidebar">
+          <div className="det-sidebar-header">
+            <span className="det-sidebar-title">Detector library</span>
+            <span className="det-sidebar-count">{detectors.length}</span>
           </div>
-          <div className="card-body" style={{ padding: 0 }}>
-            <ul className="bs-detector-ul">
-              {detectors.map((detector) => (
-                <li key={detector.id}>
-                  <button
-                    type="button"
-                    className={`bs-detector-item ${selectedId === detector.id ? "bs-detector-item-active" : ""}`}
-                    onClick={() => openDetail(detector)}
-                  >
-                    <span className="bs-detector-name">{detector.name}</span>
-                    <span className="bs-muted">{formatModuleLabel(detector.module)}</span>
-                    <span className={`badge badge-${detector.enabled ? "default" : "high"}`}>
-                      {detector.enabled ? "on" : "off"}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
+          <div className="det-sidebar-list">
+            {detectors.map((detector) => (
+              <button
+                key={detector.id}
+                type="button"
+                className={`det-list-item ${selectedId === detector.id ? "det-list-item-active" : ""}`}
+                onClick={() => openDetail(detector)}
+              >
+                <div className="det-list-item-top">
+                  {severityDot(detector.severity)}
+                  <span className="det-list-item-name">{detector.name}</span>
+                </div>
+                <div className="det-list-item-bottom">
+                  <span className="det-list-item-module">{formatModuleLabel(detector.module)}</span>
+                  <span className="det-list-item-issues">{detector.issue_count} issues</span>
+                  <span className={`det-list-item-status ${detector.enabled ? "det-on" : "det-off"}`}>
+                    {detector.enabled ? "Active" : "Paused"}
+                  </span>
+                </div>
+              </button>
+            ))}
           </div>
         </div>
 
-        <div className="card bs-detector-detail">
+        {/* ── detail panel ── */}
+        <div className="det-detail">
           {!editor ? (
-            <div className="card-body">
-              <p className="bs-muted">Select a detector from the library.</p>
+            <div className="det-detail-empty">
+              <div className="det-detail-empty-icon">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6" /><polyline points="8 6 2 12 8 18" /></svg>
+              </div>
+              <div className="det-detail-empty-title">Select a detector</div>
+              <div className="det-detail-empty-copy">Choose a detector from the library to view and edit its logic.</div>
             </div>
           ) : (
             <>
-              <div className="card-header">
+              <div className="det-detail-header">
                 <div>
-                  <div className="card-title">{editor.name}</div>
-                  <div className="card-subtitle">{editor.description}</div>
+                  <div className="det-detail-title">{editor.name}</div>
+                  <div className="det-detail-desc">{editor.description}</div>
                 </div>
-                <label className="bs-toggle">
-                  <input
-                    type="checkbox"
-                    checked={editor.enabled}
-                    onChange={(e) => {
-                      const enabled = e.target.checked;
-                      setDraftLocal({ ...editor, enabled });
-                      setDetectors((current) =>
-                        current.map((item) => (item.id === editor.id ? { ...item, enabled } : item)),
-                      );
-                    }}
-                  />
-                  <span>Enabled</span>
-                </label>
+                <div className="det-detail-header-right">
+                  <span className={`badge badge-${editor.severity === "critical" ? "critical" : editor.severity === "high" ? "high" : "default"}`}>
+                    {editor.severity}
+                  </span>
+                  <label className="bs-toggle">
+                    <input
+                      type="checkbox"
+                      checked={editor.enabled}
+                      onChange={(e) => {
+                        const enabled = e.target.checked;
+                        setDraftLocal({ ...editor, enabled });
+                        setDetectors((current) =>
+                          current.map((item) => (item.id === editor.id ? { ...item, enabled } : item)),
+                        );
+                      }}
+                    />
+                    <span>{editor.enabled ? "Enabled" : "Disabled"}</span>
+                  </label>
+                </div>
               </div>
-              <div className="card-body bs-detail-form">
+
+              <div className="det-detail-body">
+                <div className="det-detail-meta-strip">
+                  <div className="det-meta-item">
+                    <span className="det-meta-label">Owner</span>
+                    <span className="det-meta-value">{editor.owner_name}</span>
+                  </div>
+                  <div className="det-meta-item">
+                    <span className="det-meta-label">Domain</span>
+                    <span className="det-meta-value">{editor.business_domain.replaceAll("_", " ")}</span>
+                  </div>
+                  <div className="det-meta-item">
+                    <span className="det-meta-label">Issues found</span>
+                    <span className="det-meta-value">{editor.issue_count}</span>
+                  </div>
+                  <div className="det-meta-item">
+                    <span className="det-meta-label">Type</span>
+                    <span className="det-meta-value">{editor.logic_type.replaceAll("_", " ")}</span>
+                  </div>
+                </div>
+
                 <label className="bs-field">
                   <span>Name</span>
                   <input
@@ -254,31 +340,49 @@ export function DetectorsPage(_: DetectorsPageProps) {
                 </label>
                 <label className="bs-field">
                   <span>Query / logic</span>
-                  <textarea
-                    className="bs-textarea bs-mono"
-                    rows={7}
-                    value={editor.query_logic}
-                    onChange={(e) => setDraftLocal({ ...editor, query_logic: e.target.value })}
-                  />
+                  <div className="bs-textarea p-0 overflow-hidden font-mono min-h-[220px]">
+                    <Editor
+                      value={editor.query_logic}
+                      onValueChange={(code) => setDraftLocal({ ...editor, query_logic: code })}
+                      highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+                      padding={16}
+                      style={{
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 13,
+                        backgroundColor: "transparent",
+                        height: "100%",
+                        minHeight: "220px",
+                        lineHeight: "1.5",
+                      }}
+                      className="editor-transparent"
+                    />
+                  </div>
                 </label>
-                <div className="bs-field">
-                  <span>Linked action template</span>
-                  <div className="td-sub">{editor.linked_action_template}</div>
+
+                <div className="det-detail-meta-cards">
+                  <div className="det-mini-card">
+                    <span className="det-mini-label">Linked action</span>
+                    <span className="det-mini-value">{editor.linked_action_template}</span>
+                  </div>
+                  <div className="det-mini-card">
+                    <span className="det-mini-label">Cost formula</span>
+                    <span className="det-mini-value bs-mono" style={{ fontSize: 12 }}>{editor.linked_cost_formula}</span>
+                  </div>
                 </div>
-                <div className="bs-field">
-                  <span>Linked cost formula</span>
-                  <div className="td-sub">{editor.linked_cost_formula}</div>
-                </div>
-                <div className="bs-pill-row">
+
+                <div className="bs-pill-row" style={{ marginTop: 4 }}>
+                  <span className="det-meta-label" style={{ marginRight: 4 }}>Output fields</span>
                   {editor.expected_output_fields.map((field) => (
-                    <span key={field} className="bs-pill">
+                    <span key={field} className="bs-pill bs-pill-mono">
                       {field}
                     </span>
                   ))}
                 </div>
-                <div className="bs-card-actions">
+
+                <div className="det-detail-actions">
                   <button type="button" className="btn btn-secondary btn-sm" onClick={saveLocalDraft} disabled={saving}>
-                    {saving ? "Saving…" : "Save (demo)"}
+                    <IconSave />
+                    {saving ? "Saving…" : "Save changes"}
                   </button>
                   <button
                     type="button"
@@ -294,9 +398,12 @@ export function DetectorsPage(_: DetectorsPageProps) {
                     {testing ? "Testing…" : "Test on sample data"}
                   </button>
                 </div>
+
                 {testResult ? (
-                  <div className="bs-test-result">
-                    <div className="td-sub">{testResult.message}</div>
+                  <div className="det-test-result">
+                    <div className="det-test-result-header">
+                      <span className="det-test-passed">✓ {testResult.message}</span>
+                    </div>
                     <pre className="sql-box">{JSON.stringify(testResult.sample_rows, null, 2)}</pre>
                   </div>
                 ) : null}
@@ -306,6 +413,7 @@ export function DetectorsPage(_: DetectorsPageProps) {
         </div>
       </div>
 
+      {/* ── Prompt-to-draft drawer ── */}
       {promptOpen ? (
         <div className="bs-drawer-backdrop" role="presentation" onClick={() => setPromptOpen(false)}>
           <aside className="bs-drawer bs-drawer-narrow" onClick={(e) => e.stopPropagation()}>
@@ -316,19 +424,24 @@ export function DetectorsPage(_: DetectorsPageProps) {
               </button>
             </div>
             <div className="bs-drawer-body">
+              <p className="det-drawer-hint">
+                Describe an anomaly pattern in plain English. The system will compose a reusable SQL detector you can review and save.
+              </p>
               <textarea
                 className="bs-textarea"
                 rows={5}
                 value={promptText}
                 onChange={(e) => setPromptText(e.target.value)}
+                placeholder="e.g. Flag invoices where billed amount exceeds contract rate for 3 consecutive cycles…"
               />
               <button
                 type="button"
                 className="btn btn-primary"
-                style={{ marginTop: 12 }}
-                disabled={drafting}
+                style={{ marginTop: 12, width: "100%" }}
+                disabled={drafting || !promptText.trim()}
                 onClick={async () => {
                   setDrafting(true);
+                  setSavedToLibrary(false);
                   await sleep(760);
                   setDraftResult(draftFromPrompt(promptText));
                   setDrafting(false);
@@ -336,11 +449,78 @@ export function DetectorsPage(_: DetectorsPageProps) {
               >
                 {drafting ? "Generating…" : "Generate draft"}
               </button>
+
               {draftResult ? (
-                <div className="bs-test-result" style={{ marginTop: 16 }}>
-                  <h4>{draftResult.name}</h4>
+                <div className="det-draft-result">
+                  <div className="det-draft-result-header">
+                    <h4>{draftResult.name}</h4>
+                  </div>
                   <p className="td-sub">{draftResult.logic_summary}</p>
-                  <pre className="sql-box">{draftResult.query_logic}</pre>
+                  
+                  <div className="bs-detail-meta-strip mt-3 mb-4 flex gap-6 text-xs text-[#8A8A9A]">
+                    <div>
+                      <span className="block mb-0.5 text-[#5B6275]">Module</span>
+                      <span className="text-white/80">{formatModuleLabel(draftResult.module)}</span>
+                    </div>
+                    <div>
+                      <span className="block mb-0.5 text-[#5B6275]">Domain</span>
+                      <span className="text-white/80 capitalize">{draftResult.business_domain.replace("_", " ")}</span>
+                    </div>
+                    <div>
+                      <span className="block mb-0.5 text-[#5B6275]">Severity</span>
+                      <span className={`capitalize text-${draftResult.severity === 'critical' ? 'rose' : draftResult.severity === 'high' ? 'amber' : 'sky'}-400`}>{draftResult.severity}</span>
+                    </div>
+                  </div>
+
+                  <div className="bs-textarea p-0 overflow-hidden font-mono mt-2 mb-4">
+                    <Editor
+                      value={draftResult.query_logic}
+                      onValueChange={() => {}}
+                      highlight={(code) => Prism.highlight(code, Prism.languages.sql, "sql")}
+                      padding={16}
+                      disabled
+                      style={{
+                        fontFamily: "var(--font-mono, monospace)",
+                        fontSize: 13,
+                        backgroundColor: "transparent",
+                        lineHeight: "1.5",
+                      }}
+                    />
+                  </div>
+
+                  <div className="det-detail-meta-cards mt-2">
+                    <div className="det-mini-card bg-[#0A0F1C] border border-white/5 rounded p-2">
+                      <span className="det-mini-label text-[#8A8A9A] text-[10px] uppercase">Linked action</span>
+                      <span className="det-mini-value block text-xs mt-0.5">{draftResult.linked_action_template}</span>
+                    </div>
+                    <div className="det-mini-card bg-[#0A0F1C] border border-white/5 rounded p-2">
+                      <span className="det-mini-label text-[#8A8A9A] text-[10px] uppercase">Cost formula</span>
+                      <span className="det-mini-value block bs-mono text-xs mt-0.5">{draftResult.linked_cost_formula}</span>
+                    </div>
+                  </div>
+
+                  <div className="bs-pill-row" style={{ marginTop: 12 }}>
+                    <span className="det-meta-label text-[#8A8A9A] text-xs" style={{ marginRight: 6 }}>Output fields:</span>
+                    {draftResult.expected_output_fields.map((f) => (
+                      <span key={f} className="bs-pill bs-pill-mono">{f}</span>
+                    ))}
+                  </div>
+
+                  {/* ── Save to anomaly library button ── */}
+                  <button
+                    type="button"
+                    className={`btn ${savedToLibrary ? "btn-ghost" : "btn-primary"} det-save-to-library`}
+                    disabled={savedToLibrary}
+                    onClick={saveToAnomalyLibrary}
+                  >
+                    {savedToLibrary ? <><IconCheck /> Saved to anomaly queries</> : <><IconSave /> Save to anomaly queries</>}
+                  </button>
+
+                  {savedToLibrary && (
+                    <div className="det-saved-confirmation">
+                      Added to the detector library. It will appear in the sidebar and run against connected datasets.
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>
