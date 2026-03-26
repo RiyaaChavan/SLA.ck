@@ -1,4 +1,4 @@
-import { NavLink, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 
 type HomePageProps = {
@@ -50,26 +50,6 @@ function IconShield(): ReactNode {
   );
 }
 
-function IconVendor(): ReactNode {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <line x1="12" y1="1" x2="12" y2="23" />
-      <path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-    </svg>
-  );
-}
-
-function IconServer(): ReactNode {
-  return (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-      <rect x="2" y="2" width="20" height="8" rx="2" />
-      <rect x="2" y="14" width="20" height="8" rx="2" />
-      <line x1="6" y1="6" x2="6.01" y2="6" />
-      <line x1="6" y1="18" x2="6.01" y2="18" />
-    </svg>
-  );
-}
-
 function IconAI(): ReactNode {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -95,63 +75,41 @@ const features = [
   {
     color: "red",
     icon: <IconLeak />,
-    title: "Procurement Leakage Detection",
-    desc: "Spot overcharges, duplicate invoices, budget overruns, and off-contract spend before they compound into quarter-end surprises.",
-    tag: "COST CONTROL",
+    title: "ProcureWatch",
+    desc: "Invoice, vendor, and reconciliation anomalies — duplicate risk, rate drift, and three-way match issues with money-at-risk on every case.",
+    tag: "PROCUREWATCH",
   },
   {
     color: "sky",
     icon: <IconShield />,
-    title: "SLA Compliance Monitoring",
-    desc: "Track every vendor SLA commitment in real time. Quantify the financial impact of each breach and trigger escalations automatically.",
-    tag: "RISK MANAGEMENT",
-  },
-  {
-    color: "violet",
-    icon: <IconVendor />,
-    title: "Vendor Billing Intelligence",
-    desc: "Reconcile billed amounts against contracted rates across all vendor relationships. Surface discrepancies the moment they occur.",
-    tag: "VENDOR OPS",
-  },
-  {
-    color: "amber",
-    icon: <IconServer />,
-    title: "Resource Optimization",
-    desc: "Identify idle, overprovisioned, and underutilized infrastructure. Get actionable recommendations with projected monthly savings.",
-    tag: "INFRASTRUCTURE",
+    title: "SLA Sentinel",
+    desc: "Extract SLA rules from documents, monitor live operations, predict breach risk, and drive approval-aware actions before penalties hit.",
+    tag: "SLA SENTINEL",
   },
   {
     color: "lime",
     icon: <IconAI />,
-    title: "AI Investigative Copilot",
-    desc: "Ask plain-English cost questions. CostPulse AI translates them to safe, read-only SQL and returns results in seconds — no analyst needed.",
-    tag: "AI / ANALYTICS",
+    title: "Copilot",
+    desc: "Plain-English investigations over your connected data — safe read-only SQL with explainability.",
+    tag: "COPILOT",
   },
   {
     color: "violet",
     icon: <IconAudit />,
-    title: "Immutable Audit Trail",
-    desc: "Every alert, approval, and remediation action is logged with full context. Compliance-ready reports generated on demand.",
+    title: "Audit trail",
+    desc: "Every case, approval, and execution is logged for governance — exportable reports when you need them.",
     tag: "GOVERNANCE",
   },
 ];
 
 /* ── Workflow steps ───────────────────────────────────────── */
 const steps = [
-  { label: "Observe",   desc: "Ingest procurement, SLA, vendor, and resource data continuously" },
-  { label: "Diagnose",  desc: "AI models flag anomalies, breaches, and waste patterns" },
-  { label: "Quantify",  desc: "Every alert is priced — financial impact calculated automatically" },
-  { label: "Approve",   desc: "Human-in-the-loop review with one-click approval workflows" },
-  { label: "Execute",   desc: "Automated remediation or guided manual action with full logging" },
-];
-
-/* ── Nav links ────────────────────────────────────────────── */
-const navLinks = [
-  { to: "/overview",    label: "Dashboard" },
-  { to: "/alerts",      label: "Alerts" },
-  { to: "/resources",   label: "Resources" },
-  { to: "/investigate", label: "Investigate" },
-  { to: "/audit",       label: "Audit" },
+  { label: "Connect data", desc: "Upload or connect sources — freshness, schema, and health in one place." },
+  { label: "Detect issues", desc: "ProcureWatch and SLA Sentinel run continuously on your operational signals." },
+  { label: "Estimate risk", desc: "Every case carries money-at-risk, confidence, and transparent formulas." },
+  { label: "Suggest action", desc: "Playbooks and next steps are tied to evidence, not black-box scores." },
+  { label: "Get approval", desc: "Approval chains and policies gate execution before anything changes." },
+  { label: "Track outcome", desc: "Execution state and audit timeline close the loop from signal to result." },
 ];
 
 /* ── Component ────────────────────────────────────────────── */
@@ -169,28 +127,6 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
         <div className="home-orb home-orb-4" />
       </div>
 
-      {/* ══ Top Navigation ══════════════════════════════════ */}
-      <nav className="home-topnav">
-        <div className="home-topnav-logo">
-          <div className="home-topnav-logo-mark">CP</div>
-          <div className="home-topnav-logo-text">
-            <span className="home-topnav-logo-name">CostPulse AI</span>
-          </div>
-        </div>
-
-        <div className="home-topnav-links">
-          {navLinks.map((l) => (
-            <NavLink key={l.to} to={l.to} className="home-topnav-link">
-              {l.label}
-            </NavLink>
-          ))}
-        </div>
-
-        <button className="home-topnav-cta" onClick={onSeed} disabled={seeding}>
-          {seeding ? "Bootstrapping..." : "Bootstrap Demo →"}
-        </button>
-      </nav>
-
       {/* ══ Hero ════════════════════════════════════════════ */}
       <section className="home-hero">
         <div className="home-hero-glow" aria-hidden="true" />
@@ -200,33 +136,33 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
           {/* Top pill — OBSERVE • DIAGNOSE • REMEDIATE */}
           <div className="home-topbadge">
             <span className="home-topbadge-dot" />
-            OBSERVE • DIAGNOSE • REMEDIATE
+            CONNECT • DETECT • RESOLVE
           </div>
 
           {/* Feature pills row */}
           <div className="home-feat-pills">
             <div className="home-feat-pill home-feat-pill-teal">
               <IconStar />
-              Cost Intelligence
+              ProcureWatch
             </div>
             <div className="home-feat-pill home-feat-pill-dark">
               <IconSearch />
-              AI Investigator
+              SLA Sentinel
             </div>
           </div>
 
           {/* Main heading — serif display font */}
           <h1 className="home-h1">
-            Your enterprise<br />
-            is leaking money.<br />
-            <span className="home-h1-accent">We find it.</span>
+            Operational issues,<br />
+            quantified like<br />
+            <span className="home-h1-accent">production incidents.</span>
           </h1>
 
           {/* Lead copy */}
           <p className="home-lead">
-            CostPulse AI monitors procurement anomalies, SLA breaches, vendor billing
-            discrepancies, and idle infrastructure across your entire enterprise —
-            surfaces the financial impact, and arms your team to act.
+            Business Sentry connects your data, detects anomalies and SLA risk, estimates money at
+            risk, recommends actions, routes them through approval, and tracks outcomes — with a case
+            at the center of every workflow.
           </p>
 
           {/* CTAs */}
@@ -241,22 +177,22 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
             {hasData && (
               <button
                 className="home-cta-ghost"
-                onClick={() => navigate("/overview")}
+                onClick={() => navigate("/impact")}
               >
-                Go to Dashboard
+                Open anomalies
               </button>
             )}
           </div>
 
           {/* Meta strip */}
           <div className="home-meta-strip">
-            <span><strong>6</strong> intelligence modules</span>
+            <span><strong>2</strong> MVP modules · ProcureWatch & SLA Sentinel</span>
             <span className="home-meta-dot">·</span>
-            <span>Real-time cost alerts</span>
+            <span>Case-centric workflow</span>
             <span className="home-meta-dot">·</span>
-            <span>AI-powered investigation</span>
+            <span>Approval-aware actions</span>
             <span className="home-meta-dot">·</span>
-            <span>Full compliance audit trail</span>
+            <span>Copilot investigations</span>
           </div>
 
           {/* ── Preview Cards Row ── */}
@@ -267,7 +203,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
               <div className="home-console-header">
                 <div className="home-console-title-group">
                   <span className="home-console-live-ring" />
-                  <span className="home-console-name">Cost Monitor</span>
+                  <span className="home-console-name">Business Sentry</span>
                   <span className="home-console-live-badge">LIVE</span>
                 </div>
                 <span className="home-console-action">Pause</span>
@@ -313,7 +249,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
             <div className="home-newspaper-wrap">
               <div className="home-newspaper">
                 <div className="home-np-header">
-                  <span className="home-np-brand">COSTPULSE</span>
+                  <span className="home-np-brand">SENTRY</span>
                   <span className="home-np-edition">INTELLIGENCE BRIEF</span>
                   <span className="home-np-date">Q4 2025 · Vol. 12</span>
                 </div>
@@ -387,11 +323,11 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
       {/* ══ Features ════════════════════════════════════════ */}
       <section className="home-section">
         <div className="home-section-header">
-          <div className="home-section-eyebrow">Why leakage goes undetected</div>
-          <h2 className="home-h2">Six ways enterprises lose money.<br />One platform to stop them.</h2>
+          <div className="home-section-eyebrow">Phase 1 focus</div>
+          <h2 className="home-h2">Procurement integrity &amp; SLA protection.<br />One operational command surface.</h2>
           <p className="home-section-desc">
-            Most cost overruns are invisible until quarter-end. CostPulse surfaces
-            every signal as it happens, with financial impact attached.
+            Start with ProcureWatch and SLA Sentinel — everything rolls up to cases, impact, and
+            auditable actions.
           </p>
         </div>
 
@@ -420,13 +356,13 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
       <section className="home-section home-section-alt">
         <div className="home-section-header">
           <div className="home-section-eyebrow">How it works</div>
-          <h2 className="home-h2">From detection to remediation in minutes</h2>
+          <h2 className="home-h2">From data to approved action — then prove the outcome</h2>
           <p className="home-section-desc">
-            A closed-loop workflow that keeps finance, procurement, and operations aligned — automatically.
+            The demo narrative is locked: connect → detect → estimate risk → suggest → approve → track.
           </p>
         </div>
 
-        <div className="workflow-steps">
+        <div className="workflow-steps home-workflow-six">
           {steps.map((step, i) => (
             <div key={step.label} className="workflow-step">
               <div className="workflow-step-num">{i + 1}</div>
@@ -441,11 +377,11 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
       <section className="home-cta-section">
         <div className="home-cta-glow" aria-hidden="true" />
         <h2 className="home-cta-h2">
-          Ready to command<br />every rupee?
+          Ready to run the<br />Business Sentry demo?
         </h2>
         <p className="home-cta-desc">
-          Bootstrap the enterprise demo dataset — fully seeded with realistic
-          procurement, SLA, vendor, and resource data — and explore every module instantly.
+          Bootstrap the workspace seed, then walk Connected data → Anomaly queries → Anomalies → Tickets → Approvals
+          → Audit — contracts are mocked; UX and API shapes are real.
         </p>
         <button className="home-cta-primary" onClick={onSeed} disabled={seeding}>
           {seeding ? "Bootstrapping..." : "Get Started →"}

@@ -12,9 +12,9 @@ export function AuditPage({ feed, reports, onGenerateReport }: AuditPageProps) {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <div className="page-title">Audit & Reports</div>
+          <div className="page-title">Audit log</div>
           <div className="page-subtitle">
-            Every alert, approval, action, and report is immutably logged for compliance review
+            Immutable trail of cases, approvals, actions, and reports
           </div>
         </div>
         <div className="page-actions">

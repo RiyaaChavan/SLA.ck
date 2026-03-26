@@ -32,9 +32,9 @@ export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
       {/* Page Header */}
       <div className="page-header">
         <div>
-          <div className="page-title">Investigative Query Copilot</div>
+          <div className="page-title">SQL Copilot</div>
           <div className="page-subtitle">
-            Ask questions in plain English — CostPulse translates them to safe, read-only SQL
+            Read-only SQL over connected data — for analysts and agents; RBAC can scope this later.
           </div>
         </div>
       </div>
@@ -43,8 +43,8 @@ export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
       <div className="card">
         <div className="card-header">
           <div>
-            <div className="card-title">Ask a cost question</div>
-            <div className="card-subtitle">Natural language is automatically converted to SQL and executed</div>
+            <div className="card-title">Ask an operations question</div>
+            <div className="card-subtitle">Natural language is converted to read-only SQL and executed</div>
           </div>
         </div>
         <div className="card-body">

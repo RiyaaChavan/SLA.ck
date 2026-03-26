@@ -200,7 +200,7 @@ def scan_organization_alerts(db: Session, organization_id: int) -> list[Alert]:
         expected_by = workflow.expected_by
         current_time = now
         if expected_by.tzinfo is None:
-            current_time = datetime.utcnow()
+            current_time = datetime.now(UTC).replace(tzinfo=None)
         delay_hours = max((current_time - expected_by).total_seconds() / 3600, 0)
         if delay_hours <= 0:
             continue

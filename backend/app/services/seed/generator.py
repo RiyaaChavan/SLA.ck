@@ -7,13 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.models.base import Base
 from app.models.domain import (
+    ApprovalPolicy,
     Contract,
+    DetectorDefinition,
     Department,
     Invoice,
     Organization,
     ResourceSnapshot,
     SchemaMapping,
     SLA,
+    SlaExtractionBatch,
+    SlaExtractionCandidate,
+    SlaRulebookEntry,
     SourceUpload,
     Vendor,
     Workflow,
@@ -25,6 +30,100 @@ from app.services.seed.profile_loader import load_profiles
 
 
 fake = Faker()
+
+
+DETECTOR_SEEDS = [
+    {
+        "detector_key": "duplicate_spend",
+        "name": "Duplicate Spend Cluster",
+        "description": "Detect invoice clusters with the same vendor, amount, and department signature.",
+        "module": "ProcureWatch",
+        "business_domain": "procurement",
+        "severity": "high",
+        "owner_name": "Procurement Analytics Lead",
+        "logic_type": "rule_sql",
+        "logic_summary": "Groups invoice signatures and flags duplicates beyond the first matched record.",
+        "query_logic": "SELECT vendor_id, amount, department_id FROM invoices GROUP BY 1,2,3 HAVING COUNT(*) > 1",
+        "expected_output_fields": ["invoice_id", "vendor_id", "amount", "duplicate_cluster_size"],
+        "linked_action_template": "Hold duplicate payment after approval",
+        "linked_cost_formula": "Duplicate spend = overlapping paid amount",
+    },
+    {
+        "detector_key": "rate_mismatch",
+        "name": "Contract Rate Drift Monitor",
+        "description": "Compare billed rate against contracted rate and tolerance bands.",
+        "module": "ProcureWatch",
+        "business_domain": "procurement",
+        "severity": "high",
+        "owner_name": "Procurement Analytics Lead",
+        "logic_type": "rule_sql",
+        "logic_summary": "Flags invoices billed more than 8 percent above the contracted rate.",
+        "query_logic": "SELECT * FROM invoices WHERE billed_rate > contracted_rate * 1.08",
+        "expected_output_fields": ["invoice_id", "vendor_id", "billed_rate", "contracted_rate"],
+        "linked_action_template": "Open commercial rate review",
+        "linked_cost_formula": "Invoice leakage = (billed_rate - contracted_rate) x billed_units",
+    },
+    {
+        "detector_key": "vendor_discrepancy",
+        "name": "Vendor Reconciliation Watch",
+        "description": "Detect mismatches between billed and delivered vendor units.",
+        "module": "ProcureWatch",
+        "business_domain": "procurement",
+        "severity": "medium",
+        "owner_name": "Finance Reconciliation Lead",
+        "logic_type": "reconciliation",
+        "logic_summary": "Compares invoice units to validated delivery units for each payable record.",
+        "query_logic": "SELECT * FROM invoices WHERE billed_units > delivered_units",
+        "expected_output_fields": ["invoice_id", "billed_units", "delivered_units", "variance_amount"],
+        "linked_action_template": "Create discrepancy review and vendor dispute",
+        "linked_cost_formula": "Reconciliation mismatch = (billed_units - delivered_units) x billed_rate",
+    },
+    {
+        "detector_key": "sla_risk",
+        "name": "Queue Breach Forecaster",
+        "description": "Predict live queue items that are likely to breach SLA.",
+        "module": "SLA Sentinel",
+        "business_domain": "operations",
+        "severity": "high",
+        "owner_name": "Operations Command Lead",
+        "logic_type": "threshold",
+        "logic_summary": "Flags delayed workflows when backlog and countdown imply likely penalty exposure.",
+        "query_logic": "SELECT * FROM workflows WHERE expected_by < NOW() OR backlog_hours > 24",
+        "expected_output_fields": ["workflow_id", "delay_hours", "projected_penalty", "department_id"],
+        "linked_action_template": "Reroute queue and escalate manager approval",
+        "linked_cost_formula": "SLA penalty = likely breaches x penalty per breach",
+    },
+    {
+        "detector_key": "resource_overload",
+        "name": "Operational Overload Monitor",
+        "description": "Catch team or resource overload that can trigger service delays.",
+        "module": "SLA Sentinel",
+        "business_domain": "operations",
+        "severity": "high",
+        "owner_name": "Operations Command Lead",
+        "logic_type": "threshold",
+        "logic_summary": "Flags resources running materially above sustainable utilization.",
+        "query_logic": "SELECT * FROM resource_snapshots WHERE utilization_pct > 110",
+        "expected_output_fields": ["resource_snapshot_id", "utilization_pct", "monthly_cost"],
+        "linked_action_template": "Rebalance work to a lower-load peer team",
+        "linked_cost_formula": "Overload loss = monthly_cost x overload_pct + intervention buffer",
+    },
+    {
+        "detector_key": "resource_waste",
+        "name": "Underused Capacity Sweep",
+        "description": "Detect underutilized infrastructure, seats, or capacity pools.",
+        "module": "SLA Sentinel",
+        "business_domain": "operations",
+        "severity": "medium",
+        "owner_name": "Platform Efficiency Lead",
+        "logic_type": "threshold",
+        "logic_summary": "Flags resources operating materially below target utilization.",
+        "query_logic": "SELECT * FROM resource_snapshots WHERE utilization_pct < 35",
+        "expected_output_fields": ["resource_snapshot_id", "utilization_pct", "monthly_cost"],
+        "linked_action_template": "Reclaim or downsize unused capacity",
+        "linked_cost_formula": "Unused capacity = monthly_cost x (1 - utilization_pct/100)",
+    },
+]
 
 
 def reset_database(db: Session) -> None:
@@ -104,6 +203,10 @@ def seed_database(db: Session, *, reset: bool = False) -> dict:
                     penalty_per_breach=random.randint(25_000, 90_000),
                 )
             )
+        db.flush()
+
+        for detector_seed in DETECTOR_SEEDS:
+            db.add(DetectorDefinition(organization_id=org.id, **detector_seed))
         db.flush()
 
         workflow_count = profile["workload"]["workflow_count"]
@@ -221,6 +324,137 @@ def seed_database(db: Session, *, reset: bool = False) -> dict:
                 source_kind=profile["source_schema"]["type"],
                 record_count=workflow_count + invoice_count,
                 file_path=f"/synthetic/{profile['file_name']}",
+            )
+        )
+        db.add(
+            SourceUpload(
+                organization_id=org.id,
+                name=f"{org.name} SLA Library",
+                source_kind="document_bundle",
+                record_count=len(departments),
+                file_path=f"/synthetic/{org.name.lower().replace(' ', '-')}-sla-library.pdf",
+            )
+        )
+        db.add(
+            SchemaMapping(
+                organization_id=org.id,
+                source_name=f"{org.name} Live Ops Feed",
+                source_type="workflow_export",
+                raw_schema={"columns": ["workflow_id", "department", "status", "expected_by", "backlog_hours"]},
+                mapped_schema=suggest_mappings(
+                    ["workflow_id", "department", "status", "expected_by", "backlog_hours"]
+                ),
+                confidence_score=0.82,
+                status="preview_ready",
+            )
+        )
+
+        for department in departments:
+            team_sla = db.scalar(
+                select(SLA).where(
+                    SLA.organization_id == org.id,
+                    SLA.department_id == department.id,
+                )
+            )
+            if team_sla is None:
+                continue
+            db.add(
+                SlaRulebookEntry(
+                    organization_id=org.id,
+                    name=f"{department.name} Operational Rule",
+                    status="active",
+                    applies_to={"department": department.name, "priority": "standard"},
+                    conditions=f"Apply when {department.name} owned work enters the monitored queue.",
+                    response_deadline_hours=max(team_sla.target_hours // 2, 1),
+                    resolution_deadline_hours=team_sla.target_hours,
+                    penalty_amount=team_sla.penalty_per_breach,
+                    escalation_owner=f"{department.name} Director",
+                    business_hours_logic="Business hours",
+                    auto_action_allowed=department.category.lower() != "finance",
+                    source_document_name=f"{department.name} SLA Schedule.pdf",
+                    last_reviewed_at=now - timedelta(days=random.randint(2, 15)),
+                )
+            )
+
+        extraction_batch = SlaExtractionBatch(
+            organization_id=org.id,
+            source_document_name=f"{org.name} Master Services Agreement.pdf",
+            status="pending_review",
+            uploaded_at=now - timedelta(days=random.randint(1, 3)),
+        )
+        db.add(extraction_batch)
+        db.flush()
+        db.add(
+            SlaExtractionCandidate(
+                batch_id=extraction_batch.id,
+                name="Premium Escalation SLA",
+                applies_to={"priority": "P1", "customer_tier": "premium"},
+                conditions="Apply for premium or penalty-bearing incidents.",
+                response_deadline_hours=1,
+                resolution_deadline_hours=6,
+                penalty_amount=random.randint(60_000, 120_000),
+                escalation_owner="Operations Director",
+                business_hours_logic="24x7",
+                auto_action_allowed=True,
+                status="pending",
+            )
+        )
+        db.add(
+            SlaExtractionCandidate(
+                batch_id=extraction_batch.id,
+                name="Vendor Dispute Follow-up SLA",
+                applies_to={"workflow": "vendor_dispute"},
+                conditions="Apply to procurement or finance discrepancy cases.",
+                response_deadline_hours=8,
+                resolution_deadline_hours=24,
+                penalty_amount=random.randint(20_000, 50_000),
+                escalation_owner="Procurement Head",
+                business_hours_logic="Business hours",
+                auto_action_allowed=False,
+                status="pending",
+            )
+        )
+
+        db.add(
+            ApprovalPolicy(
+                organization_id=org.id,
+                name="Auto reroute medium-risk queues",
+                module="SLA Sentinel",
+                scope="queue:live-ops",
+                risk_level="medium",
+                enabled=True,
+                approver_name="Operations Director",
+                allowed_actions=["notify_owner", "reroute_queue", "open_review_task"],
+                condition_summary="Allow auto-reroute for SLA Sentinel queues for the next two hours.",
+                expires_at=now + timedelta(hours=2),
+            )
+        )
+        db.add(
+            ApprovalPolicy(
+                organization_id=org.id,
+                name="Auto open discrepancy cases",
+                module="ProcureWatch",
+                scope="procurement:invoice-review",
+                risk_level="medium",
+                enabled=True,
+                approver_name="Finance Controller",
+                allowed_actions=["open_review_task", "notify_procurement"],
+                condition_summary="Auto-open discrepancy cases above threshold but do not hold payment.",
+                expires_at=now + timedelta(hours=6),
+            )
+        )
+        db.add(
+            ApprovalPolicy(
+                organization_id=org.id,
+                name="High-risk action guardrail",
+                module="ProcureWatch",
+                scope="payments:hold-release",
+                risk_level="high",
+                enabled=False,
+                approver_name="Finance Controller",
+                allowed_actions=["hold_fund_release", "vendor_dispute"],
+                condition_summary="High-risk financial actions always require explicit approval.",
+                expires_at=None,
             )
         )
         db.commit()

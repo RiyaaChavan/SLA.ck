@@ -1,5 +1,5 @@
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime
 
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -43,7 +43,7 @@ def generate_pdf_report(db: Session, *, organization_id: int, title: str) -> Rep
     pdf.drawString(48, height - 50, title)
     pdf.setFont("Helvetica", 11)
     pdf.drawString(48, height - 76, f"Organization: {organization.name}")
-    pdf.drawString(48, height - 92, f"Generated: {datetime.utcnow().isoformat()} UTC")
+    pdf.drawString(48, height - 92, f"Generated: {datetime.now(UTC).isoformat()} UTC")
     pdf.drawString(48, height - 122, f"Projected exposure: Rs {total_exposure:,.2f}")
     pdf.drawString(48, height - 138, f"Active alerts: {len(alerts)}")
     y = height - 172

@@ -1,7 +1,7 @@
 import enum
 from datetime import datetime
 
-from sqlalchemy import JSON, DateTime, Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import JSON, Boolean, DateTime, Enum, Float, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base, TimestampMixin
@@ -183,6 +183,97 @@ class SourceUpload(Base, TimestampMixin):
     source_kind: Mapped[str] = mapped_column(String(40))
     record_count: Mapped[int] = mapped_column(Integer)
     file_path: Mapped[str] = mapped_column(String(255))
+
+
+class DetectorDefinition(Base, TimestampMixin):
+    __tablename__ = "detector_definitions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    detector_key: Mapped[str] = mapped_column(String(80))
+    name: Mapped[str] = mapped_column(String(160))
+    description: Mapped[str] = mapped_column(Text)
+    module: Mapped[str] = mapped_column(String(80))
+    business_domain: Mapped[str] = mapped_column(String(80))
+    severity: Mapped[str] = mapped_column(String(20))
+    owner_name: Mapped[str] = mapped_column(String(120))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    logic_type: Mapped[str] = mapped_column(String(40))
+    logic_summary: Mapped[str] = mapped_column(Text)
+    query_logic: Mapped[str] = mapped_column(Text)
+    expected_output_fields: Mapped[list[str]] = mapped_column(JSON, default=list)
+    linked_action_template: Mapped[str] = mapped_column(Text)
+    linked_cost_formula: Mapped[str] = mapped_column(Text)
+    last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    issue_count: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class SlaRulebookEntry(Base, TimestampMixin):
+    __tablename__ = "sla_rulebook_entries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    name: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(40), default="active")
+    applies_to: Mapped[dict] = mapped_column(JSON, default=dict)
+    conditions: Mapped[str] = mapped_column(Text)
+    response_deadline_hours: Mapped[int] = mapped_column(Integer)
+    resolution_deadline_hours: Mapped[int] = mapped_column(Integer)
+    penalty_amount: Mapped[float] = mapped_column(Float)
+    escalation_owner: Mapped[str] = mapped_column(String(120))
+    business_hours_logic: Mapped[str] = mapped_column(String(120))
+    auto_action_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    source_document_name: Mapped[str] = mapped_column(String(160))
+    last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SlaExtractionBatch(Base, TimestampMixin):
+    __tablename__ = "sla_extraction_batches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    source_document_name: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(40), default="pending_review")
+    uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+    candidates: Mapped[list["SlaExtractionCandidate"]] = relationship(
+        back_populates="batch", cascade="all, delete-orphan"
+    )
+
+
+class SlaExtractionCandidate(Base, TimestampMixin):
+    __tablename__ = "sla_extraction_candidates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("sla_extraction_batches.id"))
+    name: Mapped[str] = mapped_column(String(160))
+    applies_to: Mapped[dict] = mapped_column(JSON, default=dict)
+    conditions: Mapped[str] = mapped_column(Text)
+    response_deadline_hours: Mapped[int] = mapped_column(Integer)
+    resolution_deadline_hours: Mapped[int] = mapped_column(Integer)
+    penalty_amount: Mapped[float] = mapped_column(Float)
+    escalation_owner: Mapped[str] = mapped_column(String(120))
+    business_hours_logic: Mapped[str] = mapped_column(String(120))
+    auto_action_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+
+    batch: Mapped["SlaExtractionBatch"] = relationship(back_populates="candidates")
+
+
+class ApprovalPolicy(Base, TimestampMixin):
+    __tablename__ = "approval_policies"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
+    name: Mapped[str] = mapped_column(String(160))
+    module: Mapped[str] = mapped_column(String(80))
+    scope: Mapped[str] = mapped_column(String(120))
+    risk_level: Mapped[str] = mapped_column(String(20))
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    approver_name: Mapped[str] = mapped_column(String(120))
+    allowed_actions: Mapped[list[str]] = mapped_column(JSON, default=list)
+    condition_summary: Mapped[str] = mapped_column(Text)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
 class Alert(Base, TimestampMixin):

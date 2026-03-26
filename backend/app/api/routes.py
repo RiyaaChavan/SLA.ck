@@ -5,23 +5,67 @@ from sqlalchemy.orm import Session
 from app.db.session import get_db
 from app.models.domain import Action, Alert, AuditEvent, Organization
 from app.schemas.api import (
+    ActionDecisionIn,
+    ActionRequestOut,
     AlertOut,
+    AutoModeSettingsOut,
+    AutoModeUpdateIn,
     AuditFeedItem,
+    CaseDetailOut,
+    CaseSummaryOut,
+    DataSourceSummaryOut,
+    DataSourceUploadIn,
     DashboardOverview,
+    DetectorDefinitionCreateIn,
+    DetectorDefinitionOut,
+    DetectorDraftOut,
+    DetectorPromptDraftIn,
+    DetectorTestOut,
+    ImpactOverviewOut,
     InvestigationRequest,
     InvestigationResponse,
+    LiveWorkItemOut,
     OrganizationOut,
     RecommendationDecisionIn,
     ReportRequest,
     ResourceOverview,
     SeedResponse,
+    SlaExtractionApproveIn,
+    SlaExtractionBatchOut,
+    SlaExtractionReviewResult,
+    SlaExtractionUploadIn,
+    SlaRulebookEntryOut,
 )
+from app.services.action_center import (
+    approve_action_request,
+    execute_action_request,
+    list_action_requests,
+    reject_action_request,
+)
+from app.services.auto_mode import get_auto_mode_settings, update_auto_mode_settings
 from app.services.alerts.detector import scan_organization_alerts
+from app.services.cases import get_case_detail, list_cases
+from app.services.data_sources import create_data_source, list_data_sources
 from app.services.dashboard import dashboard_overview, resource_overview
+from app.services.detectors import (
+    build_prompt_draft,
+    create_detector as create_detector_definition,
+    list_detectors,
+    test_detector,
+)
+from app.services.impact import impact_overview
+from app.services.live_ops import list_live_ops
 from app.services.query.investigator import run_investigation
 from app.services.reporting.reporter import generate_pdf_report, list_reports
 from app.services.seed.generator import seed_database
-from app.services.workflow.approval import decide_recommendation, execute_action
+from app.services.sla_rulebook import (
+    approve_extraction_batch,
+    create_extraction_batch,
+    discard_extraction_batch,
+    list_extraction_batches,
+    list_rulebook_entries,
+)
+from app.services.workflow.approval import decide_recommendation
 
 
 router = APIRouter(prefix="/api")
@@ -41,6 +85,228 @@ def bootstrap_seed(reset: bool = False, db: Session = Depends(get_db)) -> SeedRe
 def list_organizations(db: Session = Depends(get_db)) -> list[OrganizationOut]:
     organizations = db.scalars(select(Organization).order_by(Organization.id.asc())).all()
     return [OrganizationOut.model_validate(item, from_attributes=True) for item in organizations]
+
+
+@router.get("/impact/{organization_id}", response_model=ImpactOverviewOut)
+def get_impact(organization_id: int, db: Session = Depends(get_db)) -> ImpactOverviewOut:
+    try:
+        payload = impact_overview(db, organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ImpactOverviewOut(
+        organization=OrganizationOut.model_validate(payload["organization"], from_attributes=True),
+        metrics=payload["metrics"],
+        top_vendors_by_risk=payload["top_vendors_by_risk"],
+        top_teams_by_overload=payload["top_teams_by_overload"],
+        realized_vs_projected=payload["realized_vs_projected"],
+        recent_cases=payload["recent_cases"],
+    )
+
+
+@router.get("/cases/{organization_id}", response_model=list[CaseSummaryOut])
+def get_cases(
+    organization_id: int,
+    sort: str = "cost_impact",
+    severity: str | None = None,
+    status: str | None = None,
+    module: str | None = None,
+    team: str | None = None,
+    vendor: str | None = None,
+    detector: str | None = None,
+    approver: str | None = None,
+    action_state: str | None = None,
+    db: Session = Depends(get_db),
+) -> list[CaseSummaryOut]:
+    return [
+        CaseSummaryOut.model_validate(item)
+        for item in list_cases(
+            db,
+            organization_id,
+            sort=sort,
+            severity=severity,
+            status=status,
+            module=module,
+            team=team,
+            vendor=vendor,
+            detector=detector,
+            approver=approver,
+            action_state=action_state,
+        )
+    ]
+
+
+@router.get("/cases/detail/{case_id}", response_model=CaseDetailOut)
+def get_case(case_id: int, db: Session = Depends(get_db)) -> CaseDetailOut:
+    try:
+        return CaseDetailOut.model_validate(get_case_detail(db, case_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/live-ops/{organization_id}", response_model=list[LiveWorkItemOut])
+def get_live_ops(organization_id: int, db: Session = Depends(get_db)) -> list[LiveWorkItemOut]:
+    return [LiveWorkItemOut.model_validate(item) for item in list_live_ops(db, organization_id)]
+
+
+@router.get("/data-sources/{organization_id}", response_model=list[DataSourceSummaryOut])
+def get_data_sources(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[DataSourceSummaryOut]:
+    return [
+        DataSourceSummaryOut.model_validate(item)
+        for item in list_data_sources(db, organization_id)
+    ]
+
+
+@router.post("/data-sources/{organization_id}/upload", response_model=DataSourceSummaryOut)
+def upload_data_source(
+    organization_id: int, payload: DataSourceUploadIn, db: Session = Depends(get_db)
+) -> DataSourceSummaryOut:
+    return DataSourceSummaryOut.model_validate(
+        create_data_source(db, organization_id=organization_id, **payload.model_dump())
+    )
+
+
+@router.get("/detectors/{organization_id}", response_model=list[DetectorDefinitionOut])
+def get_detectors(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[DetectorDefinitionOut]:
+    return [DetectorDefinitionOut.model_validate(item) for item in list_detectors(db, organization_id)]
+
+
+@router.post("/detectors/prompt-draft", response_model=DetectorDraftOut)
+def draft_detector(payload: DetectorPromptDraftIn) -> DetectorDraftOut:
+    return DetectorDraftOut.model_validate(
+        build_prompt_draft(payload.organization_id, payload.prompt, payload.module)
+    )
+
+
+@router.post("/detectors/{organization_id}", response_model=DetectorDefinitionOut)
+def create_detector(
+    organization_id: int, payload: DetectorDefinitionCreateIn, db: Session = Depends(get_db)
+) -> DetectorDefinitionOut:
+    return DetectorDefinitionOut.model_validate(
+        create_detector_definition(db, organization_id, payload.model_dump())
+    )
+
+
+@router.post("/detectors/{detector_id}/test", response_model=DetectorTestOut)
+def run_detector_test(detector_id: int, db: Session = Depends(get_db)) -> DetectorTestOut:
+    try:
+        return DetectorTestOut.model_validate(test_detector(db, detector_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/sla/rules/{organization_id}", response_model=list[SlaRulebookEntryOut])
+def get_sla_rules(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[SlaRulebookEntryOut]:
+    return [
+        SlaRulebookEntryOut.model_validate(item)
+        for item in list_rulebook_entries(db, organization_id)
+    ]
+
+
+@router.get("/sla/extractions/{organization_id}", response_model=list[SlaExtractionBatchOut])
+def get_sla_extractions(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[SlaExtractionBatchOut]:
+    return [
+        SlaExtractionBatchOut.model_validate(item)
+        for item in list_extraction_batches(db, organization_id)
+    ]
+
+
+@router.post("/sla/extractions/{organization_id}/upload", response_model=SlaExtractionBatchOut)
+def upload_sla_extraction(
+    organization_id: int, payload: SlaExtractionUploadIn, db: Session = Depends(get_db)
+) -> SlaExtractionBatchOut:
+    return SlaExtractionBatchOut.model_validate(
+        create_extraction_batch(
+            db,
+            organization_id=organization_id,
+            source_document_name=payload.source_document_name,
+        )
+    )
+
+
+@router.post("/sla/extractions/{batch_id}/approve", response_model=SlaExtractionReviewResult)
+def approve_sla_extraction(
+    batch_id: int, payload: SlaExtractionApproveIn, db: Session = Depends(get_db)
+) -> SlaExtractionReviewResult:
+    try:
+        return SlaExtractionReviewResult.model_validate(
+            approve_extraction_batch(
+                db, batch_id=batch_id, edits=[item.model_dump(exclude_none=True) for item in payload.candidate_rules]
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/sla/extractions/{batch_id}/discard", response_model=SlaExtractionReviewResult)
+def discard_sla_extraction(batch_id: int, db: Session = Depends(get_db)) -> SlaExtractionReviewResult:
+    try:
+        return SlaExtractionReviewResult.model_validate(discard_extraction_batch(db, batch_id=batch_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/actions/{organization_id}", response_model=list[ActionRequestOut])
+def get_actions(
+    organization_id: int, db: Session = Depends(get_db)
+) -> list[ActionRequestOut]:
+    return [
+        ActionRequestOut.model_validate(item)
+        for item in list_action_requests(db, organization_id)
+    ]
+
+
+@router.post("/actions/{action_id}/approve", response_model=ActionRequestOut)
+def approve_action(
+    action_id: int, payload: ActionDecisionIn, db: Session = Depends(get_db)
+) -> ActionRequestOut:
+    try:
+        return ActionRequestOut.model_validate(
+            approve_action_request(
+                db, action_id=action_id, approver_name=payload.approver_name, notes=payload.notes
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/actions/{action_id}/reject", response_model=ActionRequestOut)
+def reject_action(
+    action_id: int, payload: ActionDecisionIn, db: Session = Depends(get_db)
+) -> ActionRequestOut:
+    try:
+        return ActionRequestOut.model_validate(
+            reject_action_request(
+                db, action_id=action_id, approver_name=payload.approver_name, notes=payload.notes
+            )
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/auto-mode/{organization_id}", response_model=AutoModeSettingsOut)
+def get_auto_mode(organization_id: int, db: Session = Depends(get_db)) -> AutoModeSettingsOut:
+    return AutoModeSettingsOut.model_validate(get_auto_mode_settings(db, organization_id))
+
+
+@router.put("/auto-mode/{organization_id}", response_model=AutoModeSettingsOut)
+def update_auto_mode(
+    organization_id: int, payload: AutoModeUpdateIn, db: Session = Depends(get_db)
+) -> AutoModeSettingsOut:
+    return AutoModeSettingsOut.model_validate(
+        update_auto_mode_settings(
+            db,
+            organization_id,
+            [item.model_dump(exclude_none=False) for item in payload.policies],
+        )
+    )
 
 
 @router.get("/dashboard/{organization_id}", response_model=DashboardOverview)
@@ -187,13 +453,12 @@ def reject_recommendation(
     return {"recommendation_id": recommendation.id, "status": "rejected"}
 
 
-@router.post("/actions/{action_id}/execute")
-def run_action(action_id: int, db: Session = Depends(get_db)) -> dict:
+@router.post("/actions/{action_id}/execute", response_model=ActionRequestOut)
+def run_action(action_id: int, db: Session = Depends(get_db)) -> ActionRequestOut:
     try:
-        action = execute_action(db, action_id=action_id)
+        return ActionRequestOut.model_validate(execute_action_request(db, action_id=action_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"action_id": action.id, "status": action.status.value, "summary": action.result_summary}
 
 
 @router.post("/reports/generate")

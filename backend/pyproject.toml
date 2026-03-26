@@ -1,7 +1,7 @@
 [project]
-name = "costpulse-backend"
+name = "business-sentry-backend"
 version = "0.1.0"
-description = "CostPulse AI backend"
+description = "Business Sentry backend"
 requires-python = ">=3.12"
 dependencies = [
   "alembic>=1.14.1",
@@ -19,6 +19,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "httpx>=0.28.1",
+  "pytest>=8.3.5",
   "ruff>=0.11.0",
 ]
 
