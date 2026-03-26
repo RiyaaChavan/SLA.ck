@@ -385,6 +385,18 @@ class SlaRulebookArchiveIn(BaseModel):
     reviewed_by: str | None = None
 
 
+class BusinessContractDocumentOut(BaseModel):
+    executive_summary: str = ""
+    service_scope: list[str] = Field(default_factory=list)
+    service_level_commitments: list[str] = Field(default_factory=list)
+    operational_obligations: list[str] = Field(default_factory=list)
+    exclusions_and_assumptions: list[str] = Field(default_factory=list)
+    commercial_terms: list[str] = Field(default_factory=list)
+    escalation_path: list[str] = Field(default_factory=list)
+    approval_and_governance: list[str] = Field(default_factory=list)
+    risk_watchouts: list[str] = Field(default_factory=list)
+
+
 class SlaExtractionCandidateOut(BaseModel):
     id: int
     name: str
@@ -403,6 +415,7 @@ class SlaExtractionCandidateOut(BaseModel):
     confidence_score: float = 0.0
     parsing_notes: list[str] = Field(default_factory=list)
     extraction_source: str
+    business_document: BusinessContractDocumentOut = Field(default_factory=BusinessContractDocumentOut)
     candidate_metadata: dict = Field(default_factory=dict)
 
 
@@ -413,6 +426,7 @@ class SlaExtractionBatchOut(BaseModel):
     status: str
     uploaded_at: datetime
     extraction_source: str
+    contract_pdf_path: str | None = None
     run_metadata: dict = Field(default_factory=dict)
     candidate_rules: list[SlaExtractionCandidateOut]
 
@@ -515,6 +529,10 @@ class AgenticClassificationOut(BaseModel):
     department_name: str
     vendor_name: str | None = None
     suggested_backlog_hours: float
+    inferred_estimated_value: float
+    risk_flags: list[str] = Field(default_factory=list)
+    detected_sla_signals: list[str] = Field(default_factory=list)
+    should_raise_alert: bool = False
     confidence: float
     rationale: list[str] = Field(default_factory=list)
 
@@ -524,7 +542,7 @@ class TicketIntakeIn(BaseModel):
     description: str
     department_name: str | None = None
     vendor_name: str | None = None
-    estimated_value: float = 150000.0
+    estimated_value: float | None = None
     backlog_hours: float | None = None
     status: str = "open"
     region: str = "default"
@@ -536,7 +554,7 @@ class ApprovalIntakeIn(BaseModel):
     requested_action_type: str = "open_review_task"
     department_name: str | None = None
     vendor_name: str | None = None
-    estimated_value: float = 150000.0
+    estimated_value: float | None = None
     backlog_hours: float | None = None
     status: str = "open"
     region: str = "default"

@@ -143,6 +143,10 @@ export type AgenticClassification = {
   department_name: string;
   vendor_name?: string | null;
   suggested_backlog_hours: number;
+  inferred_estimated_value: number;
+  risk_flags: string[];
+  detected_sla_signals: string[];
+  should_raise_alert: boolean;
   confidence: number;
   rationale: string[];
 };
@@ -275,6 +279,17 @@ export type SlaExtractionCandidate = {
   confidence_score?: number;
   parsing_notes?: string[];
   extraction_source?: string;
+  business_document?: {
+    executive_summary: string;
+    service_scope: string[];
+    service_level_commitments: string[];
+    operational_obligations: string[];
+    exclusions_and_assumptions: string[];
+    commercial_terms: string[];
+    escalation_path: string[];
+    approval_and_governance: string[];
+    risk_watchouts: string[];
+  };
   candidate_metadata?: Record<string, unknown>;
 };
 
@@ -285,6 +300,7 @@ export type SlaExtractionBatch = {
   status: string;
   uploaded_at: string;
   extraction_source?: string;
+  contract_pdf_path?: string | null;
   run_metadata?: Record<string, unknown>;
   candidate_rules: SlaExtractionCandidate[];
 };

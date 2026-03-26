@@ -138,6 +138,10 @@ type ApiAgenticClassificationOut = {
   department_name: string;
   vendor_name?: string | null;
   suggested_backlog_hours: number;
+  inferred_estimated_value: number;
+  risk_flags?: string[];
+  detected_sla_signals?: string[];
+  should_raise_alert?: boolean;
   confidence: number;
   rationale?: string[];
 };
@@ -170,6 +174,10 @@ function mapAgenticClassification(c: ApiAgenticClassificationOut): AgenticClassi
     department_name: c.department_name,
     vendor_name: c.vendor_name ?? null,
     suggested_backlog_hours: c.suggested_backlog_hours,
+    inferred_estimated_value: c.inferred_estimated_value,
+    risk_flags: c.risk_flags ?? [],
+    detected_sla_signals: c.detected_sla_signals ?? [],
+    should_raise_alert: c.should_raise_alert ?? false,
     confidence: c.confidence,
     rationale: c.rationale ?? [],
   };
@@ -316,6 +324,17 @@ type ApiSlaCandidateOut = {
   confidence_score?: number;
   parsing_notes?: string[];
   extraction_source: string;
+  business_document?: {
+    executive_summary?: string;
+    service_scope?: string[];
+    service_level_commitments?: string[];
+    operational_obligations?: string[];
+    exclusions_and_assumptions?: string[];
+    commercial_terms?: string[];
+    escalation_path?: string[];
+    approval_and_governance?: string[];
+    risk_watchouts?: string[];
+  };
   candidate_metadata?: Record<string, unknown>;
 };
 
@@ -326,6 +345,7 @@ type ApiSlaBatchOut = {
   status: string;
   uploaded_at: string | { toISOString(): string };
   extraction_source: string;
+  contract_pdf_path?: string | null;
   run_metadata?: Record<string, unknown>;
   candidate_rules: ApiSlaCandidateOut[];
 };
@@ -348,6 +368,19 @@ function mapSlaCandidate(c: ApiSlaCandidateOut): SlaExtractionCandidate {
     confidence_score: c.confidence_score,
     parsing_notes: c.parsing_notes,
     extraction_source: c.extraction_source,
+    business_document: c.business_document
+      ? {
+          executive_summary: c.business_document.executive_summary ?? "",
+          service_scope: c.business_document.service_scope ?? [],
+          service_level_commitments: c.business_document.service_level_commitments ?? [],
+          operational_obligations: c.business_document.operational_obligations ?? [],
+          exclusions_and_assumptions: c.business_document.exclusions_and_assumptions ?? [],
+          commercial_terms: c.business_document.commercial_terms ?? [],
+          escalation_path: c.business_document.escalation_path ?? [],
+          approval_and_governance: c.business_document.approval_and_governance ?? [],
+          risk_watchouts: c.business_document.risk_watchouts ?? [],
+        }
+      : undefined,
     candidate_metadata: c.candidate_metadata,
   };
 }
@@ -360,6 +393,7 @@ function mapSlaBatch(b: ApiSlaBatchOut): SlaExtractionBatch {
     status: b.status,
     uploaded_at: iso(b.uploaded_at),
     extraction_source: b.extraction_source,
+    contract_pdf_path: b.contract_pdf_path ?? null,
     run_metadata: b.run_metadata ?? {},
     candidate_rules: b.candidate_rules.map(mapSlaCandidate),
   };

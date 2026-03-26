@@ -144,6 +144,12 @@ def test_write_endpoints_cover_parallel_frontend_contracts(client):
     candidate_id = batch["candidate_rules"][0]["id"]
     assert batch["run_metadata"]["provider"]
     assert batch["candidate_rules"][0]["confidence_score"] > 0
+    assert batch["candidate_rules"][0]["business_document"]["executive_summary"]
+    assert batch["contract_pdf_path"]
+
+    contract_pdf_response = client.get(f"/api/sla/extractions/batch/{batch_id}/contract-pdf")
+    assert contract_pdf_response.status_code == 200
+    assert contract_pdf_response.headers["content-type"] == "application/pdf"
 
     approve_extraction_response = client.post(
         f"/api/sla/extractions/{batch_id}/approve",
@@ -256,7 +262,6 @@ def test_agentic_ticket_intake_matches_premium_support_sla(client):
         json={
             "title": "P1 premium checkout outage",
             "description": "Premium users are blocked and need urgent support escalation.",
-            "estimated_value": 325000,
         },
     )
     assert response.status_code == 200
@@ -264,6 +269,8 @@ def test_agentic_ticket_intake_matches_premium_support_sla(client):
     assert payload["classification"]["workflow_category"] == "support"
     assert payload["classification"]["priority"] == "P1"
     assert payload["classification"]["customer_tier"] == "premium"
+    assert payload["classification"]["inferred_estimated_value"] >= 300000
+    assert payload["classification"]["risk_flags"]
     assert payload["live_item"]["assigned_sla_name"] == "Premium Support Ticket SLA"
     assert payload["live_item"]["predicted_breach_risk"] in {"high", "critical"}
 
@@ -275,14 +282,15 @@ def test_agentic_approval_intake_returns_approval_preview(client):
         f"/api/intake/approvals/{organization_id}",
         json={
             "title": "Urgent vendor onboarding approval",
-            "description": "Procurement approval is blocking a launch-critical vendor rollout.",
+            "description": "Procurement approval is blocking a launch-critical vendor rollout and needs approval by EOD.",
             "requested_action_type": "open_review_task",
-            "estimated_value": 540000,
         },
     )
     assert response.status_code == 200
     payload = response.json()
     assert payload["classification"]["workflow_type"] == "procurement_approval"
+    assert payload["classification"]["should_raise_alert"] is True
+    assert payload["classification"]["detected_sla_signals"]
     assert payload["live_item"]["assigned_sla_name"] == "Approval Decision SLA"
     assert payload["approval_preview"] is not None
     assert "recommended_approver" in payload["approval_preview"]

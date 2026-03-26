@@ -4,6 +4,7 @@ from app.services.sla.extraction import (
     create_extraction_batch_from_file,
     discard_extraction_batch,
     discard_extraction_candidate,
+    get_extraction_batch,
     list_extraction_batches,
 )
 from app.services.sla.rulebook import list_rulebook_entries
@@ -15,6 +16,7 @@ __all__ = [
     "create_extraction_batch_from_file",
     "discard_extraction_batch",
     "discard_extraction_candidate",
+    "get_extraction_batch",
     "list_extraction_batches",
     "list_rulebook_entries",
 ]

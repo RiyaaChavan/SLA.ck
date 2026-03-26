@@ -272,7 +272,8 @@ def list_live_ops(
         row = {
             "id": workflow.id,
             "item_type": workflow.workflow_type,
-            "title": f"{workflow.workflow_type.replace('_', ' ').title()} work item",
+            "title": (workflow.intake_metadata or {}).get("title")
+            or f"{workflow.workflow_type.replace('_', ' ').title()} work item",
             "team": department.name if department else None,
             "owner_name": live_item.owner_name or "Operations Queue Owner",
             "status": workflow.status,

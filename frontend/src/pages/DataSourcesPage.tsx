@@ -1,6 +1,7 @@
 import { useRef } from "react";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatDateTime } from "../lib/formatters";
 import { useDataSourceUpload, useDataSources } from "../hooks/useBusinessSentry";
 
@@ -9,6 +10,7 @@ type DataSourcesPageProps = {
 };
 
 export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
+  const { notify } = useNotifications();
   const q = useDataSources(organizationId);
   const upload = useDataSourceUpload(organizationId);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,7 +27,24 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
 
   const onFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const f = e.target.files?.[0];
-    if (f) upload.mutate(f.name);
+    if (f) {
+      upload.mutate(f.name, {
+        onSuccess: (data) => {
+          notify({
+            tone: "success",
+            title: "Data source uploaded",
+            message: `${data.message}`,
+          });
+        },
+        onError: () => {
+          notify({
+            tone: "error",
+            title: "Upload failed",
+            message: `Could not upload ${f.name}.`,
+          });
+        },
+      });
+    }
     e.target.value = "";
   };
 
@@ -40,7 +59,29 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
             <button type="button" className="btn btn-secondary" onClick={triggerUpload} disabled={upload.isPending}>
               Upload file
             </button>
-            <button type="button" className="btn btn-primary" onClick={() => upload.mutate("connector_stub.json")} disabled={upload.isPending}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={() =>
+                upload.mutate("connector_stub.json", {
+                  onSuccess: (data) => {
+                    notify({
+                      tone: "info",
+                      title: "Connector registered",
+                      message: data.message,
+                    });
+                  },
+                  onError: () => {
+                    notify({
+                      tone: "error",
+                      title: "Connector failed",
+                      message: "Could not register the connector stub.",
+                    });
+                  },
+                })
+              }
+              disabled={upload.isPending}
+            >
               Connect (stub)
             </button>
           </>

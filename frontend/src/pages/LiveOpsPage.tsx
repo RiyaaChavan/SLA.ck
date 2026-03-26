@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from "react";
 import type { AgenticClassification, LiveWorkItem } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
   useCreateApprovalIntake,
@@ -41,6 +42,7 @@ function classificationForDrawer(r: LiveWorkItem): AgenticClassification | null 
 }
 
 export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
+  const { notify } = useNotifications();
   const qc = useQueryClient();
   const navigate = useNavigate();
   const q = useLiveOps(organizationId);
@@ -60,7 +62,6 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
     description: "",
     department_name: "",
     vendor_name: "",
-    estimated_value: "150000",
     backlog_hours: "",
     status: "open",
     region: "default",
@@ -71,7 +72,6 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
     requested_action_type: "open_review_task",
     department_name: "",
     vendor_name: "",
-    estimated_value: "150000",
     backlog_hours: "",
     status: "open",
     region: "default",
@@ -177,15 +177,28 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
         description: ticketForm.description.trim(),
         department_name: ticketForm.department_name.trim() || null,
         vendor_name: ticketForm.vendor_name.trim() || null,
-        estimated_value: Number(ticketForm.estimated_value) || 150000,
         backlog_hours: ticketForm.backlog_hours.trim() ? Number(ticketForm.backlog_hours) : null,
         status: ticketForm.status,
         region: ticketForm.region,
       },
       {
         onSuccess: (data) => {
+          notify({
+            tone: data.alert_id ? "warning" : "success",
+            title: "Ticket created",
+            message: data.alert_id
+              ? "The ticket was created and flagged for SLA monitoring."
+              : "The ticket was created and added to the live queue.",
+          });
           applyIntakeSuccess(data.live_item, data.alert_id, data.recommendation_id, {
             openApprovals: true,
+          });
+        },
+        onError: () => {
+          notify({
+            tone: "error",
+            title: "Ticket creation failed",
+            message: "Could not create the ticket from the provided title and description.",
           });
         },
       },
@@ -202,14 +215,27 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
         requested_action_type: approvalForm.requested_action_type.trim() || "open_review_task",
         department_name: approvalForm.department_name.trim() || null,
         vendor_name: approvalForm.vendor_name.trim() || null,
-        estimated_value: Number(approvalForm.estimated_value) || 150000,
         backlog_hours: approvalForm.backlog_hours.trim() ? Number(approvalForm.backlog_hours) : null,
         status: approvalForm.status,
         region: approvalForm.region,
       },
       {
         onSuccess: (data) => {
+          notify({
+            tone: data.alert_id ? "warning" : "success",
+            title: "Approval created",
+            message: data.alert_id
+              ? "The approval was created and marked as elevated SLA risk."
+              : "The approval was created and routed into the live queue.",
+          });
           applyIntakeSuccess(data.live_item, data.alert_id, data.recommendation_id);
+        },
+        onError: () => {
+          notify({
+            tone: "error",
+            title: "Approval creation failed",
+            message: "Could not create the approval request from the provided details.",
+          });
         },
       },
     );
@@ -299,6 +325,7 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                 required
               />
             </label>
+            <div className="td-sub">Include urgency, blockers, approval gates, or SLA cues like "respond in 1 hour" and the agent will infer them.</div>
             <div className="bs-intake-row">
               <label className="bs-intake-label">
                 Department (optional)
@@ -318,15 +345,6 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
               </label>
             </div>
             <div className="bs-intake-row">
-              <label className="bs-intake-label">
-                Est. value
-                <input
-                  className="bs-input"
-                  type="number"
-                  value={ticketForm.estimated_value}
-                  onChange={(e) => setTicketForm((p) => ({ ...p, estimated_value: e.target.value }))}
-                />
-              </label>
               <label className="bs-intake-label">
                 Backlog hours
                 <input
@@ -388,6 +406,7 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                 required
               />
             </label>
+            <div className="td-sub">Describe approvals, deadlines, launch impact, or vendor context. Estimated value is inferred automatically.</div>
             <label className="bs-intake-label">
               Requested action type
               <input
@@ -415,15 +434,6 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
               </label>
             </div>
             <div className="bs-intake-row">
-              <label className="bs-intake-label">
-                Est. value
-                <input
-                  className="bs-input"
-                  type="number"
-                  value={approvalForm.estimated_value}
-                  onChange={(e) => setApprovalForm((p) => ({ ...p, estimated_value: e.target.value }))}
-                />
-              </label>
               <label className="bs-intake-label">
                 Backlog hours
                 <input
@@ -677,7 +687,31 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                     <dd>{cls.department_name}</dd>
                     <dt>Confidence</dt>
                     <dd>{(cls.confidence * 100).toFixed(0)}%</dd>
+                    <dt>Inferred value</dt>
+                    <dd>{formatMoneyInr(cls.inferred_estimated_value)}</dd>
+                    <dt>Escalate alert</dt>
+                    <dd>{cls.should_raise_alert ? "Yes" : "No"}</dd>
                   </dl>
+                  {cls.detected_sla_signals.length > 0 ? (
+                    <>
+                      <h5 className="bs-drawer-subtitle">Detected SLA signals</h5>
+                      <ul className="td-sub bs-drawer-list">
+                        {cls.detected_sla_signals.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
+                  {cls.risk_flags.length > 0 ? (
+                    <>
+                      <h5 className="bs-drawer-subtitle">Risk flags</h5>
+                      <ul className="td-sub bs-drawer-list">
+                        {cls.risk_flags.map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    </>
+                  ) : null}
                   {cls.rationale.length > 0 ? (
                     <>
                       <h5 className="bs-drawer-subtitle">Rationale</h5>

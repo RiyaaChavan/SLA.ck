@@ -2,6 +2,7 @@ import { useState } from "react";
 import type { DetectorDefinition, DetectorDraft, DetectorTestResult } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatModuleLabel } from "../lib/formatters";
 import {
   useDetectors,
@@ -15,6 +16,7 @@ type DetectorsPageProps = {
 };
 
 export function DetectorsPage({ organizationId }: DetectorsPageProps) {
+  const { notify } = useNotifications();
   const q = useDetectors(organizationId);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [draftLocal, setDraftLocal] = useState<DetectorDefinition | null>(null);
@@ -49,6 +51,11 @@ export function DetectorsPage({ organizationId }: DetectorsPageProps) {
   const saveLocalDraft = () => {
     if (!draftLocal) return;
     setDraftLocal({ ...draftLocal });
+    notify({
+      tone: "info",
+      title: "Local draft saved",
+      message: "Detector edits were kept in the current browser session.",
+    });
   };
 
   return (
@@ -113,7 +120,20 @@ export function DetectorsPage({ organizationId }: DetectorsPageProps) {
                       onChange={async (e) => {
                         const enabled = e.target.checked;
                         setDraftLocal({ ...editor, enabled });
-                        await toggleMut.mutateAsync({ id: editor.id, enabled });
+                        try {
+                          await toggleMut.mutateAsync({ id: editor.id, enabled });
+                          notify({
+                            tone: "success",
+                            title: `Detector ${enabled ? "enabled" : "disabled"}`,
+                            message: `${editor.name} is now ${enabled ? "active" : "inactive"}.`,
+                          });
+                        } catch {
+                          notify({
+                            tone: "error",
+                            title: "Detector update failed",
+                            message: `Could not update ${editor.name}.`,
+                          });
+                        }
                       }}
                     />
                     <span>Enabled</span>
@@ -170,8 +190,21 @@ export function DetectorsPage({ organizationId }: DetectorsPageProps) {
                       className="btn btn-primary btn-sm"
                       disabled={testMut.isPending}
                       onClick={async () => {
-                        const r = await testMut.mutateAsync(editor.id);
-                        setTestResult(r);
+                        try {
+                          const r = await testMut.mutateAsync(editor.id);
+                          setTestResult(r);
+                          notify({
+                            tone: "success",
+                            title: "Detector test completed",
+                            message: `${editor.name} returned ${r.sample_rows.length} sample row(s).`,
+                          });
+                        } catch {
+                          notify({
+                            tone: "error",
+                            title: "Detector test failed",
+                            message: `Could not test ${editor.name}.`,
+                          });
+                        }
                       }}
                     >
                       Test on sample data
@@ -207,8 +240,21 @@ export function DetectorsPage({ organizationId }: DetectorsPageProps) {
                 style={{ marginTop: 12 }}
                 disabled={promptMut.isPending}
                 onClick={async () => {
-                  const r = await promptMut.mutateAsync(promptText);
-                  setDraftResult(r.draft);
+                  try {
+                    const r = await promptMut.mutateAsync(promptText);
+                    setDraftResult(r.draft);
+                    notify({
+                      tone: "success",
+                      title: "Draft generated",
+                      message: `Created detector draft ${r.draft.name}.`,
+                    });
+                  } catch {
+                    notify({
+                      tone: "error",
+                      title: "Draft generation failed",
+                      message: "Could not generate a detector draft from that prompt.",
+                    });
+                  }
                 }}
               >
                 Generate draft

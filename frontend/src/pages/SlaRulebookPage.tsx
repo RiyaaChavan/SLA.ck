@@ -7,6 +7,7 @@ import type {
 } from "../adapters/business-sentry/contract";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
   useArchiveSlaRule,
@@ -24,6 +25,8 @@ import {
 type SlaRulebookPageProps = {
   organizationId?: number;
 };
+
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://localhost:8000/api";
 
 function SlaDropzone({ onUpload, isUploading }: { onUpload: (file: File) => void, isUploading: boolean }) {
   const [isDragOver, setIsDragOver] = useState(false);
@@ -246,6 +249,20 @@ function ExtractionRunDetails({ meta }: { meta: Record<string, unknown> }) {
   );
 }
 
+function BusinessDocSection({ title, items }: { title: string; items: string[] }) {
+  if (items.length === 0) return null;
+  return (
+    <div className="td-sub" style={{ marginTop: 10 }}>
+      <strong>{title}:</strong>
+      <ul style={{ margin: "6px 0 0 18px" }}>
+        {items.map((item, index) => (
+          <li key={`${title}-${index}`}>{item}</li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 function CandidateEditModal({
   candidate,
   onClose,
@@ -392,6 +409,7 @@ function CandidateEditModal({
 }
 
 export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
+  const { notify } = useNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
   const tab = useMemo(() => {
     const t = searchParams.get("tab");
@@ -486,7 +504,24 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
           type="button"
           className="btn btn-secondary btn-sm"
           disabled={rescanAlerts.isPending}
-          onClick={() => rescanAlerts.mutate()}
+          onClick={() =>
+            rescanAlerts.mutate(undefined, {
+              onSuccess: () => {
+                notify({
+                  tone: "info",
+                  title: "Alerts rescanned",
+                  message: "Alert and recommendation data now reflects the latest SLA rules.",
+                });
+              },
+              onError: () => {
+                notify({
+                  tone: "error",
+                  title: "Rescan failed",
+                  message: "Could not refresh alerts from the SLA rulebook.",
+                });
+              },
+            })
+          }
           title="Re-run detector scan so alerts and actions reflect the latest rules"
         >
           {rescanAlerts.isPending ? "Rescanning…" : "Rescan alerts"}
@@ -553,7 +588,30 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
         </>
       ) : tab === "extraction" ? (
         <>
-          <SlaDropzone onUpload={(file) => upload.mutate({ file })} isUploading={upload.isPending} />
+          <SlaDropzone
+            onUpload={(file) =>
+              upload.mutate(
+                { file },
+                {
+                  onSuccess: () => {
+                    notify({
+                      tone: "success",
+                      title: "SLA extracted",
+                      message: `${file.name} was uploaded and added to the extraction review queue.`,
+                    });
+                  },
+                  onError: () => {
+                    notify({
+                      tone: "error",
+                      title: "Extraction failed",
+                      message: `Could not process ${file.name}.`,
+                    });
+                  },
+                },
+              )
+            }
+            isUploading={upload.isPending}
+          />
           {extQ.isPending ? (
             <StateBlock title="Loading extractions" loading />
           ) : extQ.isError ? (
@@ -579,11 +637,30 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                           {b.document_type ? ` · ${b.document_type}` : ""} · uploaded {formatDateTime(b.uploaded_at)}
                           {b.extraction_source ? ` · ${b.extraction_source}` : ""}
                         </div>
+                        {b.contract_pdf_path ? (
+                          <div className="td-sub" style={{ marginTop: 8 }}>
+                            Contract PDF: {b.contract_pdf_path}
+                          </div>
+                        ) : null}
                         {b.run_metadata && Object.keys(b.run_metadata).length > 0 ? (
                           <ExtractionRunDetails meta={b.run_metadata} />
                         ) : null}
                       </div>
                       <div className="bs-sla-batch-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={() => {
+                            window.open(`${API_BASE}/sla/extractions/batch/${b.id}/contract-pdf`, "_blank", "noopener,noreferrer");
+                            notify({
+                              tone: "info",
+                              title: "Contract PDF opened",
+                              message: `Opened the generated contract PDF for ${b.source_document_name}.`,
+                            });
+                          }}
+                        >
+                          View contract PDF
+                        </button>
                         <button
                           type="button"
                           className="btn btn-primary btn-sm"
@@ -597,6 +674,11 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                               { batchId: b.id, candidateRules: candidateRulesForApprove(b) },
                               {
                                 onSuccess: () => {
+                                  notify({
+                                    tone: "success",
+                                    title: "Batch approved",
+                                    message: `${b.source_document_name} moved into the active SLA rulebook.`,
+                                  });
                                   setPendingCandidateEdits((prev) => {
                                     const next = { ...prev };
                                     for (const c of b.candidate_rules) {
@@ -620,7 +702,22 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                           disabled={discard.isPending}
                           onClick={() => {
                             if (!window.confirm(`Delete this extraction review and discard the entire batch “${b.source_document_name}”?`)) return;
-                            discard.mutate(b.id);
+                            discard.mutate(b.id, {
+                              onSuccess: () => {
+                                notify({
+                                  tone: "warning",
+                                  title: "Review deleted",
+                                  message: `${b.source_document_name} was discarded from extraction review.`,
+                                });
+                              },
+                              onError: () => {
+                                notify({
+                                  tone: "error",
+                                  title: "Delete failed",
+                                  message: `Could not discard ${b.source_document_name}.`,
+                                });
+                              },
+                            });
                           }}
                         >
                           <TrashIcon />
@@ -658,6 +755,11 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                       {pendingCandidateEdits[c.id]?.conditions ?? c.conditions}
                                     </p>
                                   ) : null}
+                                  {c.business_document?.executive_summary ? (
+                                    <p className="td-sub" style={{ marginBottom: 10 }}>
+                                      {c.business_document.executive_summary}
+                                    </p>
+                                  ) : null}
                                   <div className="bs-candidate-metrics">
                                     <div className="bs-candidate-field">
                                       <span>Response</span>
@@ -689,6 +791,30 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                       ))}
                                     </ul>
                                   ) : null}
+                                  <BusinessDocSection
+                                    title="Service scope"
+                                    items={c.business_document?.service_scope ?? []}
+                                  />
+                                  <BusinessDocSection
+                                    title="Commitments"
+                                    items={c.business_document?.service_level_commitments ?? []}
+                                  />
+                                  <BusinessDocSection
+                                    title="Operational obligations"
+                                    items={c.business_document?.operational_obligations ?? []}
+                                  />
+                                  <BusinessDocSection
+                                    title="Commercial terms"
+                                    items={c.business_document?.commercial_terms ?? []}
+                                  />
+                                  <BusinessDocSection
+                                    title="Approval and governance"
+                                    items={c.business_document?.approval_and_governance ?? []}
+                                  />
+                                  <BusinessDocSection
+                                    title="Risk watchouts"
+                                    items={c.business_document?.risk_watchouts ?? []}
+                                  />
                                   {c.extraction_source ? (
                                     <div className="bs-candidate-source td-sub">{c.extraction_source}</div>
                                   ) : null}
@@ -715,7 +841,22 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                                         delete next[c.id];
                                         return next;
                                       });
-                                      discardCandidate.mutate(String(c.id));
+                                      discardCandidate.mutate(String(c.id), {
+                                        onSuccess: () => {
+                                          notify({
+                                            tone: "warning",
+                                            title: "Candidate removed",
+                                            message: `${c.name} was removed from the extraction batch.`,
+                                          });
+                                        },
+                                        onError: () => {
+                                          notify({
+                                            tone: "error",
+                                            title: "Remove failed",
+                                            message: `Could not remove ${c.name}.`,
+                                          });
+                                        },
+                                      });
                                     }}
                                   >
                                     <TrashIcon />
@@ -813,7 +954,25 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                             )
                           )
                             return;
-                          archiveRule.mutate({ ruleId: r.id, reviewed_by: "Rulebook UI" });
+                          archiveRule.mutate(
+                            { ruleId: r.id, reviewed_by: "Rulebook UI" },
+                            {
+                              onSuccess: () => {
+                                notify({
+                                  tone: "warning",
+                                  title: "Rule archived",
+                                  message: `${r.name} is no longer active for new SLA matching.`,
+                                });
+                              },
+                              onError: () => {
+                                notify({
+                                  tone: "error",
+                                  title: "Archive failed",
+                                  message: `Could not archive ${r.name}.`,
+                                });
+                              },
+                            },
+                          );
                         }}
                       >
                         Archive
@@ -850,7 +1009,21 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
             updateRule.mutate(
               { ruleId: editRule.id, body },
               {
-                onSuccess: () => setEditRule(null),
+                onSuccess: () => {
+                  notify({
+                    tone: "success",
+                    title: "Rule updated",
+                    message: `${editRule.name} was saved to the SLA rulebook.`,
+                  });
+                  setEditRule(null);
+                },
+                onError: () => {
+                  notify({
+                    tone: "error",
+                    title: "Save failed",
+                    message: `Could not update ${editRule.name}.`,
+                  });
+                },
               },
             );
           }}

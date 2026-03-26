@@ -3,7 +3,13 @@ from abc import ABC, abstractmethod
 from typing import Any
 
 from app.core.config import settings
-from app.services.sla.contracts import AgentRunMetadata, DocumentIntake, ExtractionOutput, SlaCandidateContract
+from app.services.sla.contracts import (
+    AgentRunMetadata,
+    BusinessContractDocument,
+    DocumentIntake,
+    ExtractionOutput,
+    SlaCandidateContract,
+)
 from app.utils.logging import get_logger
 
 
@@ -18,7 +24,7 @@ class SlaExtractionProvider(ABC):
 
 class HeuristicSlaExtractionProvider(SlaExtractionProvider):
     provider_name = "cerebras-compatible-fallback"
-    model_name = "heuristic-sla-parser-v1"
+    model_name = "heuristic-sla-parser-v2"
 
     def extract(self, intake: DocumentIntake) -> ExtractionOutput:
         logger.info(
@@ -55,6 +61,35 @@ class HeuristicSlaExtractionProvider(SlaExtractionProvider):
                     confidence_score=0.91,
                     parsing_notes=["Matched premium support language from document signals."],
                     extraction_source=intake.extraction_source,
+                    business_document=BusinessContractDocument(
+                        executive_summary=(
+                            "Premium support contract with tight response and restoration commitments "
+                            "for business-critical incidents."
+                        ),
+                        service_scope=[
+                            "Premium and enterprise customer incidents",
+                            "Critical support queues requiring 24x7 operations coverage",
+                        ],
+                        service_level_commitments=[
+                            "Acknowledge P1 incidents within 1 hour.",
+                            "Resolve or restore service within 4 hours.",
+                        ],
+                        operational_obligations=[
+                            "Support Director owns breach prevention.",
+                            "Queue lead must rebalance or reroute when risk rises.",
+                        ],
+                        exclusions_and_assumptions=[
+                            "Assumes the incident is correctly tagged as premium/P1.",
+                        ],
+                        commercial_terms=["Penalty exposure of INR 90,000 per breach."],
+                        escalation_path=["Queue lead", "Support Director"],
+                        approval_and_governance=[
+                            "Any automated reroute must remain reviewable in the business rulebook.",
+                        ],
+                        risk_watchouts=[
+                            "Queue backlog can convert this clause into an immediate SLA-risk alert.",
+                        ],
+                    ),
                     candidate_metadata={"provider_mode": "heuristic", "signal_terms": ["premium", "p1"]},
                 )
             )
@@ -82,6 +117,34 @@ class HeuristicSlaExtractionProvider(SlaExtractionProvider):
                     confidence_score=0.82,
                     parsing_notes=["Detected vendor dispute / procurement discrepancy language."],
                     extraction_source=intake.extraction_source,
+                    business_document=BusinessContractDocument(
+                        executive_summary=(
+                            "Commercial dispute clause for vendor-facing finance and procurement issues."
+                        ),
+                        service_scope=[
+                            "Vendor disputes and invoice discrepancy cases",
+                            "Procurement escalations requiring finance validation",
+                        ],
+                        service_level_commitments=[
+                            "Business response within 8 hours.",
+                            "Resolution within 24 hours.",
+                        ],
+                        operational_obligations=[
+                            "Procurement Head owns closure of disputed commercial items.",
+                            "Finance manager validates evidence before closure.",
+                        ],
+                        exclusions_and_assumptions=[
+                            "Clock runs on defined business hours for standard disputes.",
+                        ],
+                        commercial_terms=["Penalty exposure of INR 30,000 per breach."],
+                        escalation_path=["Finance manager", "Procurement Head"],
+                        approval_and_governance=[
+                            "Commercial exceptions should be routed through approval before settlement.",
+                        ],
+                        risk_watchouts=[
+                            "Unresolved disputes may increase both penalty risk and working-capital exposure.",
+                        ],
+                    ),
                     candidate_metadata={"provider_mode": "heuristic", "signal_terms": ["vendor", "dispute"]},
                 )
             )
@@ -108,6 +171,33 @@ class HeuristicSlaExtractionProvider(SlaExtractionProvider):
                     confidence_score=0.76,
                     parsing_notes=["Used default operational fallback because no narrower policy phrase was detected."],
                     extraction_source=intake.extraction_source,
+                    business_document=BusinessContractDocument(
+                        executive_summary=(
+                            "Default operational policy for standard shared-services work where no narrower clause is present."
+                        ),
+                        service_scope=[
+                            "Standard operations tasks",
+                            "Warehouse and shared services requests without bespoke contract language",
+                        ],
+                        service_level_commitments=[
+                            "Respond within 4 hours.",
+                            "Resolve within 12 hours.",
+                        ],
+                        operational_obligations=[
+                            "Operations Director owns breach escalation and queue health review.",
+                        ],
+                        exclusions_and_assumptions=[
+                            "Fallback clause to be replaced when more specific contract language is found.",
+                        ],
+                        commercial_terms=["Penalty exposure of INR 45,000 per breach."],
+                        escalation_path=["Queue owner", "Operations Director"],
+                        approval_and_governance=[
+                            "Owner notification is allowed; deeper automation stays review-gated.",
+                        ],
+                        risk_watchouts=[
+                            "Broad fallback clauses should be reviewed before production activation.",
+                        ],
+                    ),
                     candidate_metadata={"provider_mode": "heuristic", "signal_terms": ["fallback"]},
                 )
             )
@@ -179,6 +269,20 @@ class GeminiSlaExtractionProvider(SlaExtractionProvider):
                             "auto_action_policy": {"type": "OBJECT"},
                             "confidence_score": {"type": "NUMBER"},
                             "parsing_notes": {"type": "ARRAY", "items": {"type": "STRING"}},
+                            "business_document": {
+                                "type": "OBJECT",
+                                "properties": {
+                                    "executive_summary": {"type": "STRING"},
+                                    "service_scope": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "service_level_commitments": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "operational_obligations": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "exclusions_and_assumptions": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "commercial_terms": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "escalation_path": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "approval_and_governance": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                    "risk_watchouts": {"type": "ARRAY", "items": {"type": "STRING"}},
+                                },
+                            },
                             "candidate_metadata": {"type": "OBJECT"},
                         },
                         "required": [
@@ -192,6 +296,7 @@ class GeminiSlaExtractionProvider(SlaExtractionProvider):
                             "business_hours_logic",
                             "auto_action_allowed",
                             "confidence_score",
+                            "business_document",
                         ],
                     },
                 },
@@ -218,6 +323,7 @@ class GeminiSlaExtractionProvider(SlaExtractionProvider):
         prompt = (
             "You extract SLA policy candidates from business documents.\n"
             "Return only structured JSON matching the schema.\n"
+            "For each candidate, create business-grade contract notes that procurement, legal, operations, and executives can review directly.\n"
             "Normalize deadlines to integer hours.\n"
             "Use applies_to dimensions only from these keys when relevant: "
             "issue_type, priority, customer_tier, region, workflow_category, business_unit, workflow, department, team.\n"

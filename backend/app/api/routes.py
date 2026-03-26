@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -73,9 +74,11 @@ from app.services.sla_rulebook import (
     create_extraction_batch_from_file,
     discard_extraction_batch,
     discard_extraction_candidate,
+    get_extraction_batch,
     list_extraction_batches,
     list_rulebook_entries,
 )
+from app.services.sla.extraction import contract_pdf_path_for_batch
 from app.services.sla.rulebook import archive_rulebook_entry, create_rulebook_entry, update_rulebook_entry
 from app.services.workflow.approval import decide_recommendation
 
@@ -312,6 +315,18 @@ def get_sla_extractions(
         SlaExtractionBatchOut.model_validate(item)
         for item in list_extraction_batches(db, organization_id)
     ]
+
+
+@router.get("/sla/extractions/batch/{batch_id}/contract-pdf")
+def get_sla_contract_pdf(batch_id: int, db: Session = Depends(get_db)) -> FileResponse:
+    try:
+        batch = get_extraction_batch(db, batch_id=batch_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    path = contract_pdf_path_for_batch(batch.id)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Contract PDF not generated for this extraction batch")
+    return FileResponse(str(path), media_type="application/pdf", filename=path.name)
 
 
 @router.post("/sla/extractions/{organization_id}/upload", response_model=SlaExtractionBatchOut)

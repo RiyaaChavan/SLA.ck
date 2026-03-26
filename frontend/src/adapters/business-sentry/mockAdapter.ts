@@ -126,6 +126,10 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       department_name: body.department_name?.trim() || "Operations",
       vendor_name: body.vendor_name?.trim() || null,
       suggested_backlog_hours: body.backlog_hours ?? 12,
+      inferred_estimated_value: 150000,
+      risk_flags: [],
+      detected_sla_signals: [],
+      should_raise_alert: false,
       confidence: 0.72,
       rationale: ["Mock intake: ticket-like content classified as support.", "Department from payload or default."],
     };
@@ -182,6 +186,10 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       department_name: body.department_name?.trim() || "Finance",
       vendor_name: body.vendor_name?.trim() || null,
       suggested_backlog_hours: body.backlog_hours ?? 24,
+      inferred_estimated_value: 250000,
+      risk_flags: ["Approval-gated workflow detected."],
+      detected_sla_signals: ["Mock approval signal from requested action type."],
+      should_raise_alert: false,
       confidence: 0.68,
       rationale: [
         "Mock intake: approval flow from requested_action_type.",

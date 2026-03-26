@@ -22,6 +22,18 @@ class DocumentIntake(BaseModel):
     raw_text: str | None = None
 
 
+class BusinessContractDocument(BaseModel):
+    executive_summary: str = ""
+    service_scope: list[str] = Field(default_factory=list)
+    service_level_commitments: list[str] = Field(default_factory=list)
+    operational_obligations: list[str] = Field(default_factory=list)
+    exclusions_and_assumptions: list[str] = Field(default_factory=list)
+    commercial_terms: list[str] = Field(default_factory=list)
+    escalation_path: list[str] = Field(default_factory=list)
+    approval_and_governance: list[str] = Field(default_factory=list)
+    risk_watchouts: list[str] = Field(default_factory=list)
+
+
 class SlaCandidateContract(BaseModel):
     name: str
     applies_to: dict = Field(default_factory=dict)
@@ -38,6 +50,7 @@ class SlaCandidateContract(BaseModel):
     confidence_score: float = 0.0
     parsing_notes: list[str] = Field(default_factory=list)
     extraction_source: str
+    business_document: BusinessContractDocument = Field(default_factory=BusinessContractDocument)
     candidate_metadata: dict = Field(default_factory=dict)
 
 

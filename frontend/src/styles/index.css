@@ -2804,6 +2804,76 @@ tbody tr:hover td { background: rgba(255, 255, 255, 0.03); }
 }
 .bs-liveops-banner-link { font-weight: 600; text-decoration: underline; }
 
+.bs-notify-stack {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 120;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 24px));
+  pointer-events: none;
+}
+
+.bs-notify {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid var(--border-bright);
+  background: linear-gradient(165deg, var(--surface-2) 0%, var(--surface) 100%);
+  box-shadow: var(--shadow-md);
+  pointer-events: auto;
+}
+
+.bs-notify-success {
+  border-color: color-mix(in srgb, var(--green) 38%, var(--border));
+}
+
+.bs-notify-info {
+  border-color: color-mix(in srgb, var(--accent) 38%, var(--border));
+}
+
+.bs-notify-warning {
+  border-color: color-mix(in srgb, var(--amber) 45%, var(--border));
+}
+
+.bs-notify-error {
+  border-color: color-mix(in srgb, var(--red) 45%, var(--border));
+}
+
+.bs-notify-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 12.5px;
+  line-height: 1.45;
+}
+
+.bs-notify-body strong {
+  color: var(--text-1);
+  font-size: 13px;
+}
+
+.bs-notify-close {
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  padding: 0;
+  margin-left: auto;
+}
+
+.bs-notify-close:hover {
+  color: var(--text-1);
+}
+
 .bs-kanban-badges {
   display: flex;
   flex-wrap: wrap;

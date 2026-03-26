@@ -3,6 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import type { ActionRequest, AutoModeSettings } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
 import {
   useActions,
@@ -44,6 +45,7 @@ function parseEvidenceLine(line: string): { label: string; value: string } | nul
 }
 
 export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
+  const { notify } = useNotifications();
   const [searchParams, setSearchParams] = useSearchParams();
   const intakeRec = searchParams.get("intakeRec");
   const q = useActions(organizationId);
@@ -135,7 +137,25 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
           error={autoQ.isError}
           onPolicyToggle={(policyId, enabled) => {
             if (!organizationId) return;
-            putAuto.mutate([{ id: policyId, enabled }]);
+            putAuto.mutate(
+              [{ id: policyId, enabled }],
+              {
+                onSuccess: () => {
+                  notify({
+                    tone: "info",
+                    title: "Auto mode updated",
+                    message: `Policy ${policyId} was turned ${enabled ? "on" : "off"}.`,
+                  });
+                },
+                onError: () => {
+                  notify({
+                    tone: "error",
+                    title: "Auto mode update failed",
+                    message: `Could not update policy ${policyId}.`,
+                  });
+                },
+              },
+            );
           }}
           saving={putAuto.isPending}
         />
@@ -166,18 +186,71 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
                     showExecute={col.id === "approved"}
                     busy={approve.isPending || reject.isPending || execute.isPending}
                     onApprove={() =>
-                      approve.mutate({
-                        actionId: a.id,
-                        approver_name: a.required_approver,
-                      })
+                      approve.mutate(
+                        {
+                          actionId: a.id,
+                          approver_name: a.required_approver,
+                        },
+                        {
+                          onSuccess: () => {
+                            notify({
+                              tone: "success",
+                              title: "Action approved",
+                              message: `${a.title} was approved by ${a.required_approver}.`,
+                            });
+                          },
+                          onError: () => {
+                            notify({
+                              tone: "error",
+                              title: "Approval failed",
+                              message: `Could not approve ${a.title}.`,
+                            });
+                          },
+                        },
+                      )
                     }
                     onReject={() =>
-                      reject.mutate({
-                        actionId: a.id,
-                        approver_name: a.required_approver,
+                      reject.mutate(
+                        {
+                          actionId: a.id,
+                          approver_name: a.required_approver,
+                        },
+                        {
+                          onSuccess: () => {
+                            notify({
+                              tone: "warning",
+                              title: "Action rejected",
+                              message: `${a.title} was rejected and will not execute.`,
+                            });
+                          },
+                          onError: () => {
+                            notify({
+                              tone: "error",
+                              title: "Reject failed",
+                              message: `Could not reject ${a.title}.`,
+                            });
+                          },
+                        },
+                      )
+                    }
+                    onExecute={() =>
+                      execute.mutate(a.id, {
+                        onSuccess: () => {
+                          notify({
+                            tone: "success",
+                            title: "Action executed",
+                            message: `${a.title} has been executed.`,
+                          });
+                        },
+                        onError: () => {
+                          notify({
+                            tone: "error",
+                            title: "Execution failed",
+                            message: `Could not execute ${a.title}.`,
+                          });
+                        },
                       })
                     }
-                    onExecute={() => execute.mutate(a.id)}
                   />
                 ))}
               </div>
