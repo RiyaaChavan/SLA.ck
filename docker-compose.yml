@@ -26,11 +26,38 @@ services:
       POSTGRES_HOST: postgres
       POSTGRES_PORT: 5432
       REDIS_URL: ${REDIS_URL:-redis://redis:6379/0}
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+      SQL_AGENT_A2A_URL: ${SQL_AGENT_A2A_URL:-http://sql-agent:8010}
+      DASHBOARD_AGENT_A2A_URL: ${DASHBOARD_AGENT_A2A_URL:-http://dashboard-agent:8011}
     depends_on:
       - postgres
       - redis
+      - sql-agent
+      - dashboard-agent
     ports:
       - "8000:8000"
+
+  sql-agent:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    command: ["uvicorn", "app.a2a_apps.sql_agent:app", "--host", "0.0.0.0", "--port", "8010"]
+    environment:
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+    depends_on:
+      - postgres
+    ports:
+      - "8010:8010"
+
+  dashboard-agent:
+    build:
+      context: .
+      dockerfile: docker/backend.Dockerfile
+    command: ["uvicorn", "app.a2a_apps.dashboard_agent:app", "--host", "0.0.0.0", "--port", "8011"]
+    environment:
+      CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+    ports:
+      - "8011:8011"
 
   frontend:
     build:

@@ -12,19 +12,23 @@ from app.schemas.api import (
     ActionDecisionIn,
     ActionRequestOut,
     AlertOut,
-    CreateOrganizationIn,
     ApprovalIntakeIn,
     AutoModeSettingsOut,
     AutoModeUpdateIn,
     AuditFeedItem,
     CaseDetailOut,
     CaseSummaryOut,
+    CreateConnectorIn,
+    CreateOrganizationIn,
+    DashboardRenderOut,
     DataSourceSummaryOut,
     DataSourceUploadIn,
+    DataConnectorOut,
     DashboardOverview,
     DetectorDefinitionCreateIn,
     DetectorDefinitionOut,
     DetectorDraftOut,
+    DetectorRunOut,
     DetectorPromptDraftIn,
     DetectorTestOut,
     ImpactOverviewOut,
@@ -33,6 +37,7 @@ from app.schemas.api import (
     LiveWorkItemOut,
     OrganizationOut,
     RecommendationDecisionIn,
+    RelationPreviewOut,
     ReportRequest,
     ResourceOverview,
     SeedResponse,
@@ -40,11 +45,13 @@ from app.schemas.api import (
     SlaExtractionBatchOut,
     SlaExtractionReviewResult,
     SlaExtractionUploadIn,
+    SourceAgentMemoryOut,
     SlaRulebookArchiveIn,
     SlaRulebookEntryCreateIn,
     SlaRulebookEntryOut,
     SlaRulebookEntryUpdateIn,
     TicketIntakeIn,
+    UpdateConnectorIn,
 )
 from app.services.action_center import (
     approve_action_request,
@@ -52,17 +59,29 @@ from app.services.action_center import (
     list_action_requests,
     reject_action_request,
 )
+from app.services.agent_artifacts import persist_connector_artifacts
+from app.services.connectors import (
+    create_connector,
+    get_relation_preview,
+    get_source_memory,
+    list_connectors,
+    list_relation_summaries,
+    refresh_connector,
+    update_connector,
+)
 from app.services.organizations import create_organization
 from app.services.auto_mode import get_auto_mode_settings, update_auto_mode_settings
 from app.services.alerts.detector import scan_organization_alerts
 from app.services.cases import get_case_detail, list_cases
-from app.services.data_sources import create_data_source, list_data_sources
+from app.services.data_sources import create_data_source
+from app.services.dashboard_render import build_dashboard_render_payload, list_detector_run_history
 from app.services.dashboard import dashboard_overview, resource_overview
 from app.services.detectors import (
     build_prompt_draft,
     create_detector as create_detector_definition,
     list_detectors,
     test_detector,
+    update_detector,
 )
 from app.services.impact import impact_overview
 from app.services.agentic_intake import ingest_approval, ingest_ticket
@@ -83,9 +102,11 @@ from app.services.sla_rulebook import (
 from app.services.sla.extraction import contract_pdf_path_for_batch
 from app.services.sla.rulebook import archive_rulebook_entry, create_rulebook_entry, update_rulebook_entry
 from app.services.workflow.approval import decide_recommendation
+from app.utils.logging import get_logger
 
 
 router = APIRouter(prefix="/api")
+logger = get_logger("app.api.connectors")
 
 
 @router.get("/health")
@@ -130,6 +151,7 @@ def get_impact(organization_id: int, db: Session = Depends(get_db)) -> ImpactOve
         top_teams_by_overload=payload["top_teams_by_overload"],
         realized_vs_projected=payload["realized_vs_projected"],
         recent_cases=payload["recent_cases"],
+        approval_execution_funnel=payload["approval_execution_funnel"],
     )
 
 
@@ -215,14 +237,94 @@ def create_approval_intake(
     )
 
 
+@router.get("/connectors/{organization_id}", response_model=list[DataConnectorOut])
+def get_connectors(organization_id: int, db: Session = Depends(get_db)) -> list[DataConnectorOut]:
+    return [DataConnectorOut.model_validate(item) for item in list_connectors(db, organization_id)]
+
+
+@router.post("/connectors/{organization_id}", response_model=DataConnectorOut)
+def create_connector_route(
+    organization_id: int, payload: CreateConnectorIn, db: Session = Depends(get_db)
+) -> DataConnectorOut:
+    try:
+        logger.info("api_connector_create organization_id=%s", organization_id)
+        connector = create_connector(
+            db,
+            organization_id=organization_id,
+            name=payload.name,
+            uri=payload.uri,
+            included_schemas=payload.included_schemas,
+        )
+        persist_connector_artifacts(db, connector["id"])
+        refreshed = next(item for item in list_connectors(db, organization_id) if item["id"] == connector["id"])
+        return DataConnectorOut.model_validate(refreshed)
+    except ValueError as exc:
+        logger.warning("api_connector_create_failed organization_id=%s detail=%s", organization_id, str(exc))
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.patch("/connectors/{connector_id}", response_model=DataConnectorOut)
+def update_connector_route(
+    connector_id: int, payload: UpdateConnectorIn, db: Session = Depends(get_db)
+) -> DataConnectorOut:
+    try:
+        logger.info("api_connector_update connector_id=%s", connector_id)
+        connector = update_connector(
+            db,
+            connector_id=connector_id,
+            name=payload.name,
+            uri=payload.uri,
+            included_schemas=payload.included_schemas,
+        )
+        persist_connector_artifacts(db, connector_id)
+        return DataConnectorOut.model_validate(connector)
+    except ValueError as exc:
+        logger.warning("api_connector_update_failed connector_id=%s detail=%s", connector_id, str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("api_connector_update_error connector_id=%s error_type=%s", connector_id, exc.__class__.__name__)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/connectors/refresh/{connector_id}", response_model=DataConnectorOut)
+def refresh_connector_route(connector_id: int, db: Session = Depends(get_db)) -> DataConnectorOut:
+    try:
+        logger.info("api_connector_refresh connector_id=%s", connector_id)
+        connector = refresh_connector(db, connector_id)
+        persist_connector_artifacts(db, connector_id)
+        return DataConnectorOut.model_validate(connector)
+    except ValueError as exc:
+        logger.warning("api_connector_refresh_failed connector_id=%s detail=%s", connector_id, str(exc))
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("api_connector_refresh_error connector_id=%s error_type=%s", connector_id, exc.__class__.__name__)
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
 @router.get("/data-sources/{organization_id}", response_model=list[DataSourceSummaryOut])
 def get_data_sources(
     organization_id: int, db: Session = Depends(get_db)
 ) -> list[DataSourceSummaryOut]:
     return [
         DataSourceSummaryOut.model_validate(item)
-        for item in list_data_sources(db, organization_id)
+        for item in list_relation_summaries(db, organization_id)
     ]
+
+
+@router.get("/data-sources/preview/{relation_id}", response_model=RelationPreviewOut)
+def get_data_source_preview(relation_id: int, db: Session = Depends(get_db)) -> RelationPreviewOut:
+    try:
+        return RelationPreviewOut.model_validate(get_relation_preview(db, relation_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/data-sources/memory/{organization_id}", response_model=SourceAgentMemoryOut | None)
+def get_data_source_memory(
+    organization_id: int, db: Session = Depends(get_db)
+) -> SourceAgentMemoryOut | None:
+    payload = get_source_memory(db, organization_id)
+    return None if payload is None else SourceAgentMemoryOut.model_validate(payload)
 
 
 @router.post("/data-sources/{organization_id}/upload", response_model=DataSourceSummaryOut)
@@ -257,12 +359,27 @@ def create_detector(
     )
 
 
+@router.patch("/detectors/{detector_id}", response_model=DetectorDefinitionOut)
+def patch_detector(
+    detector_id: int, payload: dict, db: Session = Depends(get_db)
+) -> DetectorDefinitionOut:
+    try:
+        return DetectorDefinitionOut.model_validate(update_detector(db, detector_id, payload))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
 @router.post("/detectors/{detector_id}/test", response_model=DetectorTestOut)
 def run_detector_test(detector_id: int, db: Session = Depends(get_db)) -> DetectorTestOut:
     try:
         return DetectorTestOut.model_validate(test_detector(db, detector_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.get("/detectors/{detector_id}/runs", response_model=list[DetectorRunOut])
+def get_detector_runs(detector_id: int, db: Session = Depends(get_db)) -> list[DetectorRunOut]:
+    return [DetectorRunOut.model_validate(item) for item in list_detector_run_history(db, detector_id)]
 
 
 @router.get("/sla/rules/{organization_id}", response_model=list[SlaRulebookEntryOut])
@@ -497,6 +614,17 @@ def get_dashboard(organization_id: int, db: Session = Depends(get_db)) -> Dashbo
         ],
         reports=payload["reports"],
     )
+
+
+@router.get("/dashboard/render/{organization_id}", response_model=DashboardRenderOut)
+def get_dashboard_render(
+    organization_id: int, db: Session = Depends(get_db)
+) -> DashboardRenderOut:
+    try:
+        payload = build_dashboard_render_payload(db, organization_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return DashboardRenderOut.model_validate(payload)
 
 
 @router.get("/alerts/{organization_id}", response_model=list[AlertOut])

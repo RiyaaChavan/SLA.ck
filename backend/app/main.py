@@ -9,6 +9,7 @@ from app.core.config import settings
 from app.db.schema import reconcile_sqlite_schema
 from app.db.session import engine
 from app.models.base import Base
+from app.services.detector_runtime import start_detector_scheduler, stop_detector_scheduler
 
 
 logging.basicConfig(
@@ -21,7 +22,11 @@ logging.basicConfig(
 async def lifespan(_: FastAPI):
     Base.metadata.create_all(bind=engine)
     reconcile_sqlite_schema(engine)
-    yield
+    start_detector_scheduler()
+    try:
+        yield
+    finally:
+        await stop_detector_scheduler()
 
 
 app = FastAPI(title=settings.app_name, debug=settings.debug, lifespan=lifespan)

@@ -1,4 +1,6 @@
 from pathlib import Path
+import base64
+import hashlib
 
 from pydantic import computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -31,6 +33,11 @@ class Settings(BaseSettings):
     cerebras_api_key: str | None = None
     cerebras_base_url: str = "https://api.cerebras.ai/v1"
     cerebras_model: str = "gpt-oss-120b"
+    connector_encryption_key: str = "business-sentry-dev-key"
+    sql_agent_a2a_url: str = "http://sql-agent:8010"
+    dashboard_agent_a2a_url: str = "http://dashboard-agent:8011"
+    scheduler_poll_seconds: int = 30
+    source_query_statement_timeout_ms: int = 10_000
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
@@ -60,6 +67,12 @@ class Settings(BaseSettings):
             f"postgresql+psycopg://{self.postgres_user}:{self.postgres_password}"
             f"@{self.postgres_host}:{self.postgres_port}/{self.postgres_db}"
         )
+
+    @computed_field
+    @property
+    def connector_fernet_key(self) -> str:
+        digest = hashlib.sha256(self.connector_encryption_key.encode("utf-8")).digest()
+        return base64.urlsafe_b64encode(digest).decode("utf-8")
 
 
 settings = Settings()

@@ -3,6 +3,14 @@ from sqlalchemy.engine import Engine
 
 
 SQLITE_COLUMN_PATCHES: dict[str, list[tuple[str, str]]] = {
+    "detector_definitions": [
+        ("connector_id", "INTEGER"),
+        ("schedule_minutes", "INTEGER DEFAULT 60"),
+        ("generation_source", "TEXT DEFAULT 'manual'"),
+        ("validation_status", "TEXT DEFAULT 'pending'"),
+        ("last_run_at", "DATETIME"),
+        ("next_run_at", "DATETIME"),
+    ],
     "workflows": [
         ("intake_metadata", "JSON DEFAULT '{}'"),
     ],
