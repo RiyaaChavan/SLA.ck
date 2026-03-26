@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import type { ActionRequest, AutoModeSettings } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
+import type { ConfirmConfig } from "../components/shared/ConfirmModal";
 import { demoActions, demoAutoMode } from "../demo/businessSentryHardcoded";
 import { formatDateTime, formatMoneyInr } from "../lib/formatters";
 
@@ -9,15 +11,18 @@ type ActionCenterPageProps = {
 };
 
 const APPROVAL_STAGES = [
-  { id: "pending", label: "Pending Review" },
-  { id: "approved", label: "Approved" },
-  { id: "rejected", label: "Rejected" },
-  { id: "executed", label: "Executed" },
+  { id: "pending",  label: "Pending Review", colClass: "bs-kanban-column-pending",  dotClass: "bs-kanban-col-dot-pending" },
+  { id: "approved", label: "Approved",       colClass: "bs-kanban-column-approved", dotClass: "bs-kanban-col-dot-approved" },
+  { id: "rejected", label: "Rejected",       colClass: "bs-kanban-column-rejected", dotClass: "bs-kanban-col-dot-rejected" },
+  { id: "executed", label: "Executed",       colClass: "bs-kanban-column-executed", dotClass: "bs-kanban-col-dot-executed" },
 ];
 
 export function ActionCenterPage(_: ActionCenterPageProps) {
   const [actions, setActions] = useState(demoActions);
   const [autoMode, setAutoMode] = useState(demoAutoMode);
+  const [pendingConfirm, setPendingConfirm] = useState<(ConfirmConfig & { onConfirm: () => void }) | null>(null);
+
+  const confirm = (cfg: ConfirmConfig & { onConfirm: () => void }) => setPendingConfirm(cfg);
 
   const getStage = (action: ActionRequest) => {
     if (action.execution_state === "executed") return "executed";
@@ -56,9 +61,12 @@ export function ActionCenterPage(_: ActionCenterPageProps) {
 
       <div className="bs-kanban-board">
         {columns.map((column) => (
-          <div key={column.id} className="bs-kanban-column">
+          <div key={column.id} className={`bs-kanban-column ${column.colClass}`}>
             <div className="bs-kanban-column-header">
-              <h3 className="bs-kanban-column-title">{column.label}</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <span className={`bs-kanban-col-dot ${column.dotClass}`} />
+                <h3 className="bs-kanban-column-title">{column.label}</h3>
+              </div>
               <span className="bs-kanban-count">{column.items.length}</span>
             </div>
             <div className="bs-kanban-cards">
@@ -78,22 +86,36 @@ export function ActionCenterPage(_: ActionCenterPageProps) {
                     )
                   }
                   onReject={() =>
-                    setActions((current) =>
-                      current.map((item) =>
-                        item.id === action.id
-                          ? { ...item, approval_state: "rejected", execution_state: "cancelled", updated_at: new Date().toISOString() }
-                          : item,
-                      ),
-                    )
+                    confirm({
+                      title: "Reject this action?",
+                      message: `"${action.title}" will be rejected and marked as cancelled. This cannot be undone in the current session.`,
+                      confirmLabel: "Reject action",
+                      variant: "danger",
+                      onConfirm: () =>
+                        setActions((current) =>
+                          current.map((item) =>
+                            item.id === action.id
+                              ? { ...item, approval_state: "rejected", execution_state: "cancelled", updated_at: new Date().toISOString() }
+                              : item,
+                          ),
+                        ),
+                    })
                   }
                   onExecute={() =>
-                    setActions((current) =>
-                      current.map((item) =>
-                        item.id === action.id
-                          ? { ...item, execution_state: "executed", updated_at: new Date().toISOString() }
-                          : item,
-                      ),
-                    )
+                    confirm({
+                      title: "Execute this action?",
+                      message: `"${action.title}" will be executed immediately. Make sure all approvers have signed off before proceeding.`,
+                      confirmLabel: "Execute now",
+                      variant: "warning",
+                      onConfirm: () =>
+                        setActions((current) =>
+                          current.map((item) =>
+                            item.id === action.id
+                              ? { ...item, execution_state: "executed", updated_at: new Date().toISOString() }
+                              : item,
+                          ),
+                        ),
+                    })
                   }
                 />
               ))}
@@ -101,6 +123,17 @@ export function ActionCenterPage(_: ActionCenterPageProps) {
           </div>
         ))}
       </div>
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          {...pendingConfirm}
+          onConfirm={() => {
+            pendingConfirm.onConfirm();
+            setPendingConfirm(null);
+          }}
+          onCancel={() => setPendingConfirm(null)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -121,7 +154,7 @@ function ActionCard({
   onExecute: () => void;
 }) {
   return (
-    <div className="bs-kanban-card">
+    <div className="bs-kanban-card" style={{ borderLeft: a.risk_level === "high" ? "2px solid rgba(239,68,68,0.6)" : "2px solid rgba(36,119,208,0.3)" }}>
       <div className="bs-kanban-card-header">
         <span className="bs-kanban-card-id">Case {a.case_id}</span>
         <span className={`badge badge-${a.risk_level === "high" ? "critical" : "default"}`}>{a.risk_level}</span>

@@ -395,10 +395,6 @@ export function AppShell({
                 <span className="topnav-workspace-hint">Connect a source</span>
               </div>
             )}
-            <button type="button" className="topnav-seed-btn" onClick={onSeed} disabled={seeding}>
-              <IconPlus />
-              {seeding ? "…" : "Seed"}
-            </button>
           </div>
         </div>
       </header>

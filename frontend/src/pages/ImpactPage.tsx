@@ -31,22 +31,26 @@ export function ImpactPage(_: ImpactPageProps) {
       />
 
       <div className="stat-grid">
-        {d.metrics.map((m) => (
-          <StatCard
-            key={m.label}
-            label={m.label}
-            value={
-              m.label.toLowerCase().includes("anomal") || m.label.toLowerCase().includes("action")
-                ? String(Math.round(m.value))
-                : formatMoneyInr(m.value)
-            }
-            delta={m.delta != null ? `${m.delta > 0 ? "+" : ""}${m.delta}%` : undefined}
-          />
-        ))}
+        {d.metrics.map((m, i) => {
+          const accentCls = i === 0 ? "stat-card-red" : i === 1 ? "stat-card-amber" : i === 2 ? "stat-card-teal" : "stat-card-blue";
+          return (
+            <div key={m.label} className={accentCls} style={{ borderRadius: "var(--radius-lg)" }}>
+              <StatCard
+                label={m.label}
+                value={
+                  m.label.toLowerCase().includes("anomal") || m.label.toLowerCase().includes("action")
+                    ? String(Math.round(m.value))
+                    : formatMoneyInr(m.value)
+                }
+                delta={m.delta != null ? `${m.delta > 0 ? "+" : ""}${m.delta}%` : undefined}
+              />
+            </div>
+          );
+        })}
       </div>
 
       <div className="split-grid">
-        <SectionCard title="Realized vs projected savings" subtitle="Weekly recovery trend">
+        <SectionCard title="Realized vs projected savings" subtitle="Weekly recovery trend" className="section-card-cobalt">
           <div className="bs-chart-bars">
             {d.realized_vs_projected.periods.map((p, i) => {
               const realized = d.realized_vs_projected.realized_savings[i] ?? 0;
@@ -80,42 +84,40 @@ export function ImpactPage(_: ImpactPageProps) {
           </div>
         </SectionCard>
 
-        <SectionCard title="Approval / execution funnel" subtitle="Current action pipeline">
+        <SectionCard title="Approval / execution funnel" subtitle="Current action pipeline" className="section-card-teal">
           <div className="bs-funnel">
-            <div className="bs-funnel-row">
-              <span>Pending approval</span>
-              <strong>{funnel.pending_approval}</strong>
+            <div className="bs-funnel-row bs-funnel-row-pending">
+              <span>Pending approval</span><strong>{funnel.pending_approval}</strong>
             </div>
-            <div className="bs-funnel-row">
-              <span>Approved</span>
-              <strong>{funnel.approved}</strong>
+            <div className="bs-funnel-row bs-funnel-row-approved">
+              <span>Approved</span><strong>{funnel.approved}</strong>
             </div>
-            <div className="bs-funnel-row">
-              <span>Rejected</span>
-              <strong>{funnel.rejected}</strong>
+            <div className="bs-funnel-row bs-funnel-row-rejected">
+              <span>Rejected</span><strong>{funnel.rejected}</strong>
             </div>
-            <div className="bs-funnel-row">
-              <span>Executed</span>
-              <strong>{funnel.executed}</strong>
+            <div className="bs-funnel-row bs-funnel-row-executed">
+              <span>Executed</span><strong>{funnel.executed}</strong>
             </div>
           </div>
         </SectionCard>
       </div>
 
       <div className="split-grid">
-        <SectionCard title="Top vendors by risk" subtitle="Projected financial exposure">
+        <SectionCard title="Top vendors by risk" subtitle="Projected financial exposure" className="section-card-amber">
           <div className="bs-table-simple">
             {d.top_vendors_by_risk.map((v) => (
               <div key={v.vendor} className="bs-table-row">
                 <span>{v.vendor}</span>
                 <span className="bs-muted">{formatMoneyInr(v.projected_impact)}</span>
-                <span className="badge badge-default">{(v.risk_score * 100).toFixed(0)}% risk</span>
+                <span className={`badge ${v.risk_score > 0.6 ? "badge-critical" : v.risk_score > 0.4 ? "badge-high" : "badge-default"}`}>
+                  {(v.risk_score * 100).toFixed(0)}% risk
+                </span>
               </div>
             ))}
           </div>
         </SectionCard>
 
-        <SectionCard title="Top teams by overload" subtitle="Open items and breach pressure">
+        <SectionCard title="Top teams by overload" subtitle="Open items and breach pressure" className="section-card-red">
           <div className="bs-table-simple">
             {d.top_teams_by_overload.map((t) => (
               <div key={t.team} className="bs-table-row">

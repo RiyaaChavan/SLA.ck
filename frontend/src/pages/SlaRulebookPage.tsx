@@ -3,6 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import type { SlaExtractionBatch, SlaExtractionCandidate, SlaRulebookEntry } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
+import type { ConfirmConfig } from "../components/shared/ConfirmModal";
 import { demoSlaExtractions, demoSlaRules } from "../demo/businessSentryHardcoded";
 import { formatDateTime, formatMoneyInr } from "../lib/formatters";
 
@@ -176,6 +178,9 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
   const [editRule, setEditRule] = useState<SlaRulebookEntry | null>(null);
   const [editCandidate, setEditCandidate] = useState<SlaExtractionCandidate | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [pendingConfirm, setPendingConfirm] = useState<(ConfirmConfig & { onConfirm: () => void }) | null>(null);
+
+  const confirm = (cfg: ConfirmConfig & { onConfirm: () => void }) => setPendingConfirm(cfg);
 
   const tab = useMemo(
     () => (searchParams.get("tab") === "active" ? "active" : "extraction"),
@@ -310,9 +315,17 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                             source_document_name: batch.source_document_name,
                             last_reviewed_at: new Date().toISOString(),
                           }));
-                        setRules((current) => [...approvedRules, ...current]);
-                        setBatches((current) => current.filter((item) => item.id !== batch.id));
-                        setMessage(`Approved ${approvedRules.length} candidate rules from ${batch.source_document_name}.`);
+                        confirm({
+                          title: "Approve extraction batch?",
+                          message: `This will add ${approvedRules.length} candidate rule${approvedRules.length !== 1 ? "s" : ""} from "${batch.source_document_name}" to the active rulebook.`,
+                          confirmLabel: "Approve & add rules",
+                          variant: "primary",
+                          onConfirm: () => {
+                            setRules((current) => [...approvedRules, ...current]);
+                            setBatches((current) => current.filter((item) => item.id !== batch.id));
+                            setMessage(`Approved ${approvedRules.length} candidate rules from ${batch.source_document_name}.`);
+                          },
+                        });
                       }}
                     >
                       Approve
@@ -321,8 +334,16 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                       type="button"
                       className="btn btn-ghost-danger btn-sm"
                       onClick={() => {
-                        setBatches((current) => current.filter((item) => item.id !== batch.id));
-                        setMessage(`Discarded extraction batch ${batch.source_document_name}.`);
+                        confirm({
+                          title: "Discard this extraction batch?",
+                          message: `"${batch.source_document_name}" and all its candidate rules will be permanently removed.`,
+                          confirmLabel: "Discard batch",
+                          variant: "danger",
+                          onConfirm: () => {
+                            setBatches((current) => current.filter((item) => item.id !== batch.id));
+                            setMessage(`Discarded extraction batch ${batch.source_document_name}.`);
+                          },
+                        });
                       }}
                     >
                       Discard
@@ -350,9 +371,14 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                               <div className="td-sub">Penalty</div>
                               <strong>{formatMoneyInr(candidate.penalty_amount)}</strong>
                             </div>
-                            <div>
+                          <div>
                               <div className="td-sub">Confidence</div>
-                              <strong>{Math.round((candidate.confidence_score ?? 0) * 100)}%</strong>
+                              <strong style={{ color: (candidate.confidence_score ?? 0) > 0.8 ? "#6EE7B7" : (candidate.confidence_score ?? 0) > 0.6 ? "#FBB424" : "#F87171" }}>
+                                {Math.round((candidate.confidence_score ?? 0) * 100)}%
+                              </strong>
+                              <div className="sla-confidence-bar">
+                                <div className="sla-confidence-fill" style={{ width: `${Math.round((candidate.confidence_score ?? 0) * 100)}%` }} />
+                              </div>
                             </div>
                           </div>
                           <div className="bs-card-actions">
@@ -363,19 +389,27 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                               type="button"
                               className="btn btn-ghost-danger btn-sm"
                               onClick={() => {
-                                setBatches((current) =>
-                                  current.map((item) =>
-                                    item.id === batch.id
-                                      ? {
-                                          ...item,
-                                          candidate_rules: item.candidate_rules.map((row) =>
-                                            row.id === candidate.id ? { ...row, status: "discarded" } : row,
-                                          ),
-                                        }
-                                      : item,
-                                  ),
-                                );
-                                setMessage(`Discarded candidate ${candidate.name}.`);
+                                confirm({
+                                  title: "Discard candidate rule?",
+                                  message: `"${candidate.name}" will be removed from this extraction batch.`,
+                                  confirmLabel: "Discard",
+                                  variant: "danger",
+                                  onConfirm: () => {
+                                    setBatches((current) =>
+                                      current.map((item) =>
+                                        item.id === batch.id
+                                          ? {
+                                              ...item,
+                                              candidate_rules: item.candidate_rules.map((row) =>
+                                                row.id === candidate.id ? { ...row, status: "discarded" } : row,
+                                              ),
+                                            }
+                                          : item,
+                                      ),
+                                    );
+                                    setMessage(`Discarded candidate ${candidate.name}.`);
+                                  },
+                                });
                               }}
                             >
                               Discard candidate
@@ -436,8 +470,16 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                       type="button"
                       className="btn btn-ghost-danger btn-sm"
                       onClick={() => {
-                        setRules((current) => current.map((item) => (item.id === rule.id ? { ...item, status: "archived" } : item)));
-                        setMessage(`Archived ${rule.name}.`);
+                        confirm({
+                          title: "Archive this SLA rule?",
+                          message: `"${rule.name}" will be removed from the active rulebook. Detectors using it will no longer trigger on this SLA.`,
+                          confirmLabel: "Archive rule",
+                          variant: "warning",
+                          onConfirm: () => {
+                            setRules((current) => current.map((item) => (item.id === rule.id ? { ...item, status: "archived" } : item)));
+                            setMessage(`Archived ${rule.name}.`);
+                          },
+                        });
                       }}
                     >
                       Archive
@@ -478,6 +520,17 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
             setEditCandidate(null);
             setMessage(`Saved edits to ${nextCandidate.name}.`);
           }}
+        />
+      ) : null}
+
+      {pendingConfirm ? (
+        <ConfirmModal
+          {...pendingConfirm}
+          onConfirm={() => {
+            pendingConfirm.onConfirm();
+            setPendingConfirm(null);
+          }}
+          onCancel={() => setPendingConfirm(null)}
         />
       ) : null}
     </div>
