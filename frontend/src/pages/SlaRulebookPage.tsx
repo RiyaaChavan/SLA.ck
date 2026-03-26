@@ -18,7 +18,6 @@ import {
   useDiscardSlaCandidate,
   useRescanAlerts,
 } from "../hooks/useBusinessSentry";
-import { demoSlaRules, demoSlaExtractions } from "../demo/businessSentryHardcoded";
 import { formatDateTime, formatMoneyInr } from "../lib/formatters";
 
 type SlaRulebookPageProps = { organizationId?: number };
@@ -246,15 +245,9 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
     setSearchParams(next === "active" ? { tab: "active" } : { tab: "extraction" }, { replace: true });
   };
 
-  const rules = useMemo(() => {
-    if (!qRules.data || qRules.data.length === 0) return demoSlaRules;
-    return qRules.data;
-  }, [qRules.data]);
+  const rules = useMemo(() => qRules.data ?? [], [qRules.data]);
 
-  const batches = useMemo(() => {
-    if (!qExtractions.data || qExtractions.data.length === 0) return demoSlaExtractions;
-    return qExtractions.data;
-  }, [qExtractions.data]);
+  const batches = useMemo(() => qExtractions.data ?? [], [qExtractions.data]);
 
   const activeRules = useMemo(() => {
     return rules.filter(
@@ -267,34 +260,45 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
     );
   }, [rules, filter]);
 
-  // Handle Extraction Simulation / Real Mutation
-  const handleUpload = (file: File) => {
-    setExtractionRun({ fileName: file.name, progress: 0, startedAt: Date.now() });
-    
-    // We start the real mutation but also run the progress bar for UX
-    uploadMut.mutate({ file }, {
-      onError: () => {
-        setExtractionRun(null);
-        notify({ tone: "error", title: "Upload failed", message: "Could not process document." });
-      }
-    });
+  const progressTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  const stopProgress = () => {
+    if (progressTimerRef.current) {
+      clearInterval(progressTimerRef.current);
+      progressTimerRef.current = null;
+    }
   };
 
-  useEffect(() => {
-    if (!extractionRun) return;
-    const durationMs = 4000;
-    const timer = window.setInterval(() => {
-      const elapsed = Date.now() - extractionRun.startedAt;
-      const progress = Math.min(100, Math.round((elapsed / durationMs) * 100));
-      setExtractionRun((run) => (run ? { ...run, progress } : run));
+  const handleUpload = (file: File) => {
+    stopProgress();
+    const startedAt = Date.now();
+    setExtractionRun({ fileName: file.name, progress: 0, startedAt });
 
-      if (progress >= 100) {
-        window.clearInterval(timer);
-        setTimeout(() => setExtractionRun(null), 500);
-      }
-    }, 80);
-    return () => window.clearInterval(timer);
-  }, [extractionRun?.startedAt]);
+    progressTimerRef.current = setInterval(() => {
+      setExtractionRun((run) => {
+        if (!run || run.progress >= 80) return run;
+        const elapsed = Date.now() - run.startedAt;
+        const progress = Math.min(80, Math.round((elapsed / 10000) * 80));
+        return { ...run, progress };
+      });
+    }, 150);
+
+    uploadMut.mutate(
+      { file },
+      {
+        onSuccess: () => {
+          stopProgress();
+          setExtractionRun((run) => (run ? { ...run, progress: 100 } : run));
+          setTimeout(() => setExtractionRun(null), 600);
+        },
+        onError: () => {
+          stopProgress();
+          setExtractionRun(null);
+          notify({ tone: "error", title: "Upload failed", message: "Could not process document." });
+        },
+      },
+    );
+  };
 
   const handleRescan = () => {
     rescanMut.mutate(undefined, {
