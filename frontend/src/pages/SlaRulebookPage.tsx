@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, useRef } from "react";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
@@ -14,6 +14,60 @@ import {
 type SlaRulebookPageProps = {
   organizationId?: number;
 };
+
+function SlaDropzone({ onUpload, isUploading }: { onUpload: (file: File) => void, isUploading: boolean }) {
+  const [isDragOver, setIsDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      onUpload(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    setIsDragOver(false);
+  };
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      onUpload(e.target.files[0]);
+    }
+  };
+
+  return (
+    <div
+      className={`bs-dropzone ${isDragOver ? "bs-dropzone-active" : ""} ${isUploading ? "bs-dropzone-uploading" : ""}`}
+      onDrop={handleDrop}
+      onDragOver={handleDragOver}
+      onDragLeave={handleDragLeave}
+      onClick={() => fileInputRef.current?.click()}
+    >
+      <input type="file" ref={fileInputRef} onChange={handleChange} className="bs-file-input" accept=".pdf,.doc,.docx,.txt,image/*" style={{ display: "none" }} />
+      <div className="bs-dropzone-content">
+        <div className="bs-dropzone-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </div>
+        <div className="bs-dropzone-text">
+          <strong>Click to upload</strong> or drag and drop
+        </div>
+        <div className="bs-dropzone-subtext">PDF, DOCX, images, or plain text</div>
+      </div>
+    </div>
+  );
+}
 
 export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -64,11 +118,7 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
 
       {tab === "extraction" ? (
         <>
-          <div className="bs-toolbar">
-            <button type="button" className="btn btn-secondary" disabled={upload.isPending} onClick={() => upload.mutate("contract_upload.pdf")}>
-              Upload SLA document (stub)
-            </button>
-          </div>
+          <SlaDropzone onUpload={(file) => upload.mutate(file.name)} isUploading={upload.isPending} />
           {extQ.isPending ? (
             <StateBlock title="Loading extractions" loading />
           ) : extQ.isError ? (
@@ -104,23 +154,38 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
                     </div>
                   </div>
                   <div className="card-body">
-                    <h4 className="td-sub">Candidate rules</h4>
-                    <ul className="bs-list">
+                    <h4 className="td-sub" style={{ marginBottom: 12 }}>Candidate rules</h4>
+                    <div className="bs-candidate-grid">
                       {b.candidate_rules.map((c) => (
-                        <li key={c.temp_id}>
-                          <strong>{c.name}</strong> — response {c.response_deadline_hours}h / resolution {c.resolution_deadline_hours}h · penalty{" "}
-                          {formatMoneyInr(c.penalty_amount)}
-                          <div className="bs-card-actions" style={{ marginTop: 8 }}>
+                        <div key={c.temp_id} className="bs-candidate-card">
+                          <div className="bs-candidate-header">
+                            <strong>{c.name}</strong>
+                          </div>
+                          <div className="bs-candidate-body">
+                            <div className="bs-candidate-field">
+                              <span>Response</span>
+                              <strong>{c.response_deadline_hours}h</strong>
+                            </div>
+                            <div className="bs-candidate-field">
+                              <span>Resolution</span>
+                              <strong>{c.resolution_deadline_hours}h</strong>
+                            </div>
+                            <div className="bs-candidate-field">
+                              <span>Penalty</span>
+                              <strong>{formatMoneyInr(c.penalty_amount)}</strong>
+                            </div>
+                          </div>
+                          <div className="bs-card-actions" style={{ marginTop: 12, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
                             <button type="button" className="btn btn-ghost btn-sm">
-                              Edit (local)
+                              Edit
                             </button>
                             <button type="button" className="btn btn-ghost-danger btn-sm">
-                              Discard candidate
+                              Discard
                             </button>
                           </div>
-                        </li>
+                        </div>
                       ))}
-                    </ul>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -142,44 +207,46 @@ export function SlaRulebookPage({ organizationId }: SlaRulebookPageProps) {
           ) : rulesQ.isError ? (
             <StateBlock title="Failed to load rules" />
           ) : (
-            <div className="table-wrapper">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Name</th>
-                    <th>Status</th>
-                    <th>Applies to</th>
-                    <th>Response / Resolution</th>
-                    <th>Penalty</th>
-                    <th>Source doc</th>
-                    <th />
-                  </tr>
-                </thead>
-                <tbody>
-                  {activeRules.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.name}</td>
-                      <td>
-                        <span className="badge badge-default">{r.status}</span>
-                      </td>
-                      <td>{r.applies_to}</td>
-                      <td>
-                        {r.response_deadline_hours}h / {r.resolution_deadline_hours}h
-                      </td>
-                      <td>{formatMoneyInr(r.penalty_amount)}</td>
-                      <td className="td-sub">{r.source_document_name}</td>
-                      <td>
-                        <button type="button" className="btn btn-ghost btn-sm">
-                          Edit
-                        </button>
-                        <button type="button" className="btn btn-ghost-danger btn-sm">
-                          Archive
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="bs-rule-grid">
+              {activeRules.map((r) => (
+                <div key={r.id} className="card bs-rule-card">
+                  <div className="card-header">
+                    <div>
+                      <div className="card-title">{r.name}</div>
+                      <div className="card-subtitle">{r.source_document_name}</div>
+                    </div>
+                    <span className="badge badge-default">{r.status}</span>
+                  </div>
+                  <div className="card-body">
+                    <div className="bs-rule-meta">
+                      <div className="bs-rule-field">
+                        <span>Applies to</span>
+                        <strong>{r.applies_to}</strong>
+                      </div>
+                      <div className="bs-rule-field">
+                        <span>Response</span>
+                        <strong>{r.response_deadline_hours}h</strong>
+                      </div>
+                      <div className="bs-rule-field">
+                        <span>Resolution</span>
+                        <strong>{r.resolution_deadline_hours}h</strong>
+                      </div>
+                      <div className="bs-rule-field">
+                        <span>Penalty</span>
+                        <strong>{formatMoneyInr(r.penalty_amount)}</strong>
+                      </div>
+                    </div>
+                    <div className="bs-card-actions" style={{ marginTop: 16, borderTop: "1px solid var(--border)", paddingTop: 12 }}>
+                      <button type="button" className="btn btn-ghost btn-sm">
+                        Edit
+                      </button>
+                      <button type="button" className="btn btn-ghost-danger btn-sm">
+                        Archive
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </>

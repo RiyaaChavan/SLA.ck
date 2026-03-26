@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
@@ -8,8 +9,11 @@ type LiveOpsPageProps = {
   organizationId?: number;
 };
 
+const STAGES = ["monitoring", "escalation", "resolved"];
+
 export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
   const q = useLiveOps(organizationId);
+  const [localStages, setLocalStages] = useState<Record<string, string>>({});
 
   if (!organizationId) {
     return (
@@ -43,65 +47,105 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
     return b.projected_penalty - a.projected_penalty;
   });
 
+  const handleDragStart = (e: React.DragEvent, id: string) => {
+    e.dataTransfer.setData("text/plain", id);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+  };
+
+  const handleDrop = (e: React.DragEvent, stage: string) => {
+    e.preventDefault();
+    const id = e.dataTransfer.getData("text/plain");
+    setLocalStages(prev => ({ ...prev, [id]: stage }));
+  };
+
+  const getStage = (r: any) => localStages[r.id] || r.current_stage || "monitoring";
+
+  // Group by stage
+  const columns = STAGES.map(stage => ({
+    stage,
+    items: rows.filter(r => getStage(r) === stage)
+  }));
+
+  // If there are stages from backend not in STAGES, add them
+  const otherStages = Array.from(new Set(rows.map(getStage))).filter(s => !STAGES.includes(s));
+  otherStages.forEach(stage => {
+    columns.push({
+      stage,
+      items: rows.filter(r => getStage(r) === stage)
+    });
+  });
+
   return (
-    <div className="page-content">
+    <div className="page-content bs-kanban-layout">
       <PageHeader
-        title="Tickets"
-        subtitle="Linear-style queue: deadlines, SLA risk, and intervention — prioritized for what’s due next."
+        title="Live Case Monitor"
+        subtitle="Prioritized queue of active work items. Drag and drop to update stages."
       />
 
-      <div className="card">
-        <div className="card-body-flush">
-          <div className="table-wrapper bs-table-scroll">
-            <table>
-              <thead>
-                <tr>
-                  <th>ID</th>
-                  <th>Type</th>
-                  <th>Title</th>
-                  <th>Team</th>
-                  <th>Owner</th>
-                  <th>Stage</th>
-                  <th>SLA</th>
-                  <th>Time left</th>
-                  <th>Breach risk</th>
-                  <th>Penalty</th>
-                  <th>Case</th>
-                  <th>Intervention</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((r) => (
-                  <tr key={r.id}>
-                    <td>
-                      <code className="bs-code">{r.id}</code>
-                    </td>
-                    <td>{r.item_type.replaceAll("_", " ")}</td>
-                    <td>
-                      <div className="td-main">{r.title}</div>
-                      <div className="td-sub">{r.status}</div>
-                    </td>
-                    <td>{r.team}</td>
-                    <td>{r.owner_name}</td>
-                    <td>{r.current_stage}</td>
-                    <td>{r.assigned_sla_name}</td>
-                    <td>{r.time_remaining_minutes}m</td>
-                    <td>{(r.predicted_breach_risk * 100).toFixed(0)}%</td>
-                    <td>{formatMoneyInr(r.projected_penalty)}</td>
-                    <td>
-                      <NavLink to={`/cases?case=${encodeURIComponent(r.linked_case_id)}`} className="btn btn-ghost btn-sm">
-                        {r.linked_case_id}
+      <div className="bs-kanban-board">
+        {columns.map(col => (
+          <div 
+            key={col.stage} 
+            className="bs-kanban-column"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDrop(e, col.stage)}
+          >
+            <div className="bs-kanban-column-header">
+              <h3 className="bs-kanban-column-title">{col.stage.replace("_", " ")}</h3>
+              <span className="bs-kanban-count">{col.items.length}</span>
+            </div>
+            <div className="bs-kanban-cards">
+              {col.items.map(r => (
+                <div 
+                  key={r.id} 
+                  className="bs-kanban-card"
+                  draggable
+                  onDragStart={(e) => handleDragStart(e, r.id)}
+                >
+                  <div className="bs-kanban-card-header">
+                    <span className="bs-kanban-card-id">{r.id}</span>
+                    <span className={`badge badge-${r.predicted_breach_risk > 0.5 ? 'critical' : 'default'}`}>
+                      {r.predicted_breach_risk > 0.5 ? 'High Risk' : 'Normal'}
+                    </span>
+                  </div>
+                  <div className="bs-kanban-card-title">{r.title}</div>
+                  <div className="bs-kanban-card-meta">
+                    <div className="bs-kanban-meta-item">
+                      <span className="bs-muted">SLA</span>
+                      <strong>{r.assigned_sla_name || "—"}</strong>
+                    </div>
+                    <div className="bs-kanban-meta-item">
+                      <span className="bs-muted">Time left</span>
+                      <strong className={r.time_remaining_minutes < 60 ? "text-danger" : ""}>
+                        {r.time_remaining_minutes}m
+                      </strong>
+                    </div>
+                    <div className="bs-kanban-meta-item">
+                      <span className="bs-muted">Penalty</span>
+                      <strong>{formatMoneyInr(r.projected_penalty)}</strong>
+                    </div>
+                  </div>
+                  {r.suggested_action && (
+                    <div className="bs-kanban-card-action">
+                      <span className="bs-muted">Suggested:</span> {r.suggested_action}
+                    </div>
+                  )}
+                  {r.linked_case_id && (
+                    <div className="bs-kanban-card-footer">
+                      <NavLink to={`/cases?case=${encodeURIComponent(r.linked_case_id)}`} className="btn btn-secondary btn-sm" style={{ width: '100%' }}>
+                        View Case
                       </NavLink>
-                    </td>
-                    <td className="td-sub">{r.suggested_action}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
           </div>
-        </div>
+        ))}
       </div>
-      <p className="bs-footnote">Response deadline: {rows[0] ? formatDateTime(rows[0].response_deadline) : "—"} (first row)</p>
     </div>
   );
 }

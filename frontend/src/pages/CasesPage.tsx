@@ -284,83 +284,101 @@ function CaseDetailPanel({ d }: { d: import("../domain/business-sentry").CaseDet
   const s = d.summary;
   return (
     <div className="bs-detail-stack">
-      <section>
+      <section className="bs-detail-hero">
         <h3>{s.title}</h3>
-        <p className="bs-muted">{s.summary}</p>
+        <p className="bs-muted" style={{ marginBottom: 12 }}>{s.summary}</p>
         <div className="bs-pill-row">
           <span className={`badge badge-${s.severity}`}>{s.severity}</span>
           <span className="badge badge-default">{formatModuleLabel(s.module)}</span>
           <span className="badge badge-default">{s.status}</span>
         </div>
       </section>
-      <section>
+      <section className="bs-detail-card">
+        <h4>Money at risk</h4>
+        <p className="bs-money text-danger">{formatMoneyInr(d.financial_impact.amount)}</p>
+        <p className="td-sub">Confidence: {(d.financial_impact.confidence * 100).toFixed(0)}%</p>
+        <div className="bs-detail-formula">
+          <strong>Formula:</strong> {d.formula}
+        </div>
+      </section>
+      <section className="bs-detail-card">
         <h4>Why flagged</h4>
         <p>{d.why_flagged}</p>
       </section>
-      <section>
+      <section className="bs-detail-card">
+        <h4>Root cause</h4>
+        <p>{d.root_cause}</p>
+        <p className="td-sub" style={{ marginTop: 8 }}>{d.baseline_comparison}</p>
+      </section>
+      {d.sla ? (
+        <section className="bs-detail-card bs-detail-sla">
+          <h4>SLA: {d.sla.name}</h4>
+          <div className="bs-sla-grid">
+            <div className="bs-sla-item">
+              <span className="bs-muted">Response by</span>
+              <strong>{formatDateTime(d.sla.response_deadline)}</strong>
+            </div>
+            <div className="bs-sla-item">
+              <span className="bs-muted">Resolve by</span>
+              <strong>{formatDateTime(d.sla.resolution_deadline)}</strong>
+            </div>
+            <div className="bs-sla-item">
+              <span className="bs-muted">Penalty</span>
+              <strong className="text-danger">{formatMoneyInr(d.sla.penalty_if_breach)}</strong>
+            </div>
+          </div>
+        </section>
+      ) : null}
+      <section className="bs-detail-card">
+        <h4>Recommended action</h4>
+        <p>{d.recommended_action.label}</p>
+      </section>
+      <section className="bs-detail-card">
         <h4>Evidence</h4>
         <ul className="bs-list">
           {d.evidence.length === 0 ? <li className="bs-muted">No evidence rows (stub).</li> : null}
           {d.evidence.map((e) => (
-            <li key={e.id}>
+            <li key={e.id} className="bs-evidence-item">
               <strong>{e.label}</strong> <span className="bs-muted">({e.kind})</span>
-              <div className="td-sub">{e.snippet}</div>
+              <div className="bs-evidence-snippet">{e.snippet}</div>
             </li>
           ))}
         </ul>
       </section>
-      <section>
+      <section className="bs-detail-card">
         <h4>Related entities</h4>
-        <ul className="bs-list">
+        <div className="bs-pill-row">
           {d.related_entities.map((r) => (
-            <li key={`${r.type}-${r.id}`}>
+            <span key={`${r.type}-${r.id}`} className="bs-pill">
               {r.type}: {r.name}
-            </li>
+            </span>
           ))}
-        </ul>
+        </div>
       </section>
-      <section>
-        <h4>Root cause</h4>
-        <p>{d.root_cause}</p>
-        <p className="td-sub">{d.baseline_comparison}</p>
-      </section>
-      {d.sla ? (
-        <section>
-          <h4>SLA</h4>
-          <p>{d.sla.name}</p>
-          <p className="td-sub">Response by {formatDateTime(d.sla.response_deadline)}</p>
-          <p className="td-sub">Resolve by {formatDateTime(d.sla.resolution_deadline)}</p>
-          <p>Penalty if breach: {formatMoneyInr(d.sla.penalty_if_breach)}</p>
-        </section>
-      ) : null}
-      <section>
-        <h4>Money at risk</h4>
-        <p className="bs-money">{formatMoneyInr(d.financial_impact.amount)}</p>
-        <p className="td-sub">Confidence: {(d.financial_impact.confidence * 100).toFixed(0)}%</p>
-        <p className="td-sub">
-          <strong>Formula:</strong> {d.formula}
-        </p>
-      </section>
-      <section>
-        <h4>Recommended action</h4>
-        <p>{d.recommended_action.label}</p>
-      </section>
-      <section>
+      <section className="bs-detail-card">
         <h4>Approval chain</h4>
-        <ul className="bs-list">
+        <ul className="bs-timeline-list">
           {d.approval_chain.map((a) => (
             <li key={a.step}>
-              Step {a.step}: {a.role} — {a.name} ({a.state})
+              <div className="bs-timeline-dot"></div>
+              <div className="bs-timeline-content">
+                <strong>Step {a.step}: {a.role}</strong>
+                <div className="bs-muted">{a.name} ({a.state})</div>
+              </div>
             </li>
           ))}
         </ul>
       </section>
-      <section>
+      <section className="bs-detail-card">
         <h4>Timeline</h4>
-        <ul className="bs-list">
+        <ul className="bs-timeline-list">
           {d.timeline.map((t, i) => (
             <li key={i}>
-              {formatDateTime(t.at)} — {t.event} <span className="bs-muted">({t.actor})</span>
+              <div className="bs-timeline-dot"></div>
+              <div className="bs-timeline-content">
+                <strong>{t.event}</strong>
+                <div className="bs-muted">{formatDateTime(t.at)} — {t.actor}</div>
+              </div>
             </li>
           ))}
         </ul>

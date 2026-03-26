@@ -334,8 +334,19 @@ export function AppShell({
   seeding,
   children,
 }: AppShellProps) {
+  const location = useLocation();
+  const isHome = location.pathname === "/";
+
+  useEffect(() => {
+    if (isHome) {
+      document.body.classList.remove("theme-light");
+    } else {
+      document.body.classList.add("theme-light");
+    }
+  }, [isHome]);
+
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isHome ? "" : "theme-light"}`}>
       <header className="app-topnav">
         <div className="app-topnav-inner">
           <div className="app-topnav-brand">
