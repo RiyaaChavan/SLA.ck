@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import type { ActionRequest } from "../domain/business-sentry";
+import type { ActionRequest, AutoModeSettings } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
 import { formatMoneyInr, formatDateTime } from "../lib/formatters";
@@ -65,9 +65,9 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
           data={autoQ.data}
           loading={autoQ.isPending}
           error={autoQ.isError}
-          onToggle={(enabled) => {
-            if (!organizationId || !autoQ.data) return;
-            putAuto.mutate({ ...autoQ.data, organization_id: organizationId, enabled });
+          onPolicyToggle={(policyId, enabled) => {
+            if (!organizationId) return;
+            putAuto.mutate([{ id: policyId, enabled }]);
           }}
           saving={putAuto.isPending}
         />
@@ -93,8 +93,18 @@ export function ActionCenterPage({ organizationId }: ActionCenterPageProps) {
                     showApprove={col.id === "pending"}
                     showExecute={col.id === "approved"}
                     busy={approve.isPending || reject.isPending || execute.isPending}
-                    onApprove={() => approve.mutate(a.id)}
-                    onReject={() => reject.mutate(a.id)}
+                    onApprove={() =>
+                      approve.mutate({
+                        actionId: a.id,
+                        approver_name: a.required_approver,
+                      })
+                    }
+                    onReject={() =>
+                      reject.mutate({
+                        actionId: a.id,
+                        approver_name: a.required_approver,
+                      })
+                    }
                     onExecute={() => execute.mutate(a.id)}
                   />
                 ))}
@@ -132,6 +142,11 @@ function ActionCard({
       </div>
       <div className="bs-kanban-card-title">{a.title}</div>
       <p className="td-sub" style={{ marginBottom: 12 }}>{a.rationale}</p>
+      {a.evidence_pack_summary.length > 0 ? (
+        <p className="td-sub" style={{ marginBottom: 12, fontSize: 12 }}>
+          Evidence: {a.evidence_pack_summary.join(" · ")}
+        </p>
+      ) : null}
       <div className="bs-kanban-card-meta">
         <div className="bs-kanban-meta-item">
           <span className="bs-muted">Savings</span>
@@ -174,13 +189,13 @@ function AutoModePanel({
   data,
   loading,
   error,
-  onToggle,
+  onPolicyToggle,
   saving,
 }: {
-  data?: { enabled: boolean; scopes: string[]; updated_at: string };
+  data?: AutoModeSettings;
   loading: boolean;
   error: boolean;
-  onToggle: (enabled: boolean) => void;
+  onPolicyToggle: (policyId: number, enabled: boolean) => void;
   saving: boolean;
 }) {
   if (loading) return <StateBlock title="Loading auto mode" loading />;
@@ -190,17 +205,48 @@ function AutoModePanel({
       <div className="card-header">
         <div>
           <div className="card-title">Auto mode</div>
-          <div className="card-subtitle">Low-touch execution for scoped, policy-safe actions.</div>
+          <div className="card-subtitle">Per-policy toggles for low-touch execution within guardrails.</div>
         </div>
-        <label className="bs-toggle">
-          <input
-            type="checkbox"
-            checked={data.enabled}
-            disabled={saving}
-            onChange={(e) => onToggle(e.target.checked)}
-          />
-          <span>{data.enabled ? "On" : "Off"}</span>
-        </label>
+      </div>
+      <div className="card-body" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {data.policies.map((p) => (
+          <div
+            key={p.id}
+            style={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "flex-start",
+              justifyContent: "space-between",
+              gap: 12,
+              paddingBottom: 12,
+              borderBottom: "1px solid var(--border)",
+            }}
+          >
+            <div style={{ flex: "1 1 220px", minWidth: 0 }}>
+              <div style={{ fontWeight: 600 }}>{p.name}</div>
+              <div className="td-sub" style={{ marginTop: 4 }}>
+                {p.module} · {p.scope} · {p.risk_level} risk
+              </div>
+              <p className="td-sub" style={{ marginTop: 8, marginBottom: 0, fontSize: 12 }}>
+                {p.condition_summary}
+              </p>
+              {p.allowed_actions.length > 0 ? (
+                <div className="td-sub" style={{ marginTop: 6, fontSize: 11 }}>
+                  Actions: {p.allowed_actions.join(", ")}
+                </div>
+              ) : null}
+            </div>
+            <label className="bs-toggle" style={{ flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={p.enabled}
+                disabled={saving}
+                onChange={(e) => onPolicyToggle(p.id, e.target.checked)}
+              />
+              <span>{p.enabled ? "On" : "Off"}</span>
+            </label>
+          </div>
+        ))}
       </div>
     </div>
   );

@@ -136,18 +136,22 @@ export type LiveWorkItem = {
   id: string;
   item_type: string;
   title: string;
-  team: string;
+  team: string | null;
   owner_name: string;
   status: string;
   current_stage: string;
-  assigned_sla_name: string;
-  response_deadline: string;
-  resolution_deadline: string;
+  assigned_sla_name: string | null;
+  response_deadline: string | null;
+  resolution_deadline: string | null;
   time_remaining_minutes: number;
-  predicted_breach_risk: number;
+  /** Backend SLA runtime uses string bands: low, medium, high, critical, … */
+  predicted_breach_risk: string;
   projected_penalty: number;
-  linked_case_id: string;
+  projected_business_impact: number;
+  linked_case_id: string | null;
   suggested_action: string;
+  match_rationale: string[];
+  workflow_category: string | null;
 };
 
 export type DetectorDefinition = {
@@ -173,31 +177,56 @@ export type SlaRulebookEntry = {
   id: string;
   name: string;
   status: string;
+  /** Human-readable summary (derived from API `applies_to` object) */
   applies_to: string;
+  /** Original dict from API for round-tripping edits */
+  applies_to_payload?: Record<string, unknown>;
   conditions: string;
   response_deadline_hours: number;
   resolution_deadline_hours: number;
   penalty_amount: number;
   escalation_owner: string;
+  escalation_policy?: Record<string, unknown>;
   business_hours_logic: string;
+  business_hours_definition?: Record<string, unknown>;
   auto_action_allowed: boolean;
+  auto_action_policy?: Record<string, unknown>;
   source_document_name: string;
-  last_reviewed_at: string;
+  rule_version?: number;
+  reviewed_by?: string | null;
+  review_notes?: string | null;
+  last_reviewed_at: string | null;
+  source_batch_id?: number | null;
 };
 
 export type SlaExtractionCandidate = {
-  temp_id: string;
+  id: number;
   name: string;
+  applies_to?: string;
+  /** Dict from API for edits / approval payload */
+  applies_to_payload?: Record<string, unknown>;
+  conditions?: string;
   response_deadline_hours: number;
   resolution_deadline_hours: number;
   penalty_amount: number;
+  escalation_owner?: string;
+  business_hours_logic?: string;
+  auto_action_allowed?: boolean;
+  status?: string;
+  confidence_score?: number;
+  parsing_notes?: string[];
+  extraction_source?: string;
+  candidate_metadata?: Record<string, unknown>;
 };
 
 export type SlaExtractionBatch = {
   id: string;
   source_document_name: string;
+  document_type?: string;
   status: string;
   uploaded_at: string;
+  extraction_source?: string;
+  run_metadata?: Record<string, unknown>;
   candidate_rules: SlaExtractionCandidate[];
 };
 
@@ -211,7 +240,7 @@ export type ActionRequest = {
   avoided_loss: number;
   risk_level: string;
   required_approver: string;
-  evidence_pack_summary: string;
+  evidence_pack_summary: string[];
   approval_state: string;
   execution_state: string;
   created_at: string;
@@ -237,11 +266,31 @@ export type DataSourceSummary = {
   upload_history: UploadHistoryEntry[];
 };
 
+export type AutoModePolicy = {
+  id: number;
+  name: string;
+  module: string;
+  scope: string;
+  risk_level: string;
+  enabled: boolean;
+  approver_name: string;
+  allowed_actions: string[];
+  condition_summary: string;
+  expires_at: string | null;
+};
+
 export type AutoModeSettings = {
   organization_id: number;
-  enabled: boolean;
-  scopes: string[];
-  updated_at: string;
+  policies: AutoModePolicy[];
+};
+
+/** Partial updates for PUT /auto-mode/{organization_id} */
+export type AutoModePolicyUpdate = {
+  id: number;
+  enabled?: boolean;
+  approver_name?: string | null;
+  condition_summary?: string | null;
+  expires_at?: string | null;
 };
 
 export type CasesListParams = {

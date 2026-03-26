@@ -28,6 +28,7 @@ function clone<T>(x: T): T {
 let mockActions = clone(MOCK_ACTIONS_SEED);
 let mockDetectors = clone(MOCK_DETECTORS);
 let mockSlaBatches = clone(MOCK_SLA_BATCHES);
+let mockSlaRules = clone(MOCK_SLA_RULES);
 let mockAutoMode = clone(MOCK_AUTO_MODE);
 
 const severityRank: Record<string, number> = {
@@ -177,7 +178,54 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
 
   async listSlaRules(_organizationId) {
     await delay();
-    return clone(MOCK_SLA_RULES);
+    return clone(mockSlaRules.filter((r) => r.status !== "archived"));
+  },
+
+  async updateSlaRule(ruleId, body) {
+    await delay();
+    const idx = mockSlaRules.findIndex((r) => r.id === ruleId);
+    if (idx < 0) throw new Error("Rule not found");
+    const cur = mockSlaRules[idx]!;
+    const nextApplies =
+      body.applies_to !== undefined
+        ? body.applies_to
+        : (cur.applies_to_payload ?? { label: cur.applies_to });
+    const label =
+      typeof (nextApplies as Record<string, unknown>).label === "string"
+        ? String((nextApplies as Record<string, unknown>).label)
+        : cur.applies_to;
+    const { applies_to: _appliesPatch, ...restPatch } = body;
+    mockSlaRules = mockSlaRules.map((r, i) =>
+      i === idx
+        ? {
+            ...r,
+            ...restPatch,
+            applies_to: body.applies_to !== undefined ? label : r.applies_to,
+            applies_to_payload: nextApplies as Record<string, unknown>,
+            penalty_amount: body.penalty_amount ?? r.penalty_amount,
+            response_deadline_hours: body.response_deadline_hours ?? r.response_deadline_hours,
+            resolution_deadline_hours: body.resolution_deadline_hours ?? r.resolution_deadline_hours,
+            name: body.name ?? r.name,
+            conditions: body.conditions ?? r.conditions,
+            escalation_owner: body.escalation_owner ?? r.escalation_owner,
+            business_hours_logic: body.business_hours_logic ?? r.business_hours_logic,
+            auto_action_allowed: body.auto_action_allowed ?? r.auto_action_allowed,
+            source_document_name: body.source_document_name ?? r.source_document_name,
+            status: body.status ?? r.status,
+          }
+        : r,
+    );
+    return clone(mockSlaRules[idx]!);
+  },
+
+  async archiveSlaRule(ruleId, _body) {
+    await delay();
+    mockSlaRules = mockSlaRules.map((r) =>
+      r.id === ruleId ? { ...r, status: "archived" } : r,
+    );
+    const r = mockSlaRules.find((x) => x.id === ruleId);
+    if (!r) throw new Error("Rule not found");
+    return clone(r);
   },
 
   async listSlaExtractions(_organizationId) {
@@ -185,23 +233,32 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return clone(mockSlaBatches);
   },
 
-  async uploadSlaExtraction(_organizationId, fileName) {
+  async uploadSlaExtraction(_organizationId, file) {
     await delay();
-    const batch_id = `batch-${Date.now()}`;
+    const batch_id = String(Date.now());
+    const candId = 900000 + (mockSlaBatches.length % 1000);
     mockSlaBatches = [
       ...mockSlaBatches,
       {
         id: batch_id,
-        source_document_name: fileName,
+        source_document_name: file.name,
+        document_type: (file.name.split(".").pop() ?? "txt").toLowerCase(),
         status: "pending_review",
         uploaded_at: new Date().toISOString(),
+        extraction_source: "mock_upload",
+        run_metadata: { stub: true },
         candidate_rules: [
           {
-            temp_id: "cand-new",
+            id: candId,
             name: "Extracted rule (stub)",
+            conditions: "—",
             response_deadline_hours: 8,
             resolution_deadline_hours: 72,
             penalty_amount: 15000,
+            status: "pending_review",
+            confidence_score: 0.5,
+            parsing_notes: ["Stub extraction from filename only"],
+            extraction_source: "mock_upload",
           },
         ],
       },
@@ -209,20 +266,35 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return { batch_id, status: "pending_review" };
   },
 
-  async approveSlaBatch(batchId) {
+  async approveSlaBatch(batchId, _candidateRules) {
     await delay();
+    const key = String(batchId);
     mockSlaBatches = mockSlaBatches.map((b) =>
-      b.id === batchId ? { ...b, status: "approved" } : b,
+      String(b.id) === key ? { ...b, status: "approved" } : b,
     );
-    return { batch_id: batchId, status: "approved" };
+    const b = mockSlaBatches.find((x) => String(x.id) === key);
+    const n = b?.candidate_rules.length ?? 0;
+    return { batch_id: key, status: "approved", rules_created: n };
   },
 
   async discardSlaBatch(batchId) {
     await delay();
+    const key = String(batchId);
     mockSlaBatches = mockSlaBatches.map((b) =>
-      b.id === batchId ? { ...b, status: "discarded" } : b,
+      String(b.id) === key ? { ...b, status: "discarded" } : b,
     );
-    return { batch_id: batchId, status: "discarded" };
+    return { batch_id: key, status: "discarded" };
+  },
+
+  async discardSlaCandidate(candidateId) {
+    await delay();
+    const cid = String(candidateId);
+    mockSlaBatches = mockSlaBatches.map((b) => ({
+      ...b,
+      candidate_rules: b.candidate_rules.map((c) =>
+        String(c.id) === cid ? { ...c, status: "discarded" as const } : c,
+      ),
+    }));
   },
 
   async listActions(_organizationId) {
@@ -230,7 +302,7 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return clone(mockActions);
   },
 
-  async approveAction(actionId) {
+  async approveAction(actionId, _body) {
     await delay();
     mockActions = mockActions.map((a) =>
       a.id === actionId
@@ -250,7 +322,7 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     };
   },
 
-  async rejectAction(actionId) {
+  async rejectAction(actionId, _body) {
     await delay();
     mockActions = mockActions.map((a) =>
       a.id === actionId
@@ -295,9 +367,32 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return { ...mockAutoMode, organization_id: organizationId };
   },
 
-  async putAutoMode(settings) {
+  async putAutoMode(organizationId, policies) {
     await delay();
-    mockAutoMode = { ...settings, updated_at: new Date().toISOString() };
+    mockAutoMode = {
+      organization_id: organizationId,
+      policies: mockAutoMode.policies.map((p) => {
+        const u = policies.find((x) => x.id === p.id);
+        if (!u) return p;
+        return {
+          ...p,
+          enabled: u.enabled !== undefined ? u.enabled : p.enabled,
+          approver_name:
+            u.approver_name !== undefined && u.approver_name !== null
+              ? u.approver_name
+              : p.approver_name,
+          condition_summary:
+            u.condition_summary !== undefined && u.condition_summary !== null
+              ? u.condition_summary
+              : p.condition_summary,
+          expires_at: u.expires_at !== undefined ? u.expires_at : p.expires_at,
+        };
+      }),
+    };
     return mockAutoMode;
+  },
+
+  async rescanAlerts(_organizationId) {
+    await delay();
   },
 };

@@ -153,6 +153,7 @@ class CaseSlaOut(BaseModel):
     penalty_amount: float
     countdown_minutes: int | None = None
     risk_level: str | None = None
+    match_rationale: list[str] = Field(default_factory=list)
 
 
 class CaseFinancialImpactOut(BaseModel):
@@ -231,8 +232,11 @@ class LiveWorkItemOut(BaseModel):
     time_remaining_minutes: int
     predicted_breach_risk: str
     projected_penalty: float
+    projected_business_impact: float = 0.0
     linked_case_id: int | None = None
     suggested_action: str
+    match_rationale: list[str] = Field(default_factory=list)
+    workflow_category: str | None = None
 
 
 class DataSourceHistoryOut(BaseModel):
@@ -318,10 +322,67 @@ class SlaRulebookEntryOut(BaseModel):
     resolution_deadline_hours: int
     penalty_amount: float
     escalation_owner: str
+    escalation_policy: dict = Field(default_factory=dict)
     business_hours_logic: str
+    business_hours_definition: dict = Field(default_factory=dict)
     auto_action_allowed: bool
+    auto_action_policy: dict = Field(default_factory=dict)
     source_document_name: str
+    rule_version: int = 1
+    reviewed_by: str | None = None
+    review_notes: str | None = None
     last_reviewed_at: datetime | None = None
+    supersedes_rule_id: int | None = None
+    source_batch_id: int | None = None
+
+
+class SlaRulebookEntryBaseIn(BaseModel):
+    name: str
+    status: str = "draft"
+    applies_to: dict = Field(default_factory=dict)
+    conditions: str
+    response_deadline_hours: int
+    resolution_deadline_hours: int
+    penalty_amount: float = 0.0
+    escalation_owner: str
+    escalation_policy: dict = Field(default_factory=dict)
+    business_hours_logic: str = "business_hours"
+    business_hours_definition: dict = Field(default_factory=dict)
+    auto_action_allowed: bool = False
+    auto_action_policy: dict = Field(default_factory=dict)
+    source_document_name: str = "manual_rule"
+    reviewed_by: str | None = None
+    review_notes: str | None = None
+    supersedes_rule_id: int | None = None
+    source_batch_id: int | None = None
+
+
+class SlaRulebookEntryCreateIn(SlaRulebookEntryBaseIn):
+    pass
+
+
+class SlaRulebookEntryUpdateIn(BaseModel):
+    name: str | None = None
+    status: str | None = None
+    applies_to: dict | None = None
+    conditions: str | None = None
+    response_deadline_hours: int | None = None
+    resolution_deadline_hours: int | None = None
+    penalty_amount: float | None = None
+    escalation_owner: str | None = None
+    escalation_policy: dict | None = None
+    business_hours_logic: str | None = None
+    business_hours_definition: dict | None = None
+    auto_action_allowed: bool | None = None
+    auto_action_policy: dict | None = None
+    source_document_name: str | None = None
+    reviewed_by: str | None = None
+    review_notes: str | None = None
+    supersedes_rule_id: int | None = None
+
+
+class SlaRulebookArchiveIn(BaseModel):
+    reviewed_by: str | None = None
 
 
 class SlaExtractionCandidateOut(BaseModel):
@@ -333,16 +394,26 @@ class SlaExtractionCandidateOut(BaseModel):
     resolution_deadline_hours: int
     penalty_amount: float
     escalation_owner: str
+    escalation_policy: dict = Field(default_factory=dict)
     business_hours_logic: str
+    business_hours_definition: dict = Field(default_factory=dict)
     auto_action_allowed: bool
+    auto_action_policy: dict = Field(default_factory=dict)
     status: str
+    confidence_score: float = 0.0
+    parsing_notes: list[str] = Field(default_factory=list)
+    extraction_source: str
+    candidate_metadata: dict = Field(default_factory=dict)
 
 
 class SlaExtractionBatchOut(BaseModel):
     id: int
     source_document_name: str
+    document_type: str
     status: str
     uploaded_at: datetime
+    extraction_source: str
+    run_metadata: dict = Field(default_factory=dict)
     candidate_rules: list[SlaExtractionCandidateOut]
 
 
@@ -361,8 +432,11 @@ class SlaExtractionCandidateEditIn(BaseModel):
     resolution_deadline_hours: int | None = None
     penalty_amount: float | None = None
     escalation_owner: str | None = None
+    escalation_policy: dict | None = None
     business_hours_logic: str | None = None
+    business_hours_definition: dict | None = None
     auto_action_allowed: bool | None = None
+    auto_action_policy: dict | None = None
 
 
 class SlaExtractionApproveIn(BaseModel):

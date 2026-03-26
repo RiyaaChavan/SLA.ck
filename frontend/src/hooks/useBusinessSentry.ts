@@ -1,6 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import type { AutoModeSettings, CasesListParams } from "../domain/business-sentry";
+import type { AutoModePolicyUpdate, CasesListParams } from "../domain/business-sentry";
 import { getBusinessSentryAdapter } from "../adapters/business-sentry";
+import type {
+  SlaExtractionCandidateEdit,
+  SlaRulebookEntryUpdatePayload,
+} from "../adapters/business-sentry/contract";
 
 const adapter = getBusinessSentryAdapter();
 
@@ -60,6 +64,28 @@ export function useSlaRules(organizationId: number | undefined) {
   });
 }
 
+export function useUpdateSlaRule(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { ruleId: string; body: SlaRulebookEntryUpdatePayload }) =>
+      adapter.updateSlaRule(args.ruleId, args.body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "slaRules", organizationId] });
+    },
+  });
+}
+
+export function useArchiveSlaRule(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { ruleId: string; reviewed_by?: string | null }) =>
+      adapter.archiveSlaRule(args.ruleId, { reviewed_by: args.reviewed_by }),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "slaRules", organizationId] });
+    },
+  });
+}
+
 export function useSlaExtractions(organizationId: number | undefined) {
   return useQuery({
     queryKey: ["bs", "slaExtractions", organizationId],
@@ -97,7 +123,10 @@ export function useDataSourceUpload(organizationId: number | undefined) {
 export function useSlaExtractionUpload(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (fileName: string) => adapter.uploadSlaExtraction(organizationId!, fileName),
+    mutationFn: (args: { file: File; documentType?: string }) =>
+      adapter.uploadSlaExtraction(organizationId!, args.file, {
+        documentType: args.documentType,
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
     },
@@ -107,9 +136,11 @@ export function useSlaExtractionUpload(organizationId: number | undefined) {
 export function useSlaBatchApprove(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (batchId: string) => adapter.approveSlaBatch(batchId),
+    mutationFn: (args: { batchId: string; candidateRules?: SlaExtractionCandidateEdit[] }) =>
+      adapter.approveSlaBatch(args.batchId, args.candidateRules),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "slaRules", organizationId] });
     },
   });
 }
@@ -118,6 +149,16 @@ export function useSlaBatchDiscard(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (batchId: string) => adapter.discardSlaBatch(batchId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
+    },
+  });
+}
+
+export function useDiscardSlaCandidate(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (candidateId: string) => adapter.discardSlaCandidate(candidateId),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "slaExtractions", organizationId] });
     },
@@ -154,7 +195,11 @@ export function useToggleDetector(organizationId: number | undefined) {
 export function useApproveAction(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (actionId: string) => adapter.approveAction(actionId),
+    mutationFn: (args: { actionId: string; approver_name: string; notes?: string | null }) =>
+      adapter.approveAction(args.actionId, {
+        approver_name: args.approver_name,
+        notes: args.notes,
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "actions", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "cases", organizationId] });
@@ -166,7 +211,11 @@ export function useApproveAction(organizationId: number | undefined) {
 export function useRejectAction(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (actionId: string) => adapter.rejectAction(actionId),
+    mutationFn: (args: { actionId: string; approver_name: string; notes?: string | null }) =>
+      adapter.rejectAction(args.actionId, {
+        approver_name: args.approver_name,
+        notes: args.notes,
+      }),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "actions", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "cases", organizationId] });
@@ -189,9 +238,23 @@ export function useExecuteAction(organizationId: number | undefined) {
 export function usePutAutoMode(organizationId: number | undefined) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: AutoModeSettings) => adapter.putAutoMode(body),
+    mutationFn: (policies: AutoModePolicyUpdate[]) =>
+      adapter.putAutoMode(organizationId!, policies),
     onSuccess: async () => {
       await qc.invalidateQueries({ queryKey: ["bs", "autoMode", organizationId] });
+    },
+  });
+}
+
+export function useRescanAlerts(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => adapter.rescanAlerts(organizationId!),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "actions", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "cases", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "liveOps", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
     },
   });
 }

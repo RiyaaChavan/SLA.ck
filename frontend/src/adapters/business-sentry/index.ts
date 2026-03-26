@@ -20,16 +20,20 @@ export function createBusinessSentryAdapter(): BusinessSentryAdapter {
     testDetector: LIVE_ENDPOINTS.detectorsTest ? h.testDetector : m.testDetector,
     updateDetectorEnabled: LIVE_ENDPOINTS.detectors ? h.updateDetectorEnabled : m.updateDetectorEnabled,
     listSlaRules: LIVE_ENDPOINTS.slaRules ? h.listSlaRules : m.listSlaRules,
+    updateSlaRule: LIVE_ENDPOINTS.slaRules ? h.updateSlaRule : m.updateSlaRule,
+    archiveSlaRule: LIVE_ENDPOINTS.slaRules ? h.archiveSlaRule : m.archiveSlaRule,
     listSlaExtractions: LIVE_ENDPOINTS.slaExtractions ? h.listSlaExtractions : m.listSlaExtractions,
     uploadSlaExtraction: LIVE_ENDPOINTS.slaExtractionUpload ? h.uploadSlaExtraction : m.uploadSlaExtraction,
     approveSlaBatch: LIVE_ENDPOINTS.slaExtractionApprove ? h.approveSlaBatch : m.approveSlaBatch,
     discardSlaBatch: LIVE_ENDPOINTS.slaExtractionDiscard ? h.discardSlaBatch : m.discardSlaBatch,
+    discardSlaCandidate: LIVE_ENDPOINTS.slaExtractions ? h.discardSlaCandidate : m.discardSlaCandidate,
     listActions: LIVE_ENDPOINTS.actions ? h.listActions : m.listActions,
     approveAction: LIVE_ENDPOINTS.actionApprove ? h.approveAction : m.approveAction,
     rejectAction: LIVE_ENDPOINTS.actionReject ? h.rejectAction : m.rejectAction,
     executeAction: LIVE_ENDPOINTS.actionExecute ? h.executeAction : m.executeAction,
     getAutoMode: LIVE_ENDPOINTS.autoMode ? h.getAutoMode : m.getAutoMode,
     putAutoMode: LIVE_ENDPOINTS.autoModePut ? h.putAutoMode : m.putAutoMode,
+    rescanAlerts: LIVE_ENDPOINTS.alertsScan ? h.rescanAlerts : m.rescanAlerts,
   };
 }
 

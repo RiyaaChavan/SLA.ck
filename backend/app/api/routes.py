@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException
+from pathlib import Path
+
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -34,7 +36,10 @@ from app.schemas.api import (
     SlaExtractionBatchOut,
     SlaExtractionReviewResult,
     SlaExtractionUploadIn,
+    SlaRulebookArchiveIn,
+    SlaRulebookEntryCreateIn,
     SlaRulebookEntryOut,
+    SlaRulebookEntryUpdateIn,
 )
 from app.services.action_center import (
     approve_action_request,
@@ -61,10 +66,13 @@ from app.services.seed.generator import seed_database
 from app.services.sla_rulebook import (
     approve_extraction_batch,
     create_extraction_batch,
+    create_extraction_batch_from_file,
     discard_extraction_batch,
+    discard_extraction_candidate,
     list_extraction_batches,
     list_rulebook_entries,
 )
+from app.services.sla.rulebook import archive_rulebook_entry, create_rulebook_entry, update_rulebook_entry
 from app.services.workflow.approval import decide_recommendation
 
 
@@ -144,8 +152,27 @@ def get_case(case_id: int, db: Session = Depends(get_db)) -> CaseDetailOut:
 
 
 @router.get("/live-ops/{organization_id}", response_model=list[LiveWorkItemOut])
-def get_live_ops(organization_id: int, db: Session = Depends(get_db)) -> list[LiveWorkItemOut]:
-    return [LiveWorkItemOut.model_validate(item) for item in list_live_ops(db, organization_id)]
+def get_live_ops(
+    organization_id: int,
+    status: str | None = None,
+    team: str | None = None,
+    risk: str | None = None,
+    workflow_category: str | None = None,
+    sort: str = "deadline",
+    db: Session = Depends(get_db),
+) -> list[LiveWorkItemOut]:
+    return [
+        LiveWorkItemOut.model_validate(item)
+        for item in list_live_ops(
+            db,
+            organization_id,
+            status=status,
+            team=team,
+            risk=risk,
+            workflow_category=workflow_category,
+            sort=sort,
+        )
+    ]
 
 
 @router.get("/data-sources/{organization_id}", response_model=list[DataSourceSummaryOut])
@@ -200,12 +227,59 @@ def run_detector_test(detector_id: int, db: Session = Depends(get_db)) -> Detect
 
 @router.get("/sla/rules/{organization_id}", response_model=list[SlaRulebookEntryOut])
 def get_sla_rules(
-    organization_id: int, db: Session = Depends(get_db)
+    organization_id: int,
+    status: str | None = None,
+    search: str | None = None,
+    workflow_category: str | None = None,
+    priority: str | None = None,
+    business_unit: str | None = None,
+    db: Session = Depends(get_db),
 ) -> list[SlaRulebookEntryOut]:
     return [
         SlaRulebookEntryOut.model_validate(item)
-        for item in list_rulebook_entries(db, organization_id)
+        for item in list_rulebook_entries(
+            db,
+            organization_id,
+            status=status,
+            search=search,
+            workflow_category=workflow_category,
+            priority=priority,
+            business_unit=business_unit,
+        )
     ]
+
+
+@router.post("/sla/rules/{organization_id}", response_model=SlaRulebookEntryOut)
+def create_sla_rule(
+    organization_id: int, payload: SlaRulebookEntryCreateIn, db: Session = Depends(get_db)
+) -> SlaRulebookEntryOut:
+    return SlaRulebookEntryOut.model_validate(
+        create_rulebook_entry(db, organization_id=organization_id, payload=payload.model_dump())
+    )
+
+
+@router.put("/sla/rules/entry/{rule_id}", response_model=SlaRulebookEntryOut)
+def update_sla_rule(
+    rule_id: int, payload: SlaRulebookEntryUpdateIn, db: Session = Depends(get_db)
+) -> SlaRulebookEntryOut:
+    try:
+        return SlaRulebookEntryOut.model_validate(
+            update_rulebook_entry(db, rule_id=rule_id, payload=payload.model_dump(exclude_none=True))
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/sla/rules/entry/{rule_id}/archive", response_model=SlaRulebookEntryOut)
+def archive_sla_rule(
+    rule_id: int, payload: SlaRulebookArchiveIn, db: Session = Depends(get_db)
+) -> SlaRulebookEntryOut:
+    try:
+        return SlaRulebookEntryOut.model_validate(
+            archive_rulebook_entry(db, rule_id=rule_id, reviewed_by=payload.reviewed_by)
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/sla/extractions/{organization_id}", response_model=list[SlaExtractionBatchOut])
@@ -227,8 +301,32 @@ def upload_sla_extraction(
             db,
             organization_id=organization_id,
             source_document_name=payload.source_document_name,
+            document_type=payload.document_type,
+            sample_text=payload.sample_text,
         )
     )
+
+
+@router.post("/sla/extractions/{organization_id}/upload-file", response_model=SlaExtractionBatchOut)
+async def upload_sla_extraction_file(
+    organization_id: int,
+    file: UploadFile = File(...),
+    document_type: str | None = Form(default=None),
+    db: Session = Depends(get_db),
+) -> SlaExtractionBatchOut:
+    resolved_type = (document_type or Path(file.filename or "").suffix.lstrip(".") or "txt").lower()
+    try:
+        return SlaExtractionBatchOut.model_validate(
+            create_extraction_batch_from_file(
+                db,
+                organization_id=organization_id,
+                source_document_name=file.filename or f"uploaded_document.{resolved_type}",
+                document_type=resolved_type,
+                file_bytes=await file.read(),
+            )
+        )
+    except (ValueError, RuntimeError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/sla/extractions/{batch_id}/approve", response_model=SlaExtractionReviewResult)
@@ -249,6 +347,14 @@ def approve_sla_extraction(
 def discard_sla_extraction(batch_id: int, db: Session = Depends(get_db)) -> SlaExtractionReviewResult:
     try:
         return SlaExtractionReviewResult.model_validate(discard_extraction_batch(db, batch_id=batch_id))
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/sla/extractions/candidates/{candidate_id}/discard", response_model=SlaExtractionBatchOut)
+def discard_sla_extraction_candidate(candidate_id: int, db: Session = Depends(get_db)) -> SlaExtractionBatchOut:
+    try:
+        return SlaExtractionBatchOut.model_validate(discard_extraction_candidate(db, candidate_id=candidate_id))
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 

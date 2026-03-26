@@ -221,9 +221,19 @@ class SlaRulebookEntry(Base, TimestampMixin):
     resolution_deadline_hours: Mapped[int] = mapped_column(Integer)
     penalty_amount: Mapped[float] = mapped_column(Float)
     escalation_owner: Mapped[str] = mapped_column(String(120))
+    escalation_policy: Mapped[dict] = mapped_column(JSON, default=dict)
     business_hours_logic: Mapped[str] = mapped_column(String(120))
+    business_hours_definition: Mapped[dict] = mapped_column(JSON, default=dict)
     auto_action_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    auto_action_policy: Mapped[dict] = mapped_column(JSON, default=dict)
     source_document_name: Mapped[str] = mapped_column(String(160))
+    source_batch_id: Mapped[int | None] = mapped_column(ForeignKey("sla_extraction_batches.id"), nullable=True)
+    rule_version: Mapped[int] = mapped_column(Integer, default=1)
+    reviewed_by: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    review_notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    supersedes_rule_id: Mapped[int | None] = mapped_column(
+        ForeignKey("sla_rulebook_entries.id"), nullable=True
+    )
     last_reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
 
@@ -233,8 +243,11 @@ class SlaExtractionBatch(Base, TimestampMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"))
     source_document_name: Mapped[str] = mapped_column(String(160))
+    document_type: Mapped[str] = mapped_column(String(40), default="pdf")
     status: Mapped[str] = mapped_column(String(40), default="pending_review")
     uploaded_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+    extraction_source: Mapped[str] = mapped_column(String(80), default="text_parsed")
+    run_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
 
     candidates: Mapped[list["SlaExtractionCandidate"]] = relationship(
         back_populates="batch", cascade="all, delete-orphan"
@@ -253,9 +266,16 @@ class SlaExtractionCandidate(Base, TimestampMixin):
     resolution_deadline_hours: Mapped[int] = mapped_column(Integer)
     penalty_amount: Mapped[float] = mapped_column(Float)
     escalation_owner: Mapped[str] = mapped_column(String(120))
+    escalation_policy: Mapped[dict] = mapped_column(JSON, default=dict)
     business_hours_logic: Mapped[str] = mapped_column(String(120))
+    business_hours_definition: Mapped[dict] = mapped_column(JSON, default=dict)
     auto_action_allowed: Mapped[bool] = mapped_column(Boolean, default=False)
+    auto_action_policy: Mapped[dict] = mapped_column(JSON, default=dict)
     status: Mapped[str] = mapped_column(String(40), default="pending")
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
+    parsing_notes: Mapped[list[str]] = mapped_column(JSON, default=list)
+    extraction_source: Mapped[str] = mapped_column(String(80), default="text_parsed")
+    candidate_metadata: Mapped[dict] = mapped_column(JSON, default=dict)
 
     batch: Mapped["SlaExtractionBatch"] = relationship(back_populates="candidates")
 

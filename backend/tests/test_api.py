@@ -45,7 +45,10 @@ def test_new_read_endpoints_return_seeded_payloads(client):
 
     live_ops_response = client.get(f"/api/live-ops/{organization_id}")
     assert live_ops_response.status_code == 200
-    assert live_ops_response.json()
+    live_ops = live_ops_response.json()
+    assert live_ops
+    assert "match_rationale" in live_ops[0]
+    assert "projected_business_impact" in live_ops[0]
 
     data_sources_response = client.get(f"/api/data-sources/{organization_id}")
     assert data_sources_response.status_code == 200
@@ -61,11 +64,15 @@ def test_new_read_endpoints_return_seeded_payloads(client):
 
     sla_rules_response = client.get(f"/api/sla/rules/{organization_id}")
     assert sla_rules_response.status_code == 200
-    assert sla_rules_response.json()
+    rules = sla_rules_response.json()
+    assert rules
+    assert "rule_version" in rules[0]
 
     sla_extractions_response = client.get(f"/api/sla/extractions/{organization_id}")
     assert sla_extractions_response.status_code == 200
-    assert sla_extractions_response.json()
+    extractions = sla_extractions_response.json()
+    assert extractions
+    assert "run_metadata" in extractions[0]
 
     auto_mode_response = client.get(f"/api/auto-mode/{organization_id}")
     assert auto_mode_response.status_code == 200
@@ -125,12 +132,18 @@ def test_write_endpoints_cover_parallel_frontend_contracts(client):
 
     extraction_response = client.post(
         f"/api/sla/extractions/{organization_id}/upload",
-        json={"source_document_name": "Premium Support Contract.pdf", "document_type": "pdf"},
+        json={
+            "source_document_name": "Premium Support Contract.pdf",
+            "document_type": "pdf",
+            "sample_text": "Premium customers require a P1 response within 1 hour.",
+        },
     )
     assert extraction_response.status_code == 200
     batch = extraction_response.json()
     batch_id = batch["id"]
     candidate_id = batch["candidate_rules"][0]["id"]
+    assert batch["run_metadata"]["provider"]
+    assert batch["candidate_rules"][0]["confidence_score"] > 0
 
     approve_extraction_response = client.post(
         f"/api/sla/extractions/{batch_id}/approve",
@@ -138,6 +151,76 @@ def test_write_endpoints_cover_parallel_frontend_contracts(client):
     )
     assert approve_extraction_response.status_code == 200
     assert approve_extraction_response.json()["rules_created"] >= 1
+
+    create_rule_response = client.post(
+        f"/api/sla/rules/{organization_id}",
+        json={
+            "name": "Warehouse Escalation Rule",
+            "status": "active",
+            "applies_to": {"workflow_category": "warehouse", "priority": "standard"},
+            "conditions": "Apply to warehouse requests.",
+            "response_deadline_hours": 2,
+            "resolution_deadline_hours": 10,
+            "penalty_amount": 25000,
+            "escalation_owner": "Warehouse Lead",
+        },
+    )
+    assert create_rule_response.status_code == 200
+    created_rule = create_rule_response.json()
+    rule_id = created_rule["id"]
+    assert created_rule["status"] == "active"
+
+    update_rule_response = client.put(
+        f"/api/sla/rules/entry/{rule_id}",
+        json={"review_notes": "Reviewed in test", "auto_action_allowed": True},
+    )
+    assert update_rule_response.status_code == 200
+    assert update_rule_response.json()["rule_version"] == 2
+
+    archive_rule_response = client.post(
+        f"/api/sla/rules/entry/{rule_id}/archive",
+        json={"reviewed_by": "Test Reviewer"},
+    )
+    assert archive_rule_response.status_code == 200
+    assert archive_rule_response.json()["status"] == "archived"
+
+    filtered_rules_response = client.get(
+        f"/api/sla/rules/{organization_id}?status=active&search=Premium"
+    )
+    assert filtered_rules_response.status_code == 200
+    assert filtered_rules_response.json()
+
+    filtered_live_ops_response = client.get(
+        f"/api/live-ops/{organization_id}?sort=impact&risk=high"
+    )
+    assert filtered_live_ops_response.status_code == 200
+
+
+def test_sla_file_upload_endpoint_extracts_from_text_document(client):
+    organization_id = bootstrap_dataset(client)
+
+    response = client.post(
+        f"/api/sla/extractions/{organization_id}/upload-file",
+        files={
+            "file": (
+                "Premium Support Contract.txt",
+                (
+                    "MASTER SERVICE AGREEMENT - PREMIUM SUPPORT\n"
+                    "Priority: P1\n"
+                    "Customer Tier: Premium\n"
+                    "Response SLA: within 1 hour\n"
+                    "Resolution SLA: within 4 hours\n"
+                ).encode("utf-8"),
+                "text/plain",
+            )
+        },
+        data={"document_type": "txt"},
+    )
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["document_type"] == "txt"
+    assert payload["candidate_rules"]
+    assert payload["candidate_rules"][0]["name"]
 
     actions_response = client.get(f"/api/actions/{organization_id}")
     action_id = actions_response.json()[0]["id"]

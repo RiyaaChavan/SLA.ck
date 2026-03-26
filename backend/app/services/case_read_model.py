@@ -17,9 +17,11 @@ from app.models.domain import (
     Recommendation,
     ResourceSnapshot,
     SLA,
+    SlaRulebookEntry,
     Vendor,
     Workflow,
 )
+from app.services.sla.runtime import build_live_work_item, evaluate_runtime_sla
 
 
 SEVERITY_RANK = {"critical": 4, "high": 3, "medium": 2, "low": 1}
@@ -145,6 +147,12 @@ def load_case_context(db: Session, organization_id: int) -> dict[str, Any]:
         item.department_id: item
         for item in db.scalars(select(SLA).where(SLA.organization_id == organization_id)).all()
     }
+    rulebook_entries = db.scalars(
+        select(SlaRulebookEntry).where(
+            SlaRulebookEntry.organization_id == organization_id,
+            SlaRulebookEntry.status == "active",
+        )
+    ).all()
     detectors = {
         item.detector_key: item
         for item in db.scalars(
@@ -185,6 +193,7 @@ def load_case_context(db: Session, organization_id: int) -> dict[str, Any]:
         "contracts": contracts,
         "resources": resources,
         "slas": slas,
+        "rulebook_entries": rulebook_entries,
         "detectors": detectors,
         "recommendation_by_alert_id": recommendation_by_alert_id,
         "latest_action_by_recommendation_id": latest_action_by_recommendation_id,
@@ -218,6 +227,7 @@ def bundle_for_alert(alert: Alert, context: dict[str, Any]) -> dict[str, Any]:
         "contract": contract,
         "resource": resource,
         "sla": sla,
+        "context": context,
         "detector": detector,
         "recommendation": recommendation,
         "action": action,
@@ -269,8 +279,9 @@ def formula_for_alert(alert: Alert, bundle: dict[str, Any]) -> dict[str, Any]:
             "confidence": alert.confidence_score,
         }
     if alert_type == AlertType.sla_risk.value and workflow:
-        target_hours = sla.target_hours if sla else 8
-        penalty = sla.penalty_per_breach if sla else 35_000
+        runtime_sla = sla_payload_for_alert(alert, bundle)
+        target_hours = runtime_sla["resolution_deadline_hours"] if runtime_sla else (sla.target_hours if sla else 8)
+        penalty = runtime_sla["penalty_amount"] if runtime_sla else (sla.penalty_per_breach if sla else 35_000)
         return {
             "expression": "(delay_hours / target_hours) x penalty_per_breach + estimated_value x 0.03",
             "description": "Estimates near-term SLA exposure from queue delay and workflow value.",
@@ -474,17 +485,25 @@ def narrative_for_alert(alert: Alert, bundle: dict[str, Any]) -> tuple[str, str,
 
 def sla_payload_for_alert(alert: Alert, bundle: dict[str, Any]) -> dict[str, Any] | None:
     workflow = bundle["workflow"]
-    sla = bundle["sla"]
-    if workflow is None or sla is None:
+    if workflow is None:
         return None
-    minutes = countdown_minutes(workflow.expected_by)
+    live_item = build_live_work_item(workflow, bundle["department"], bundle["vendor"])
+    evaluation = evaluate_runtime_sla(
+        item=live_item,
+        rulebook_entries=bundle["context"]["rulebook_entries"],
+        legacy_sla=bundle["context"]["slas"].get(workflow.department_id),
+    )
+    if evaluation.rule_match.rule_name is None:
+        return None
+    minutes = evaluation.risk.time_remaining_minutes
     return {
-        "name": sla.name,
-        "response_deadline_hours": max(sla.target_hours // 2, 1),
-        "resolution_deadline_hours": sla.target_hours,
-        "penalty_amount": round(sla.penalty_per_breach, 2),
+        "name": evaluation.rule_match.rule_name,
+        "response_deadline_hours": evaluation.rule_match.response_deadline_hours,
+        "resolution_deadline_hours": evaluation.rule_match.resolution_deadline_hours,
+        "penalty_amount": round(evaluation.rule_match.penalty_amount, 2),
         "countdown_minutes": minutes,
-        "risk_level": sla_risk_level(minutes, alert.severity.value),
+        "risk_level": evaluation.risk.predicted_breach_risk or sla_risk_level(minutes, alert.severity.value),
+        "match_rationale": evaluation.rule_match.rationale,
     }
 
 

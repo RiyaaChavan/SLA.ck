@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     redis_url: str = "redis://redis:6379/0"
     reports_dir: Path = DATA_DIR / "generated_reports"
     seed_profiles_dir: Path = DATA_DIR / "seed_profiles"
+    gemini_api_key: str | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    cerebras_api_key: str | None = None
+    cerebras_base_url: str = "https://api.cerebras.ai/v1"
+    cerebras_model: str = "gpt-oss-120b"
 
     model_config = SettingsConfigDict(
         env_file=BASE_DIR / ".env",
