@@ -1,4 +1,4 @@
-import { useNavigate } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
 import type { ReactNode } from "react";
 
 type HomePageProps = {
@@ -7,7 +7,32 @@ type HomePageProps = {
   hasData: boolean;
 };
 
-/* ── SVG Icons ────────────────────────────────────────── */
+/* ── SVG Icons ─────────────────────────────────────────────── */
+function IconSpinner(): ReactNode {
+  return (
+    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 0.9s linear infinite" }}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </svg>
+  );
+}
+
+function IconStar(): ReactNode {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+    </svg>
+  );
+}
+
+function IconSearch(): ReactNode {
+  return (
+    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="11" cy="11" r="8" />
+      <line x1="21" y1="21" x2="16.65" y2="16.65" />
+    </svg>
+  );
+}
+
 function IconLeak(): ReactNode {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -65,7 +90,7 @@ function IconAudit(): ReactNode {
   );
 }
 
-/* ── Feature data ────────────────────────────────────── */
+/* ── Feature data ─────────────────────────────────────────── */
 const features = [
   {
     color: "red",
@@ -111,86 +136,119 @@ const features = [
   },
 ];
 
-/* ── Workflow steps ──────────────────────────────────── */
+/* ── Workflow steps ───────────────────────────────────────── */
 const steps = [
-  {
-    label: "Observe",
-    desc: "Ingest procurement, SLA, vendor, and resource data continuously",
-  },
-  {
-    label: "Diagnose",
-    desc: "AI models flag anomalies, breaches, and waste patterns",
-  },
-  {
-    label: "Quantify",
-    desc: "Every alert is priced — financial impact calculated automatically",
-  },
-  {
-    label: "Approve",
-    desc: "Human-in-the-loop review with one-click approval workflows",
-  },
-  {
-    label: "Execute",
-    desc: "Automated remediation or guided manual action with full logging",
-  },
+  { label: "Observe",   desc: "Ingest procurement, SLA, vendor, and resource data continuously" },
+  { label: "Diagnose",  desc: "AI models flag anomalies, breaches, and waste patterns" },
+  { label: "Quantify",  desc: "Every alert is priced — financial impact calculated automatically" },
+  { label: "Approve",   desc: "Human-in-the-loop review with one-click approval workflows" },
+  { label: "Execute",   desc: "Automated remediation or guided manual action with full logging" },
 ];
 
-/* ── Component ───────────────────────────────────────── */
+/* ── Nav links ────────────────────────────────────────────── */
+const navLinks = [
+  { to: "/overview",    label: "Dashboard" },
+  { to: "/alerts",      label: "Alerts" },
+  { to: "/resources",   label: "Resources" },
+  { to: "/investigate", label: "Investigate" },
+  { to: "/audit",       label: "Audit" },
+];
+
+/* ── Component ────────────────────────────────────────────── */
 export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
   const navigate = useNavigate();
 
   return (
     <div className="home-page">
 
-      {/* ══ Hero ══════════════════════════════════════════ */}
-      <section className="home-hero">
-        <div className="home-aurora-bg" />
+      {/* ══ Background Orbs ═════════════════════════════════ */}
+      <div className="home-bg-orbs" aria-hidden="true">
+        <div className="home-orb home-orb-1" />
+        <div className="home-orb home-orb-2" />
+        <div className="home-orb home-orb-3" />
+        <div className="home-orb home-orb-4" />
+      </div>
 
-        {/* Left: copy */}
-        <div className="home-hero-inner">
-          <div className="home-badge">
-            <span className="home-badge-dot" />
-            Enterprise Cost Intelligence Platform
+      {/* ══ Top Navigation ══════════════════════════════════ */}
+      <nav className="home-topnav">
+        <div className="home-topnav-logo">
+          <div className="home-topnav-logo-mark">CP</div>
+          <div className="home-topnav-logo-text">
+            <span className="home-topnav-logo-name">CostPulse AI</span>
+          </div>
+        </div>
+
+        <div className="home-topnav-links">
+          {navLinks.map((l) => (
+            <NavLink key={l.to} to={l.to} className="home-topnav-link">
+              {l.label}
+            </NavLink>
+          ))}
+        </div>
+
+        <button className="home-topnav-cta" onClick={onSeed} disabled={seeding}>
+          {seeding ? "Bootstrapping..." : "Bootstrap Demo →"}
+        </button>
+      </nav>
+
+      {/* ══ Hero ════════════════════════════════════════════ */}
+      <section className="home-hero">
+        <div className="home-hero-glow" aria-hidden="true" />
+
+        <div className="home-hero-content">
+
+          {/* Top pill — OBSERVE • DIAGNOSE • REMEDIATE */}
+          <div className="home-topbadge">
+            <span className="home-topbadge-dot" />
+            OBSERVE • DIAGNOSE • REMEDIATE
           </div>
 
+          {/* Feature pills row */}
+          <div className="home-feat-pills">
+            <div className="home-feat-pill home-feat-pill-teal">
+              <IconStar />
+              Cost Intelligence
+            </div>
+            <div className="home-feat-pill home-feat-pill-dark">
+              <IconSearch />
+              AI Investigator
+            </div>
+          </div>
+
+          {/* Main heading — serif display font */}
           <h1 className="home-h1">
             Your enterprise<br />
             is leaking money.<br />
             <span className="home-h1-accent">We find it.</span>
           </h1>
 
+          {/* Lead copy */}
           <p className="home-lead">
             CostPulse AI monitors procurement anomalies, SLA breaches, vendor billing
             discrepancies, and idle infrastructure across your entire enterprise —
-            surfaces the impact, and arms your team to act.
+            surfaces the financial impact, and arms your team to act.
           </p>
 
-          <div className="home-ctas">
+          {/* CTAs */}
+          <div className="home-hero-ctas">
             <button
-              className="btn btn-green btn-hero"
+              className="home-cta-primary"
               onClick={onSeed}
               disabled={seeding}
             >
-              {seeding ? (
-                <>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ animation: "spin 0.9s linear infinite" }}>
-                    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
-                  </svg>
-                  Bootstrapping data...
-                </>
-              ) : "Bootstrap Demo Data →"}
+              {seeding ? <><IconSpinner /> Bootstrapping data...</> : "Bootstrap Demo Data →"}
             </button>
-
-            {hasData ? (
+            {hasData && (
               <button
-                className="btn btn-outline btn-hero"
+                className="home-cta-ghost"
                 onClick={() => navigate("/overview")}
               >
                 Go to Dashboard
               </button>
-            ) : null}
+            )}
           </div>
 
+          {/* Meta strip */}
           <div className="home-meta-strip">
             <span><strong>6</strong> intelligence modules</span>
             <span className="home-meta-dot">·</span>
@@ -200,113 +258,113 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
             <span className="home-meta-dot">·</span>
             <span>Full compliance audit trail</span>
           </div>
-        </div>
 
-        {/* Right: floating UI badge cluster */}
-        <div className="hbc" aria-hidden="true">
+          {/* ── Preview Cards Row ── */}
+          <div className="home-hero-previews" aria-hidden="true">
 
-          {/* Pill row — top */}
-          <div className="hbc-pills">
-            <div className="hbc-pill hbc-pill-red">
-              <span className="hbc-dot red" />
-              94 active alerts
-            </div>
-            <div className="hbc-pill hbc-pill-lime">
-              <span className="hbc-dot lime" />
-              12 approvals pending
-            </div>
-            <div className="hbc-pill hbc-pill-violet">
-              <span className="hbc-dot violet" />
-              3 auto-remediated
-            </div>
-          </div>
-
-          {/* Badge 1 — Critical alert */}
-          <div className="hbc-float hbc-f1">
-            <div className="hbc-card">
-              <div className="hbc-card-header">
-                <div className="hbc-card-header-left">
-                  <span className="hbc-status-dot red pulse" />
-                  <span className="hbc-eyebrow red">Critical Alert</span>
+            {/* Console Card */}
+            <div className="home-console">
+              <div className="home-console-header">
+                <div className="home-console-title-group">
+                  <span className="home-console-live-ring" />
+                  <span className="home-console-name">Cost Monitor</span>
+                  <span className="home-console-live-badge">LIVE</span>
                 </div>
-                <span className="hbc-time">2m ago</span>
+                <span className="home-console-action">Pause</span>
               </div>
-              <div className="hbc-card-title">₹48.3L Procurement Anomaly</div>
-              <div className="hbc-card-sub">TechSource Industries · Q4 2025</div>
-              <div className="hbc-card-footer">
-                <span className="hbc-tag red">Pending Approval</span>
-                <span className="hbc-impact">₹48.3L impact</span>
-              </div>
-            </div>
-          </div>
 
-          {/* Badge 2 — Savings metric */}
-          <div className="hbc-float hbc-f2">
-            <div className="hbc-card">
-              <div className="hbc-card-header">
-                <div className="hbc-card-header-left">
-                  <span className="hbc-status-dot lime" />
-                  <span className="hbc-eyebrow lime">Savings Surfaced</span>
-                </div>
-                <span className="hbc-delta">↑ +28%</span>
+              <div className="home-console-tabs">
+                <button className="home-console-tab home-console-tab-active">Procurement</button>
+                <button className="home-console-tab">SLA Monitor</button>
+                <button className="home-console-tab">Vendor</button>
               </div>
-              <div className="hbc-big-num">
-                ₹3.2 Cr
-                <span className="hbc-big-num-unit">/mo</span>
+
+              <div className="home-console-feed-header">
+                <span>Live Feed</span>
+                <span className="home-console-dots">
+                  <i /><i /><i />
+                </span>
               </div>
-              <div className="hbc-bars">
-                <div className="hbc-bar-row">
-                  <span className="hbc-bar-label">Procurement</span>
-                  <div className="hbc-bar-track">
-                    <div className="hbc-bar-fill violet" style={{ width: "56%" }} />
+
+              <div className="home-console-rows">
+                <div className="home-console-row home-console-row-amber">
+                  <div className="home-console-row-body">
+                    <div className="home-console-row-title">TechSource duplicate invoice detected</div>
+                    <div className="home-console-row-state home-console-state-amber">Verifying</div>
                   </div>
-                  <span className="hbc-bar-val">₹1.4Cr</span>
+                  <span className="home-console-row-meta">Q4 2025</span>
                 </div>
-                <div className="hbc-bar-row">
-                  <span className="hbc-bar-label">Resources</span>
-                  <div className="hbc-bar-track">
-                    <div className="hbc-bar-fill lime" style={{ width: "32%" }} />
+                <div className="home-console-row home-console-row-cobalt">
+                  <div className="home-console-row-body">
+                    <div className="home-console-row-title">CloudCorp SLA penalty — 3 breaches</div>
+                    <div className="home-console-row-state home-console-state-cobalt">Flagged</div>
                   </div>
-                  <span className="hbc-bar-val">₹0.8Cr</span>
-                </div>
-                <div className="hbc-bar-row">
-                  <span className="hbc-bar-label">Vendor SLA</span>
-                  <div className="hbc-bar-track">
-                    <div className="hbc-bar-fill sky" style={{ width: "24%" }} />
-                  </div>
-                  <span className="hbc-bar-val">₹0.6Cr</span>
+                  <span className="home-console-row-meta">₹4.8L</span>
                 </div>
               </div>
-            </div>
-          </div>
 
-          {/* Badge 3 — AI Copilot */}
-          <div className="hbc-float hbc-f3">
-            <div className="hbc-card hbc-card-code">
-              <div className="hbc-card-header">
-                <div className="hbc-card-header-left">
-                  <span className="hbc-status-dot violet" />
-                  <span className="hbc-eyebrow violet">AI Query Complete</span>
-                </div>
-                <span className="hbc-time">2.4s</span>
-              </div>
-              <div className="hbc-query-text">
-                "Which vendors overbilled this quarter?"
-              </div>
-              <div className="hbc-query-result">
-                <span className="hbc-arrow">→</span>
-                7 vendors · ₹18.6L total discrepancy
-              </div>
-              <div className="hbc-query-detail">
-                Highest: TechSource ₹6.2L · Infosys ₹4.8L · AWS ₹3.1L
+              <div className="home-console-footer">
+                <span>Anomalies detected <strong className="home-console-count">94</strong></span>
+                <span>₹3.2Cr at risk</span>
               </div>
             </div>
-          </div>
+
+            {/* 3D Newspaper */}
+            <div className="home-newspaper-wrap">
+              <div className="home-newspaper">
+                <div className="home-np-header">
+                  <span className="home-np-brand">COSTPULSE</span>
+                  <span className="home-np-edition">INTELLIGENCE BRIEF</span>
+                  <span className="home-np-date">Q4 2025 · Vol. 12</span>
+                </div>
+                <div className="home-np-rule" />
+                <div className="home-np-headline">
+                  Enterprise Leakage Hits Record ₹3.2Cr
+                </div>
+                <div className="home-np-sub">
+                  Procurement anomalies detected across 7 vendors in Q4
+                </div>
+                <div className="home-np-rule" />
+                <div className="home-np-cols">
+                  <div className="home-np-col">
+                    <div className="home-np-col-head">Procurement</div>
+                    <div className="home-np-line" />
+                    <div className="home-np-line" />
+                    <div className="home-np-line short" />
+                    <div className="home-np-callout amber">
+                      <span className="home-np-callout-val">₹48.3L</span>
+                      <span className="home-np-callout-label">overcharge</span>
+                    </div>
+                    <div className="home-np-line" />
+                    <div className="home-np-line short" />
+                  </div>
+                  <div className="home-np-col">
+                    <div className="home-np-col-head">SLA Breach</div>
+                    <div className="home-np-line" />
+                    <div className="home-np-line" />
+                    <div className="home-np-line short" />
+                    <div className="home-np-callout cobalt">
+                      <span className="home-np-callout-val">12</span>
+                      <span className="home-np-callout-label">violations</span>
+                    </div>
+                    <div className="home-np-line" />
+                    <div className="home-np-line short" />
+                  </div>
+                </div>
+                <div className="home-np-rule" />
+                <div className="home-np-footer">
+                  <span>94 alerts active</span>
+                  <span>97.4% accuracy</span>
+                </div>
+              </div>
+            </div>
+
+          </div>{/* /home-hero-previews */}
 
         </div>
       </section>
 
-      {/* ══ Impact Stats ══════════════════════════════════ */}
+      {/* ══ Impact Stats ════════════════════════════════════ */}
       <div className="home-stats-row">
         <div className="home-stat-item">
           <div className="home-stat-value"><span>15</span>–20%</div>
@@ -326,7 +384,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
         </div>
       </div>
 
-      {/* ══ Features ══════════════════════════════════════ */}
+      {/* ══ Features ════════════════════════════════════════ */}
       <section className="home-section">
         <div className="home-section-header">
           <div className="home-section-eyebrow">Why leakage goes undetected</div>
@@ -358,8 +416,8 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
         </div>
       </section>
 
-      {/* ══ Workflow ══════════════════════════════════════ */}
-      <section className="home-section" style={{ background: "var(--surface-2)", borderTop: "1px solid var(--border)", borderBottom: "1px solid var(--border)" }}>
+      {/* ══ Workflow ════════════════════════════════════════ */}
+      <section className="home-section home-section-alt">
         <div className="home-section-header">
           <div className="home-section-eyebrow">How it works</div>
           <h2 className="home-h2">From detection to remediation in minutes</h2>
@@ -379,9 +437,9 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
         </div>
       </section>
 
-      {/* ══ CTA ═══════════════════════════════════════════ */}
+      {/* ══ CTA ═════════════════════════════════════════════ */}
       <section className="home-cta-section">
-        <div className="home-cta-aurora" />
+        <div className="home-cta-glow" aria-hidden="true" />
         <h2 className="home-cta-h2">
           Ready to command<br />every rupee?
         </h2>
@@ -389,11 +447,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
           Bootstrap the enterprise demo dataset — fully seeded with realistic
           procurement, SLA, vendor, and resource data — and explore every module instantly.
         </p>
-        <button
-          className="btn btn-green btn-hero"
-          onClick={onSeed}
-          disabled={seeding}
-        >
+        <button className="home-cta-primary" onClick={onSeed} disabled={seeding}>
           {seeding ? "Bootstrapping..." : "Get Started →"}
         </button>
       </section>

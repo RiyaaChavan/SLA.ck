@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Route, Routes } from "react-router-dom";
+import { Outlet, Route, Routes } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api/client";
@@ -113,24 +113,30 @@ export default function App() {
   const currentReports = useMemo(() => reportsQuery.data ?? [], [reportsQuery.data]);
 
   return (
-    <AppShell
-      organizations={organizationsQuery.data ?? []}
-      selectedOrganizationId={selectedOrganizationId}
-      onOrganizationChange={setSelectedOrganizationId}
-      onSeed={() => seedMutation.mutate()}
-      seeding={seedMutation.isPending}
-    >
-      <Routes>
-        <Route
-          path="/"
-          element={
-            <HomePage
-              onSeed={() => seedMutation.mutate()}
-              seeding={seedMutation.isPending}
-              hasData={Boolean(dashboardQuery.data)}
-            />
-          }
-        />
+    <Routes>
+      <Route
+        path="/"
+        element={
+          <HomePage
+            onSeed={() => seedMutation.mutate()}
+            seeding={seedMutation.isPending}
+            hasData={Boolean(dashboardQuery.data)}
+          />
+        }
+      />
+      <Route
+        element={
+          <AppShell
+            organizations={organizationsQuery.data ?? []}
+            selectedOrganizationId={selectedOrganizationId}
+            onOrganizationChange={setSelectedOrganizationId}
+            onSeed={() => seedMutation.mutate()}
+            seeding={seedMutation.isPending}
+          >
+            <Outlet />
+          </AppShell>
+        }
+      >
         <Route
           path="/overview"
           element={
@@ -156,10 +162,7 @@ export default function App() {
           }
         />
         <Route path="/resources" element={<ResourcesPage data={resourcesQuery.data} />} />
-        <Route
-          path="/investigate"
-          element={<InvestigatePage onSubmit={investigate} />}
-        />
+        <Route path="/investigate" element={<InvestigatePage onSubmit={investigate} />} />
         <Route
           path="/audit"
           element={
@@ -170,7 +173,7 @@ export default function App() {
             />
           }
         />
-      </Routes>
-    </AppShell>
+      </Route>
+    </Routes>
   );
 }
