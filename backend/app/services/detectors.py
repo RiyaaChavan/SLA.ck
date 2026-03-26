@@ -1,10 +1,11 @@
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.domain import Alert, DetectorDefinition
+from app.models.domain import Alert, DetectorDefinition, DetectorRun
+from app.services.detector_runtime import execute_detector_run
 from app.utils.audit import log_event
 
 
@@ -40,10 +41,18 @@ def list_detectors(db: Session, organization_id: int) -> list[dict]:
         current = latest_triggered.get(alert.type.value)
         if current is None or alert.created_at > current:
             latest_triggered[alert.type.value] = alert.created_at
+    latest_runs: dict[int, DetectorRun] = {}
+    for run in db.scalars(
+        select(DetectorRun)
+        .where(DetectorRun.organization_id == organization_id)
+        .order_by(DetectorRun.created_at.desc())
+    ).all():
+        latest_runs.setdefault(run.detector_id, run)
 
     return [
         {
             "id": detector.id,
+            "connector_id": detector.connector_id,
             "detector_key": detector.detector_key,
             "name": detector.name,
             "description": detector.description,
@@ -58,8 +67,14 @@ def list_detectors(db: Session, organization_id: int) -> list[dict]:
             "expected_output_fields": detector.expected_output_fields,
             "linked_action_template": detector.linked_action_template,
             "linked_cost_formula": detector.linked_cost_formula,
+            "schedule_minutes": detector.schedule_minutes,
+            "generation_source": detector.generation_source,
+            "validation_status": detector.validation_status,
             "last_triggered_at": latest_triggered.get(detector.detector_key, detector.last_triggered_at),
+            "last_run_at": detector.last_run_at,
+            "next_run_at": detector.next_run_at,
             "issue_count": issue_counter.get(detector.detector_key, detector.issue_count),
+            "latest_run_status": latest_runs.get(detector.id).status if detector.id in latest_runs else None,
         }
         for detector in detectors
     ]
@@ -82,6 +97,13 @@ def create_detector(db: Session, organization_id: int, payload: dict) -> dict:
         expected_output_fields=payload.get("expected_output_fields", []),
         linked_action_template=payload["linked_action_template"],
         linked_cost_formula=payload["linked_cost_formula"],
+        connector_id=payload.get("connector_id"),
+        schedule_minutes=payload.get("schedule_minutes", 60),
+        generation_source=payload.get("generation_source", "manual"),
+        validation_status=payload.get("validation_status", "manual"),
+        next_run_at=datetime.now(UTC) + timedelta(minutes=payload.get("schedule_minutes", 60))
+        if payload.get("enabled", True)
+        else None,
     )
     db.add(detector)
     db.flush()
@@ -134,6 +156,7 @@ def build_prompt_draft(organization_id: int, prompt: str, module: str | None) ->
         ),
         "draft_source": f"organization:{organization_id}:prompt",
         "warnings": ["Draft uses deterministic demo logic and should be reviewed before saving."],
+        "schedule_minutes": 60,
     }
 
 
@@ -141,6 +164,20 @@ def test_detector(db: Session, detector_id: int) -> dict:
     detector = db.get(DetectorDefinition, detector_id)
     if detector is None:
         raise ValueError("Detector not found")
+    if detector.generation_source == "sql_agent" and detector.connector_id is not None:
+        result = execute_detector_run(db, detector_id)
+        latest_run = db.scalar(
+            select(DetectorRun)
+            .where(DetectorRun.detector_id == detector_id)
+            .order_by(DetectorRun.created_at.desc())
+        )
+        return {
+            "detector_id": detector.id,
+            "detector_name": detector.name,
+            "issue_count": int(result.get("row_count", 0)),
+            "sample_rows": latest_run.sample_rows if latest_run else [],
+            "explanation": latest_run.summary if latest_run else f"Executed detector {detector.name}.",
+        }
     alerts = [
         alert
         for alert in db.scalars(
@@ -170,3 +207,31 @@ def test_detector(db: Session, detector_id: int) -> dict:
         "sample_rows": sample_rows,
         "explanation": f"Detector matched {len(alerts)} case(s) in the current demo dataset.",
     }
+
+
+def update_detector(db: Session, detector_id: int, payload: dict) -> dict:
+    detector = db.get(DetectorDefinition, detector_id)
+    if detector is None:
+        raise ValueError("Detector not found")
+    editable_fields = {
+        "enabled",
+        "name",
+        "description",
+        "logic_summary",
+        "query_logic",
+        "schedule_minutes",
+        "linked_action_template",
+        "linked_cost_formula",
+    }
+    for key, value in payload.items():
+        if key in editable_fields:
+            setattr(detector, key, value)
+    if "enabled" in payload:
+        detector.next_run_at = (
+            datetime.now(UTC) + timedelta(minutes=max(detector.schedule_minutes, 15))
+            if detector.enabled
+            else None
+        )
+    db.add(detector)
+    db.commit()
+    return next(item for item in list_detectors(db, detector.organization_id) if item["id"] == detector.id)

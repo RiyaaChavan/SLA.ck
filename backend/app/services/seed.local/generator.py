@@ -9,15 +9,28 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.models.domain import (
     Alert,
+    ApprovalPolicy,
+    ConnectorColumn,
+    ConnectorRelation,
+    ConnectorRelationCache,
     Contract,
+    DashboardSpec,
+    DataConnector,
     Department,
+    DetectorDefinition,
     Invoice,
     Organization,
     Recommendation,
     ResourceSnapshot,
+    SLA,
+    SlaExtractionBatch,
+    SlaExtractionCandidate,
+    SlaRulebookEntry,
+    SourceAgentMemory,
     Vendor,
     Workflow,
 )
+from app.services.connector_crypto import encrypt_connector_uri
 
 
 def _make_rng(seed: int) -> random.Random:
@@ -44,6 +57,17 @@ def reset_database(db: Session) -> None:
     for model in (
         Recommendation,
         Alert,
+        ConnectorRelationCache,
+        ConnectorColumn,
+        ConnectorRelation,
+        DashboardSpec,
+        SourceAgentMemory,
+        DataConnector,
+        SlaExtractionCandidate,
+        SlaExtractionBatch,
+        ApprovalPolicy,
+        SlaRulebookEntry,
+        SLA,
         Invoice,
         Contract,
         Workflow,
@@ -220,7 +244,293 @@ def seed_database(db: Session, *, reset: bool = False) -> dict:
                     snapshot_at=datetime.now(UTC),
                 )
                 db.add(snapshot)
+
+        source_schema = profile.get("source_schema") or {}
+        if source_schema:
+            synced_at = datetime.now(UTC)
+            connector = DataConnector(
+                organization_id=org.id,
+                name=f"{org.name} Source",
+                dialect="postgres",
+                encrypted_uri=encrypt_connector_uri(
+                    f"postgresql+psycopg://seed:seed@seed.invalid/{org.name.lower().replace(' ', '_')}"
+                ),
+                status="ready",
+                included_schemas=["public"],
+                last_sync_at=synced_at,
+            )
+            db.add(connector)
+            db.flush()
+            relation_name = source_schema.get("name", "seed_relation")
+            relation = ConnectorRelation(
+                connector_id=connector.id,
+                organization_id=org.id,
+                schema_name="public",
+                relation_name=relation_name,
+                relation_type="table",
+                qualified_name=f"public.{relation_name}",
+                row_estimate=workflow_count + invoice_count,
+                size_bytes=0,
+                column_count=len(source_schema.get("sample_columns", [])),
+                last_profiled_at=synced_at,
+            )
+            db.add(relation)
+            db.flush()
+            for index, column_name in enumerate(source_schema.get("sample_columns", []), start=1):
+                db.add(
+                    ConnectorColumn(
+                        relation_id=relation.id,
+                        connector_id=connector.id,
+                        organization_id=org.id,
+                        schema_name="public",
+                        relation_name=relation_name,
+                        column_name=column_name,
+                        ordinal_position=index,
+                        data_type="text",
+                        is_nullable=True,
+                        column_default=None,
+                        is_primary_key=index == 1,
+                    )
+                )
+            db.add(
+                ConnectorRelationCache(
+                    relation_id=relation.id,
+                    connector_id=connector.id,
+                    organization_id=org.id,
+                    sample_rows=[],
+                    column_stats={},
+                    preview_row_count=0,
+                    refreshed_at=synced_at,
+                )
+            )
+            db.add(
+                SourceAgentMemory(
+                    organization_id=org.id,
+                    connector_id=connector.id,
+                    status="pending",
+                    engine_name="seed",
+                    summary_text="",
+                    dashboard_brief="",
+                    schema_notes="",
+                    raw_payload={},
+                )
+            )
+            db.add(
+                DashboardSpec(
+                    organization_id=org.id,
+                    connector_id=connector.id,
+                    status="pending",
+                    spec_json={},
+                    generated_at=None,
+                    version=1,
+                )
+            )
+            db.add_all(
+                [
+                    DetectorDefinition(
+                        organization_id=org.id,
+                        connector_id=connector.id,
+                        detector_key=f"{org.id}-invoice-variance",
+                        name="Invoice variance watch",
+                        description="Seeded detector for invoice overbilling anomalies.",
+                        module="ProcureWatch",
+                        business_domain="finance",
+                        severity="high",
+                        owner_name="Procurement Controls",
+                        enabled=True,
+                        logic_type="sql_rule",
+                        logic_summary="Flags invoice rows with material variance above contracted rate.",
+                        query_logic=(
+                            "SELECT invoice_ref, amount, billed_rate "
+                            "FROM invoices "
+                            "WHERE billed_rate > 0 "
+                            "LIMIT 25"
+                        ),
+                        expected_output_fields=["invoice_ref", "amount", "billed_rate"],
+                        linked_action_template="Open discrepancy review and assign Procurement Controls.",
+                        linked_cost_formula="sum(amount)",
+                        schedule_minutes=60,
+                        generation_source="seed",
+                        validation_status="valid",
+                        last_triggered_at=None,
+                        issue_count=0,
+                        last_run_at=None,
+                        next_run_at=synced_at + timedelta(minutes=60),
+                    ),
+                    DetectorDefinition(
+                        organization_id=org.id,
+                        connector_id=connector.id,
+                        detector_key=f"{org.id}-workflow-backlog",
+                        name="Workflow backlog escalation",
+                        description="Seeded detector for open workflows at high SLA risk.",
+                        module="SLA Sentinel",
+                        business_domain="operations",
+                        severity="medium",
+                        owner_name="Operations Director",
+                        enabled=True,
+                        logic_type="sql_rule",
+                        logic_summary="Flags workflows with long backlog and unresolved status.",
+                        query_logic=(
+                            "SELECT id, status, backlog_hours "
+                            "FROM workflows "
+                            "WHERE status = 'open' "
+                            "LIMIT 25"
+                        ),
+                        expected_output_fields=["id", "status", "backlog_hours"],
+                        linked_action_template="Reroute the queue and escalate to the owning manager.",
+                        linked_cost_formula="sum(backlog_hours)",
+                        schedule_minutes=60,
+                        generation_source="seed",
+                        validation_status="valid",
+                        last_triggered_at=None,
+                        issue_count=0,
+                        last_run_at=None,
+                        next_run_at=synced_at + timedelta(minutes=60),
+                    ),
+                ]
+            )
+
+        db.add(
+            SlaRulebookEntry(
+                organization_id=org.id,
+                name="Premium Support Ticket SLA",
+                status="active",
+                applies_to={
+                    "workflow_category": "support",
+                    "priority": "P1",
+                    "customer_tier": "premium",
+                },
+                conditions="Applies to premium P1 support tickets.",
+                response_deadline_hours=1,
+                resolution_deadline_hours=4,
+                penalty_amount=125000.0,
+                escalation_owner="Premium Support Director",
+                escalation_policy={},
+                business_hours_logic="24x7",
+                business_hours_definition={},
+                auto_action_allowed=False,
+                auto_action_policy={},
+                source_document_name="seed_rulebook",
+                rule_version=1,
+            )
+        )
+        db.add(
+            SlaRulebookEntry(
+                organization_id=org.id,
+                name="Approval Decision SLA",
+                status="active",
+                applies_to={"workflow": "procurement_approval"},
+                conditions="Applies to procurement approvals that block launches or onboarding.",
+                response_deadline_hours=2,
+                resolution_deadline_hours=8,
+                penalty_amount=95000.0,
+                escalation_owner="Approvals Director",
+                escalation_policy={},
+                business_hours_logic="business_hours",
+                business_hours_definition={},
+                auto_action_allowed=False,
+                auto_action_policy={},
+                source_document_name="seed_rulebook",
+                rule_version=1,
+            )
+        )
+        for dept in departments:
+            db.add(
+                SLA(
+                    organization_id=org.id,
+                    department_id=dept.id,
+                    name=f"{dept.name} SLA",
+                    target_hours=8 if "finance" in dept.category else 4,
+                    penalty_per_breach=25000.0,
+                )
+            )
+            db.add(
+                SlaRulebookEntry(
+                    organization_id=org.id,
+                    name=f"{dept.name} active rule",
+                    status="active",
+                    applies_to={"team": dept.name},
+                    conditions=f"Apply to workflows routed to {dept.name}.",
+                    response_deadline_hours=2,
+                    resolution_deadline_hours=8,
+                    penalty_amount=25000.0,
+                    escalation_owner=f"{dept.name} Lead",
+                    escalation_policy={},
+                    business_hours_logic="business_hours",
+                    business_hours_definition={},
+                    auto_action_allowed=False,
+                    auto_action_policy={},
+                    source_document_name="seed_rulebook",
+                    rule_version=1,
+                )
+            )
+
+        db.add(
+            ApprovalPolicy(
+                organization_id=org.id,
+                name="Seed approval policy",
+                module="Approval Queue",
+                scope="organization",
+                risk_level="medium",
+                enabled=True,
+                approver_name="Operations Director",
+                allowed_actions=["open_review_task", "reroute_queue"],
+                condition_summary="Seeded default approval policy for demo and tests.",
+            )
+        )
+        extraction_batch = SlaExtractionBatch(
+            organization_id=org.id,
+            source_document_name="Seed Premium Support SLA.pdf",
+            document_type="pdf",
+            status="pending_review",
+            uploaded_at=datetime.now(UTC),
+            extraction_source="text_parsed",
+            run_metadata={
+                "provider": "seed",
+                "model": "seed-fixture",
+                "notes": "Seeded extraction batch for demo and read-endpoint coverage.",
+            },
+        )
+        db.add(extraction_batch)
         db.flush()
+        db.add(
+            SlaExtractionCandidate(
+                batch_id=extraction_batch.id,
+                name="Seed Premium Support Candidate",
+                applies_to={
+                    "workflow_category": "support",
+                    "priority": "P1",
+                    "customer_tier": "premium",
+                },
+                conditions="Premium support incidents require accelerated handling.",
+                response_deadline_hours=1,
+                resolution_deadline_hours=4,
+                penalty_amount=125000.0,
+                escalation_owner="Premium Support Director",
+                escalation_policy={},
+                business_hours_logic="24x7",
+                business_hours_definition={},
+                auto_action_allowed=False,
+                auto_action_policy={},
+                status="pending",
+                confidence_score=0.94,
+                parsing_notes=["Seeded extraction candidate for bootstrapped workspaces."],
+                extraction_source="text_parsed",
+                candidate_metadata={
+                    "business_document": {
+                        "executive_summary": "Premium support customers require a one hour response and four hour resolution target.",
+                        "service_scope": ["Premium support incidents"],
+                        "service_level_commitments": ["Response in 1 hour", "Resolution in 4 hours"],
+                        "operational_obligations": ["Escalate to Premium Support Director"],
+                        "exclusions_and_assumptions": [],
+                        "commercial_terms": ["Penalty per breach: INR 125,000"],
+                        "escalation_path": ["Support lead", "Premium Support Director"],
+                        "approval_and_governance": [],
+                        "risk_watchouts": ["Applies only to correctly tagged premium P1 incidents"],
+                    }
+                },
+            )
+        )
 
         db.commit()
 

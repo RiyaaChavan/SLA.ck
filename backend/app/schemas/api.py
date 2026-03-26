@@ -89,21 +89,29 @@ class AuditFeedItem(BaseModel):
 
 
 class TopVendorRiskOut(BaseModel):
-    vendor_name: str
+    vendor: str
+    risk_score: float
     projected_impact: float
-    case_count: int
 
 
 class TopTeamOverloadOut(BaseModel):
-    team_name: str
-    overload_hours: float
-    projected_impact: float
+    team: str
+    open_items: int
+    sla_breach_risk: str
 
 
 class RealizedProjectedOut(BaseModel):
-    projected_savings: float
-    realized_savings: float
+    periods: list[str]
+    projected_savings: list[float]
+    realized_savings: list[float]
     capture_rate_pct: float
+
+
+class ApprovalExecutionFunnelOut(BaseModel):
+    pending_approval: int
+    approved: int
+    rejected: int
+    executed: int
 
 
 class CaseSummaryOut(BaseModel):
@@ -138,6 +146,7 @@ class ImpactOverviewOut(BaseModel):
     top_teams_by_overload: list[TopTeamOverloadOut]
     realized_vs_projected: RealizedProjectedOut
     recent_cases: list[CaseSummaryOut]
+    approval_execution_funnel: ApprovalExecutionFunnelOut
 
 
 class CaseEvidenceOut(BaseModel):
@@ -253,7 +262,10 @@ class DataSourceHistoryOut(BaseModel):
 
 class DataSourceSummaryOut(BaseModel):
     id: int
+    connector_id: int
     name: str
+    schema: str
+    qualified_name: str
     source_type: str
     status: str
     freshness_status: str
@@ -262,6 +274,57 @@ class DataSourceSummaryOut(BaseModel):
     schema_preview: list[str]
     health: str
     upload_history: list[DataSourceHistoryOut]
+    size_bytes: int = 0
+    preview_row_count: int = 0
+
+
+class CreateConnectorIn(BaseModel):
+    name: str = Field(min_length=1)
+    uri: str = Field(min_length=1)
+    included_schemas: list[str] = Field(default_factory=lambda: ["public"])
+
+
+class UpdateConnectorIn(BaseModel):
+    name: str | None = None
+    uri: str | None = None
+    included_schemas: list[str] | None = None
+
+
+class DataConnectorOut(BaseModel):
+    id: int
+    organization_id: int
+    name: str
+    dialect: str
+    status: str
+    last_sync_at: datetime | None = None
+    last_error: str | None = None
+    included_schemas: list[str] = Field(default_factory=list)
+
+
+class RelationPreviewOut(BaseModel):
+    id: int
+    name: str
+    schema: str
+    source_uri: str
+    row_count: int
+    columns: list[str]
+    rows: list[dict]
+    column_stats: dict = Field(default_factory=dict)
+    relation_type: str
+
+
+class SourceAgentMemoryOut(BaseModel):
+    id: int
+    organization_id: int
+    connector_id: int
+    status: str
+    engine_name: str
+    summary_text: str
+    dashboard_brief: str
+    schema_notes: str
+    raw_payload: dict = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
 
 
 class DataSourceUploadIn(BaseModel):
@@ -287,20 +350,26 @@ class DetectorDefinitionBase(BaseModel):
     expected_output_fields: list[str] = Field(default_factory=list)
     linked_action_template: str
     linked_cost_formula: str
+    schedule_minutes: int = 60
 
 
 class DetectorDefinitionCreateIn(DetectorDefinitionBase):
-    pass
+    connector_id: int | None = None
 
 
 class DetectorDefinitionOut(DetectorDefinitionBase):
     id: int
+    connector_id: int | None = None
+    generation_source: str = "manual"
+    validation_status: str = "pending"
     last_triggered_at: datetime | None = None
+    last_run_at: datetime | None = None
+    next_run_at: datetime | None = None
     issue_count: int = 0
 
 
 class DetectorPromptDraftIn(BaseModel):
-    organization_id: int
+    organization_id: int = 0
     prompt: str
     module: str | None = None
 
@@ -316,6 +385,17 @@ class DetectorTestOut(BaseModel):
     issue_count: int
     sample_rows: list[dict] = Field(default_factory=list)
     explanation: str
+
+
+class DetectorRunOut(BaseModel):
+    id: int
+    status: str
+    started_at: datetime | None = None
+    completed_at: datetime | None = None
+    row_count: int
+    sample_rows: list[dict] = Field(default_factory=list)
+    summary: str
+    error: str | None = None
 
 
 class SlaRulebookEntryOut(BaseModel):
@@ -581,3 +661,19 @@ class AgenticIntakeResultOut(BaseModel):
     alert_id: int | None = None
     recommendation_id: int | None = None
     approval_preview: AgenticApprovalPreviewOut | None = None
+
+
+class DashboardWidgetOut(BaseModel):
+    kind: str
+    title: str
+    empty_copy: str = ""
+    items: list[dict] = Field(default_factory=list)
+    rows: list[dict] = Field(default_factory=list)
+
+
+class DashboardRenderOut(BaseModel):
+    organization: OrganizationOut
+    title: str
+    subtitle: str
+    metrics: list[DashboardMetric] = Field(default_factory=list)
+    widgets: list[DashboardWidgetOut] = Field(default_factory=list)

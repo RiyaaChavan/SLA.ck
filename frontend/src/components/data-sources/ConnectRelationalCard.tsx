@@ -1,6 +1,9 @@
 import { useState } from "react";
 
 type ConnectRelationalCardProps = {
+  title?: string;
+  subtitle?: string;
+  submitLabel?: string;
   databaseUrl: string;
   schema: string;
   schemaNotes: string;
@@ -13,6 +16,9 @@ type ConnectRelationalCardProps = {
 };
 
 export function ConnectRelationalCard({
+  title = "Connect a source",
+  subtitle = "Connect a relational database, add optional operating notes, and let SLA.ck prepare source memory and reusable anomaly checks.",
+  submitLabel = "Connect source",
   databaseUrl,
   schema,
   schemaNotes,
@@ -29,11 +35,8 @@ export function ConnectRelationalCard({
     <div className="card bs-connect-card">
       <div className="card-header">
         <div>
-          <div className="card-title">Connect a source</div>
-          <div className="card-subtitle">
-            Connect a relational database, add optional operating notes, and let SLA.ck prepare source
-            memory and reusable anomaly checks.
-          </div>
+          <div className="card-title">{title}</div>
+          <div className="card-subtitle">{subtitle}</div>
         </div>
       </div>
       <div className="card-body">
@@ -78,7 +81,7 @@ export function ConnectRelationalCard({
             Load demo connection
           </button>
           <button type="button" className="btn btn-primary" onClick={onConnect} disabled={connecting}>
-            {connecting ? "Connecting…" : "Connect source"}
+            {connecting ? "Connecting…" : submitLabel}
           </button>
         </div>
       </div>

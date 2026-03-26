@@ -8,6 +8,7 @@ import type {
   AutoModePolicyUpdate,
   AutoModeSettings,
   CasesListParams,
+  DataConnector,
   DataSourceSummary,
   DetectorDefinition,
   LiveWorkItem,
@@ -15,12 +16,15 @@ import type {
   SlaExtractionBatch,
   SlaExtractionCandidate,
   SlaRulebookEntry,
+  SourceAgentMemory,
   TicketIntakePayload,
 } from "../../domain/business-sentry";
 import type {
   ActionDecisionBody,
   BusinessSentryAdapter,
+  CreateConnectorPayload,
   DataSourceUploadPayload,
+  UpdateConnectorPayload,
   SlaExtractionCandidateEdit,
   SlaRulebookArchivePayload,
   SlaRulebookEntryUpdatePayload,
@@ -238,7 +242,10 @@ type ApiDataSourceHistoryOut = {
 
 type ApiDataSourceSummaryOut = {
   id: number;
+  connector_id: number;
   name: string;
+  schema: string;
+  qualified_name: string;
   source_type: string;
   status: string;
   freshness_status: string;
@@ -247,12 +254,17 @@ type ApiDataSourceSummaryOut = {
   schema_preview: string[];
   health: string;
   upload_history: ApiDataSourceHistoryOut[];
+  size_bytes?: number;
+  preview_row_count?: number;
 };
 
 function mapDataSourceSummary(r: ApiDataSourceSummaryOut): DataSourceSummary {
   return {
     id: String(r.id),
+    connector_id: r.connector_id,
     name: r.name,
+    schema: r.schema,
+    qualified_name: r.qualified_name,
     source_type: r.source_type,
     status: r.status,
     freshness_status: r.freshness_status,
@@ -265,6 +277,74 @@ function mapDataSourceSummary(r: ApiDataSourceSummaryOut): DataSourceSummary {
       filename: h.file_path?.split(/[/\\]/).pop() ?? h.file_path ?? "—",
       rows: h.record_count,
     })),
+    size_bytes: r.size_bytes ?? 0,
+    preview_row_count: r.preview_row_count ?? 0,
+  };
+}
+
+type ApiConnectorOut = {
+  id: number;
+  organization_id: number;
+  name: string;
+  dialect: string;
+  status: string;
+  last_sync_at: string | { toISOString(): string } | null;
+  last_error?: string | null;
+  included_schemas?: string[];
+};
+
+function mapConnector(r: ApiConnectorOut): DataConnector {
+  return {
+    id: r.id,
+    organization_id: r.organization_id,
+    name: r.name,
+    dialect: r.dialect,
+    status: r.status,
+    last_sync_at: r.last_sync_at == null ? null : iso(r.last_sync_at),
+    last_error: r.last_error ?? null,
+    included_schemas: r.included_schemas ?? [],
+  };
+}
+
+type ApiRelationPreviewOut = {
+  id: number;
+  name: string;
+  schema: string;
+  source_uri: string;
+  row_count: number;
+  columns: string[];
+  rows: Array<Record<string, string | number | null>>;
+  column_stats?: Record<string, unknown>;
+  relation_type?: string;
+};
+
+type ApiSourceMemoryOut = {
+  id: number;
+  organization_id: number;
+  connector_id: number;
+  status: string;
+  engine_name: string;
+  summary_text: string;
+  dashboard_brief: string;
+  schema_notes: string;
+  raw_payload?: Record<string, unknown>;
+  created_at: string | { toISOString(): string };
+  updated_at: string | { toISOString(): string };
+};
+
+function mapSourceMemory(r: ApiSourceMemoryOut): SourceAgentMemory {
+  return {
+    id: r.id,
+    organization_id: r.organization_id,
+    connector_id: r.connector_id,
+    status: r.status,
+    engine_name: r.engine_name,
+    summary_text: r.summary_text,
+    dashboard_brief: r.dashboard_brief,
+    schema_notes: r.schema_notes,
+    raw_payload: r.raw_payload ?? {},
+    created_at: iso(r.created_at),
+    updated_at: iso(r.updated_at),
   };
 }
 
@@ -554,9 +634,51 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
     });
     return mapAgenticIntakeResult(raw);
   },
+  listConnectors: async (organizationId) => {
+    const rows = await request<ApiConnectorOut[]>(`/connectors/${organizationId}`);
+    return rows.map(mapConnector);
+  },
+  createConnector: async (organizationId, body: CreateConnectorPayload) => {
+    const row = await request<ApiConnectorOut>(`/connectors/${organizationId}`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+    return mapConnector(row);
+  },
+  updateConnector: async (connectorId, body: UpdateConnectorPayload) => {
+    const row = await request<ApiConnectorOut>(`/connectors/${connectorId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+    return mapConnector(row);
+  },
+  refreshConnector: async (connectorId) => {
+    const row = await request<ApiConnectorOut>(`/connectors/refresh/${connectorId}`, {
+      method: "POST",
+    });
+    return mapConnector(row);
+  },
   listDataSources: async (organizationId) => {
     const rows = await request<ApiDataSourceSummaryOut[]>(`/data-sources/${organizationId}`);
     return rows.map(mapDataSourceSummary);
+  },
+  getDataSourcePreview: async (relationId) => {
+    const row = await request<ApiRelationPreviewOut>(`/data-sources/preview/${relationId}`);
+    return {
+      id: String(row.id),
+      name: row.name,
+      schema: row.schema,
+      source_uri: row.source_uri,
+      row_count: row.row_count,
+      columns: row.columns ?? [],
+      rows: row.rows ?? [],
+      column_stats: row.column_stats ?? {},
+      relation_type: row.relation_type,
+    };
+  },
+  getSourceMemory: async (organizationId) => {
+    const row = await request<ApiSourceMemoryOut | null>(`/data-sources/memory/${organizationId}`);
+    return row ? mapSourceMemory(row) : null;
   },
   uploadDataSource: async (organizationId, body: DataSourceUploadPayload) => {
     const created = await request<ApiDataSourceSummaryOut>(`/data-sources/${organizationId}/upload`, {
@@ -570,6 +692,7 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
     };
   },
   listDetectors: (organizationId) => request(`/detectors/${organizationId}`),
+  listDetectorRuns: (detectorId) => request(`/detectors/${detectorId}/runs`),
   createDetector: (organizationId, body) =>
     request(`/detectors/${organizationId}`, {
       method: "POST",

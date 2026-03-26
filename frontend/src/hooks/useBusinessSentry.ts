@@ -81,6 +81,60 @@ export function useDataSources(organizationId: number | undefined) {
   });
 }
 
+export function useConnectors(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "connectors", organizationId],
+    queryFn: () => adapter.listConnectors(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
+export function useCreateConnector(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: { name: string; uri: string; included_schemas?: string[] }) =>
+      adapter.createConnector(organizationId!, body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "connectors", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "dataSources", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "sourceMemory", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "detectors", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+    },
+  });
+}
+
+export function useUpdateConnector(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (args: { connectorId: number; body: { name?: string; uri?: string; included_schemas?: string[] } }) =>
+      adapter.updateConnector(args.connectorId, args.body),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "connectors", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "dataSources", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "sourceMemory", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "detectors", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+    },
+  });
+}
+
+export function useDataSourcePreview(relationId: string | null) {
+  return useQuery({
+    queryKey: ["bs", "dataSourcePreview", relationId],
+    queryFn: () => adapter.getDataSourcePreview(relationId!),
+    enabled: Boolean(relationId),
+  });
+}
+
+export function useSourceMemory(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "sourceMemory", organizationId],
+    queryFn: () => adapter.getSourceMemory(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
 export function useDetectors(organizationId: number | undefined) {
   return useQuery({
     queryKey: ["bs", "detectors", organizationId],

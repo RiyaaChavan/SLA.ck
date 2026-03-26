@@ -3,7 +3,7 @@ import type { DatasetSummary } from "../../domain/business-sentry";
 type DatasetListPanelProps = {
   datasets: DatasetSummary[];
   selectedName: string | null;
-  onSelect: (name: string) => void;
+  onSelect: (id: string) => void;
 };
 
 export function DatasetListPanel({ datasets, selectedName, onSelect }: DatasetListPanelProps) {
@@ -13,10 +13,10 @@ export function DatasetListPanel({ datasets, selectedName, onSelect }: DatasetLi
         <div className="bs-detector-ul">
           {datasets.map((dataset) => (
             <button
-              key={dataset.name}
+              key={dataset.id}
               type="button"
-              className={`bs-detector-item ${selectedName === dataset.name ? "bs-detector-item-active" : ""}`}
-              onClick={() => onSelect(dataset.name)}
+              className={`bs-detector-item ${selectedName === dataset.id ? "bs-detector-item-active" : ""}`}
+              onClick={() => onSelect(dataset.id)}
             >
               <span className="bs-detector-name">{dataset.name}</span>
               <span>{dataset.record_count.toLocaleString()} rows</span>

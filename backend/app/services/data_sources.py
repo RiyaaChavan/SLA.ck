@@ -51,7 +51,10 @@ def list_data_sources(db: Session, organization_id: int) -> list[dict]:
         results.append(
             {
                 "id": upload.id,
+                "connector_id": 0,
                 "name": upload.name,
+                "schema": "manual_upload",
+                "qualified_name": f"manual_upload.{upload.name}",
                 "source_type": upload.source_kind,
                 "status": mapping.status if mapping else "connected",
                 "freshness_status": freshness,
@@ -60,6 +63,8 @@ def list_data_sources(db: Session, organization_id: int) -> list[dict]:
                 "schema_preview": (mapping.raw_schema or {}).get("columns", []) if mapping else [],
                 "health": _health_from_freshness(freshness),
                 "upload_history": history,
+                "size_bytes": 0,
+                "preview_row_count": 0,
             }
         )
     return results

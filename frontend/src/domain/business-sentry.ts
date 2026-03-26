@@ -220,6 +220,7 @@ export type AgenticIntakeResult = {
 
 export type DetectorDefinition = {
   id: string;
+  connector_id?: number | null;
   name: string;
   description: string;
   module: string;
@@ -233,7 +234,12 @@ export type DetectorDefinition = {
   expected_output_fields: string[];
   linked_action_template: string;
   linked_cost_formula: string;
+  schedule_minutes: number;
+  generation_source: string;
+  validation_status: string;
   last_triggered_at: string | null;
+  last_run_at?: string | null;
+  next_run_at?: string | null;
   issue_count: number;
 };
 
@@ -322,11 +328,11 @@ export type ActionRequest = {
   created_at: string;
   updated_at: string;
   /** Joins to live-ops intake `recommendation_id` for deep links */
-  recommendation_id: string | null;
+  recommendation_id?: string | null;
   /** Distinct alert headline (vs agent recommendation title) */
-  alert_title: string;
-  alert_type: string | null;
-  action_type: string | null;
+  alert_title?: string;
+  alert_type?: string | null;
+  action_type?: string | null;
 };
 
 export type UploadHistoryEntry = {
@@ -337,7 +343,10 @@ export type UploadHistoryEntry = {
 
 export type DataSourceSummary = {
   id: string;
+  connector_id?: number;
   name: string;
+  schema?: string;
+  qualified_name?: string;
   source_type: string;
   status: string;
   freshness_status: string;
@@ -346,9 +355,23 @@ export type DataSourceSummary = {
   schema_preview: string[];
   health: string;
   upload_history: UploadHistoryEntry[];
+  size_bytes?: number;
+  preview_row_count?: number;
+};
+
+export type DataConnector = {
+  id: number;
+  organization_id: number;
+  name: string;
+  dialect: string;
+  status: string;
+  last_sync_at: string | null;
+  last_error?: string | null;
+  included_schemas: string[];
 };
 
 export type DatasetSummary = {
+  id: string;
   name: string;
   record_count: number;
   columns: string[];
@@ -357,23 +380,29 @@ export type DatasetSummary = {
 };
 
 export type DatasetPreview = {
+  id: string;
   name: string;
   schema: string;
   source_uri: string;
   row_count: number;
   columns: string[];
   rows: Array<Record<string, string | number | null>>;
+  column_stats?: Record<string, unknown>;
+  relation_type?: string;
 };
 
 export type SourceAgentMemory = {
   id: number;
+  organization_id?: number;
+  connector_id?: number;
   status: string;
   engine_name: string;
   summary_text: string;
   dashboard_brief: string;
   schema_notes: string;
-  memory_path: string;
-  context_snapshot: Record<string, unknown>;
+  memory_path?: string;
+  context_snapshot?: Record<string, unknown>;
+  raw_payload?: Record<string, unknown>;
   created_at: string;
   updated_at: string;
 };
@@ -386,6 +415,8 @@ export type SavedAnomalyQuery = {
   enabled: boolean;
   created_at: string;
   sql_text: string;
+  schedule_minutes?: number;
+  validation_status?: string;
 };
 
 export type AutoModePolicy = {
@@ -428,10 +459,21 @@ export type CasesListParams = {
 };
 
 export type DetectorDraft = {
+  detector_key?: string;
   name: string;
+  description: string;
+  module: string;
+  business_domain: string;
+  severity: string;
+  owner_name: string;
+  enabled?: boolean;
+  logic_type?: string;
   logic_summary: string;
   query_logic: string;
   expected_output_fields: string[];
+  linked_action_template: string;
+  linked_cost_formula: string;
+  schedule_minutes?: number;
 };
 
 export type DetectorTestResult = {

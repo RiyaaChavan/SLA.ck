@@ -3,7 +3,7 @@
  * Must stay aligned with **Backend Status** in WORKSTREAM_SYNC.md at repo root.
  */
 export const LIVE_ENDPOINTS = {
-  impact: false,
+  impact: true,
   cases: false,
   caseDetail: false,
   liveOps: true,
@@ -11,10 +11,10 @@ export const LIVE_ENDPOINTS = {
   intakeApprovals: true,
   dataSources: true,
   dataSourcesUpload: true,
-  detectors: false,
-  detectorsCreate: false,
-  detectorsPromptDraft: false,
-  detectorsTest: false,
+  detectors: true,
+  detectorsCreate: true,
+  detectorsPromptDraft: true,
+  detectorsTest: true,
   slaRules: true,
   slaExtractions: true,
   slaExtractionUpload: true,

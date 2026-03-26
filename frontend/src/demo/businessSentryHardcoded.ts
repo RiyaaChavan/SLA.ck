@@ -113,15 +113,16 @@ export const demoSourceCards: DemoSourceCard[] = [
 ];
 
 export const demoDatasets: DatasetSummary[] = [
-  { name: "orders", record_count: 149811, columns: ["order_id", "store_id", "city_id", "promised_eta_min", "delivered_at", "basket_value"], source_uri: "demo://delivra/orders", schema: "synthetic_demo" },
-  { name: "delivery_events", record_count: 1198488, columns: ["event_id", "order_id", "event_type", "event_ts", "driver_id", "minutes_from_order"], source_uri: "demo://delivra/delivery_events", schema: "synthetic_demo" },
-  { name: "inventory_snapshots", record_count: 8160, columns: ["snapshot_date", "store_id", "picker_utilization_pct", "dispatch_bay_utilization_pct", "cold_storage_utilization_pct"], source_uri: "demo://delivra/inventory_snapshots", schema: "synthetic_demo" },
-  { name: "invoices", record_count: 354, columns: ["invoice_id", "vendor_id", "contract_id", "billed_units", "contracted_rate", "invoice_amount"], source_uri: "demo://delivra/invoices", schema: "synthetic_demo" },
-  { name: "work_items", record_count: 1102, columns: ["work_item_id", "store_id", "category", "status", "sla_deadline_at", "assigned_team"], source_uri: "demo://delivra/work_items", schema: "synthetic_demo" },
+  { id: "orders", name: "orders", record_count: 149811, columns: ["order_id", "store_id", "city_id", "promised_eta_min", "delivered_at", "basket_value"], source_uri: "demo://delivra/orders", schema: "synthetic_demo" },
+  { id: "delivery_events", name: "delivery_events", record_count: 1198488, columns: ["event_id", "order_id", "event_type", "event_ts", "driver_id", "minutes_from_order"], source_uri: "demo://delivra/delivery_events", schema: "synthetic_demo" },
+  { id: "inventory_snapshots", name: "inventory_snapshots", record_count: 8160, columns: ["snapshot_date", "store_id", "picker_utilization_pct", "dispatch_bay_utilization_pct", "cold_storage_utilization_pct"], source_uri: "demo://delivra/inventory_snapshots", schema: "synthetic_demo" },
+  { id: "invoices", name: "invoices", record_count: 354, columns: ["invoice_id", "vendor_id", "contract_id", "billed_units", "contracted_rate", "invoice_amount"], source_uri: "demo://delivra/invoices", schema: "synthetic_demo" },
+  { id: "work_items", name: "work_items", record_count: 1102, columns: ["work_item_id", "store_id", "category", "status", "sla_deadline_at", "assigned_team"], source_uri: "demo://delivra/work_items", schema: "synthetic_demo" },
 ];
 
 export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   orders: {
+    id: "orders",
     name: "orders",
     schema: "synthetic_demo",
     source_uri: "demo://delivra/orders",
@@ -135,6 +136,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
     ],
   },
   delivery_events: {
+    id: "delivery_events",
     name: "delivery_events",
     schema: "synthetic_demo",
     source_uri: "demo://delivra/delivery_events",
@@ -148,6 +150,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
     ],
   },
   inventory_snapshots: {
+    id: "inventory_snapshots",
     name: "inventory_snapshots",
     schema: "synthetic_demo",
     source_uri: "demo://delivra/inventory_snapshots",
@@ -161,6 +164,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
     ],
   },
   invoices: {
+    id: "invoices",
     name: "invoices",
     schema: "synthetic_demo",
     source_uri: "demo://delivra/invoices",
@@ -174,6 +178,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
     ],
   },
   work_items: {
+    id: "work_items",
     name: "work_items",
     schema: "synthetic_demo",
     source_uri: "demo://delivra/work_items",

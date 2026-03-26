@@ -1,5 +1,6 @@
 import type {
   ActionRequest,
+  DataConnector,
   AgenticIntakeResult,
   ApprovalIntakePayload,
   AutoModePolicyUpdate,
@@ -15,6 +16,7 @@ import type {
   LiveWorkItem,
   SlaExtractionBatch,
   SlaRulebookEntry,
+  SourceAgentMemory,
   TicketIntakePayload,
 } from "../../domain/business-sentry";
 
@@ -30,6 +32,18 @@ export type DataSourceUploadPayload = {
   record_count?: number;
   file_name?: string | null;
   sample_columns?: string[];
+};
+
+export type CreateConnectorPayload = {
+  name: string;
+  uri: string;
+  included_schemas?: string[];
+};
+
+export type UpdateConnectorPayload = {
+  name?: string;
+  uri?: string;
+  included_schemas?: string[];
 };
 
 export type DetectorCreateResponse = {
@@ -76,7 +90,7 @@ export type ActionMutationResponse = {
 export type SlaRulebookEntryUpdatePayload = {
   name?: string;
   status?: string;
-  applies_to?: Record<string, unknown>;
+  applies_to?: Record<string, unknown> | string;
   conditions?: string;
   response_deadline_hours?: number;
   resolution_deadline_hours?: number;
@@ -105,9 +119,16 @@ export type BusinessSentryAdapter = {
   listLiveOps(organizationId: number): Promise<LiveWorkItem[]>;
   createTicketIntake(organizationId: number, body: TicketIntakePayload): Promise<AgenticIntakeResult>;
   createApprovalIntake(organizationId: number, body: ApprovalIntakePayload): Promise<AgenticIntakeResult>;
+  listConnectors(organizationId: number): Promise<DataConnector[]>;
+  createConnector(organizationId: number, body: CreateConnectorPayload): Promise<DataConnector>;
+  updateConnector(connectorId: number, body: UpdateConnectorPayload): Promise<DataConnector>;
+  refreshConnector(connectorId: number): Promise<DataConnector>;
   listDataSources(organizationId: number): Promise<DataSourceSummary[]>;
+  getDataSourcePreview(relationId: string): Promise<any>;
+  getSourceMemory(organizationId: number): Promise<SourceAgentMemory | null>;
   uploadDataSource(organizationId: number, body: DataSourceUploadPayload): Promise<DataSourceUploadResponse>;
   listDetectors(organizationId: number): Promise<DetectorDefinition[]>;
+  listDetectorRuns(detectorId: string): Promise<any[]>;
   createDetector(organizationId: number, body: Partial<DetectorDefinition>): Promise<DetectorCreateResponse>;
   promptDraftDetector(prompt: string): Promise<{ draft: DetectorDraft }>;
   testDetector(detectorId: string): Promise<DetectorTestResult>;

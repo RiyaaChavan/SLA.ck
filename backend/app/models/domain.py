@@ -186,6 +186,92 @@ class SourceUpload(Base, TimestampMixin):
     file_path: Mapped[str] = mapped_column(String(255))
 
 
+class DataConnector(Base, TimestampMixin):
+    __tablename__ = "data_connectors"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(160))
+    dialect: Mapped[str] = mapped_column(String(40), default="postgres")
+    encrypted_uri: Mapped[str] = mapped_column(Text)
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+    last_sync_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    included_schemas: Mapped[list[str]] = mapped_column(JSON, default=list)
+
+
+class ConnectorRelation(Base, TimestampMixin):
+    __tablename__ = "connector_relations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    connector_id: Mapped[int] = mapped_column(ForeignKey("data_connectors.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    schema_name: Mapped[str] = mapped_column(String(120))
+    relation_name: Mapped[str] = mapped_column(String(160))
+    relation_type: Mapped[str] = mapped_column(String(40))
+    qualified_name: Mapped[str] = mapped_column(String(320), index=True)
+    row_estimate: Mapped[int] = mapped_column(Integer, default=0)
+    size_bytes: Mapped[int] = mapped_column(Integer, default=0)
+    column_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_profiled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class ConnectorColumn(Base, TimestampMixin):
+    __tablename__ = "connector_columns"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    relation_id: Mapped[int] = mapped_column(ForeignKey("connector_relations.id"), index=True)
+    connector_id: Mapped[int] = mapped_column(ForeignKey("data_connectors.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    schema_name: Mapped[str] = mapped_column(String(120))
+    relation_name: Mapped[str] = mapped_column(String(160))
+    column_name: Mapped[str] = mapped_column(String(160))
+    ordinal_position: Mapped[int] = mapped_column(Integer)
+    data_type: Mapped[str] = mapped_column(String(120))
+    is_nullable: Mapped[bool] = mapped_column(Boolean, default=True)
+    column_default: Mapped[str | None] = mapped_column(Text, nullable=True)
+    is_primary_key: Mapped[bool] = mapped_column(Boolean, default=False)
+
+
+class ConnectorRelationCache(Base, TimestampMixin):
+    __tablename__ = "connector_relation_caches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    relation_id: Mapped[int] = mapped_column(ForeignKey("connector_relations.id"), unique=True, index=True)
+    connector_id: Mapped[int] = mapped_column(ForeignKey("data_connectors.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    sample_rows: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    column_stats: Mapped[dict] = mapped_column(JSON, default=dict)
+    preview_row_count: Mapped[int] = mapped_column(Integer, default=0)
+    refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+
+class SourceAgentMemory(Base, TimestampMixin):
+    __tablename__ = "source_agent_memories"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    connector_id: Mapped[int] = mapped_column(ForeignKey("data_connectors.id"), index=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+    engine_name: Mapped[str] = mapped_column(String(120), default="sql-agent")
+    summary_text: Mapped[str] = mapped_column(Text, default="")
+    dashboard_brief: Mapped[str] = mapped_column(Text, default="")
+    schema_notes: Mapped[str] = mapped_column(Text, default="")
+    raw_payload: Mapped[dict] = mapped_column(JSON, default=dict)
+
+
+class DashboardSpec(Base, TimestampMixin):
+    __tablename__ = "dashboard_specs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    connector_id: Mapped[int] = mapped_column(ForeignKey("data_connectors.id"), index=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+    spec_json: Mapped[dict] = mapped_column(JSON, default=dict)
+    generated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    version: Mapped[int] = mapped_column(Integer, default=1)
+
+
 class DetectorDefinition(Base, TimestampMixin):
     __tablename__ = "detector_definitions"
 
@@ -207,6 +293,28 @@ class DetectorDefinition(Base, TimestampMixin):
     linked_cost_formula: Mapped[str] = mapped_column(Text)
     last_triggered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     issue_count: Mapped[int] = mapped_column(Integer, default=0)
+    connector_id: Mapped[int | None] = mapped_column(ForeignKey("data_connectors.id"), nullable=True, index=True)
+    schedule_minutes: Mapped[int] = mapped_column(Integer, default=60)
+    generation_source: Mapped[str] = mapped_column(String(40), default="manual")
+    validation_status: Mapped[str] = mapped_column(String(40), default="pending")
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, index=True)
+
+
+class DetectorRun(Base, TimestampMixin):
+    __tablename__ = "detector_runs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    detector_id: Mapped[int] = mapped_column(ForeignKey("detector_definitions.id"), index=True)
+    organization_id: Mapped[int] = mapped_column(ForeignKey("organizations.id"), index=True)
+    connector_id: Mapped[int | None] = mapped_column(ForeignKey("data_connectors.id"), nullable=True, index=True)
+    status: Mapped[str] = mapped_column(String(40), default="pending")
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    row_count: Mapped[int] = mapped_column(Integer, default=0)
+    sample_rows: Mapped[list[dict]] = mapped_column(JSON, default=list)
+    summary: Mapped[str] = mapped_column(Text, default="")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
 class SlaRulebookEntry(Base, TimestampMixin):

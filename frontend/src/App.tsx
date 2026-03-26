@@ -5,11 +5,9 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "./api/client";
 import type { CreateOrganizationInput } from "./api/client";
-import { getBusinessSentryAdapter } from "./adapters/business-sentry";
 import { AppShell } from "./components/layout/AppShell";
 import { StateBlock } from "./components/business-sentry/StateBlock";
 import { useNotifications } from "./components/shared/Notifications";
-import { buildConnectorStubPayload } from "./lib/dataSources";
 import { ActionCenterPage } from "./pages/ActionCenterPage";
 import { AuditPage } from "./pages/AuditPage";
 import { CasesPage } from "./pages/CasesPage";
@@ -168,25 +166,14 @@ export default function App() {
   const workspaceMutation = useMutation({
     mutationFn: async (body: CreateOrganizationInput) => {
       const organization = await api.createOrganization(body);
-      let connectorStubCreated = true;
-      try {
-        await getBusinessSentryAdapter().uploadDataSource(
-          organization.id,
-          buildConnectorStubPayload(organization.name),
-        );
-      } catch {
-        connectorStubCreated = false;
-      }
-      return { organization, connectorStubCreated };
+      return { organization };
     },
-    onSuccess: async ({ organization, connectorStubCreated }) => {
+    onSuccess: async ({ organization }) => {
       await syncSelectedOrganization(organization.id);
       notify({
-        tone: connectorStubCreated ? "success" : "info",
-        title: connectorStubCreated ? "Workspace created" : "Workspace created with warning",
-        message: connectorStubCreated
-          ? "The workspace is ready and a starter connector stub was added."
-          : "The workspace was created, but the starter connector stub could not be added.",
+        tone: "success",
+        title: "Workspace created",
+        message: "The workspace is ready. Add a Postgres connector to discover tables and views.",
       });
       navigate("/data-sources", { replace: true });
     },

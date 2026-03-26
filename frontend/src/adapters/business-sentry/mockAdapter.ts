@@ -241,9 +241,75 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     };
   },
 
+  async listConnectors(_organizationId) {
+    await delay();
+    return [];
+  },
+
+  async createConnector(_organizationId, body) {
+    await delay();
+    return {
+      id: Date.now(),
+      organization_id: _organizationId,
+      name: body.name,
+      dialect: "postgres",
+      status: "ready",
+      last_sync_at: new Date().toISOString(),
+      last_error: null,
+      included_schemas: body.included_schemas ?? ["public"],
+    };
+  },
+
+  async updateConnector(connectorId, body) {
+    await delay();
+    return {
+      id: connectorId,
+      organization_id: 0,
+      name: body.name ?? "Mock Connector",
+      dialect: "postgres",
+      status: "ready",
+      last_sync_at: new Date().toISOString(),
+      last_error: null,
+      included_schemas: body.included_schemas ?? ["public"],
+    };
+  },
+
+  async refreshConnector(connectorId) {
+    await delay();
+    return {
+      id: connectorId,
+      organization_id: 0,
+      name: "Mock Connector",
+      dialect: "postgres",
+      status: "ready",
+      last_sync_at: new Date().toISOString(),
+      last_error: null,
+      included_schemas: ["public"],
+    };
+  },
+
   async listDataSources(_organizationId) {
     await delay();
     return clone(MOCK_DATA_SOURCES);
+  },
+
+  async getDataSourcePreview(_relationId) {
+    await delay();
+    const source = clone(MOCK_DATA_SOURCES[0]);
+    return {
+      id: source.id,
+      name: source.name,
+      schema: source.schema ?? "mock",
+      source_uri: source.qualified_name ?? "mock://source",
+      row_count: source.preview_row_count ?? 0,
+      columns: source.schema_preview,
+      rows: [],
+    };
+  },
+
+  async getSourceMemory() {
+    await delay();
+    return null;
   },
 
   async uploadDataSource(_organizationId, body) {
@@ -258,6 +324,11 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
   async listDetectors(_organizationId) {
     await delay();
     return clone(mockDetectors);
+  },
+
+  async listDetectorRuns() {
+    await delay();
+    return [];
   },
 
   async createDetector(_organizationId, body) {
@@ -278,6 +349,9 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       expected_output_fields: body.expected_output_fields ?? [],
       linked_action_template: body.linked_action_template ?? "",
       linked_cost_formula: body.linked_cost_formula ?? "",
+      schedule_minutes: body.schedule_minutes ?? 60,
+      generation_source: "manual",
+      validation_status: "valid",
       last_triggered_at: null,
       issue_count: 0,
     };
@@ -290,9 +364,19 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     return {
       draft: {
         name: `Draft: ${prompt.slice(0, 40)}${prompt.length > 40 ? "…" : ""}`,
+        description: "Deterministic draft generated from the mock adapter.",
+        module: "procure_watch",
+        business_domain: "finance",
+        severity: "medium",
+        owner_name: "Mock Operations",
+        enabled: true,
+        logic_type: "sql_rule",
         logic_summary: "Deterministic stub: compare billed rate to contract catalog by vendor SKU.",
         query_logic: `-- stub draft\n-- prompt: ${prompt.slice(0, 120)}`,
         expected_output_fields: ["invoice_line_id", "delta_pct"],
+        linked_action_template: "Open a finance review case for the impacted vendor.",
+        linked_cost_formula: "sum(delta_pct)",
+        schedule_minutes: 60,
       },
     };
   },
