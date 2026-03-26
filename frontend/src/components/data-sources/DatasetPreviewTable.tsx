@@ -5,6 +5,8 @@ type DatasetPreviewTableProps = {
 };
 
 export function DatasetPreviewTable({ preview }: DatasetPreviewTableProps) {
+  const rows = preview.rows.slice(0, 10);
+
   return (
     <>
       <div className="bs-inline-meta">
@@ -22,7 +24,7 @@ export function DatasetPreviewTable({ preview }: DatasetPreviewTableProps) {
             </tr>
           </thead>
           <tbody>
-            {preview.rows.map((row, rowIndex) => (
+            {rows.map((row, rowIndex) => (
               <tr key={rowIndex}>
                 {preview.columns.map((column) => (
                   <td key={`${rowIndex}-${column}`}>{String(row[column] ?? "")}</td>

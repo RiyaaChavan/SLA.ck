@@ -1,16 +1,13 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
 import type { CreateOrganizationInput } from "../api/client";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 
 type WorkspaceOnboardingPageProps = {
-  hasOrganizations: boolean;
   creating: boolean;
   onCreateWorkspace: (body: CreateOrganizationInput) => Promise<void>;
 };
 
 export function WorkspaceOnboardingPage({
-  hasOrganizations,
   creating,
   onCreateWorkspace,
 }: WorkspaceOnboardingPageProps) {
@@ -18,10 +15,6 @@ export function WorkspaceOnboardingPage({
   const [industry, setIndustry] = useState("");
   const [geography, setGeography] = useState("");
   const [error, setError] = useState<string | null>(null);
-
-  if (hasOrganizations) {
-    return <Navigate to="/data-sources" replace />;
-  }
 
   const submit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();

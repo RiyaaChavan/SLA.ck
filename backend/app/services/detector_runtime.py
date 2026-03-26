@@ -21,6 +21,18 @@ logger = logging.getLogger(__name__)
 _scheduler_task: asyncio.Task | None = None
 
 
+def _json_safe_value(value: Any) -> Any:
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, dict):
+        return {str(key): _json_safe_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple, set)):
+        return [_json_safe_value(item) for item in value]
+    return str(value)
+
+
 def _set_read_only_session(connection) -> None:
     connection.execute(text("SET TRANSACTION READ ONLY"))
     connection.execute(
@@ -56,6 +68,7 @@ def execute_detector_run(db: Session, detector_id: int) -> dict[str, Any]:
     )
     db.add(run)
     db.flush()
+    run_started_at = run.started_at
     if not is_valid:
         run.status = "error"
         run.error = validation_message
@@ -72,7 +85,7 @@ def execute_detector_run(db: Session, detector_id: int) -> dict[str, Any]:
             _set_read_only_session(connection)
             count = int(connection.execute(text(_count_query(detector.query_logic))).scalar() or 0)
             sample_rows = [
-                dict(row)
+                _json_safe_value(dict(row))
                 for row in connection.execute(text(_sample_query(detector.query_logic))).mappings().all()
             ]
         run.status = "success"
@@ -88,13 +101,26 @@ def execute_detector_run(db: Session, detector_id: int) -> dict[str, Any]:
         db.commit()
         return {"run_id": run.id, "status": run.status, "row_count": count}
     except SQLAlchemyError as exc:
-        run.status = "error"
-        run.error = str(exc)
-        run.completed_at = datetime.now(UTC)
+        error_message = str(exc)
+        db.rollback()
+        failed_at = datetime.now(UTC)
+        failed_run = DetectorRun(
+            detector_id=detector.id,
+            organization_id=detector.organization_id,
+            connector_id=detector.connector_id,
+            status="error",
+            started_at=run_started_at,
+            completed_at=failed_at,
+            row_count=0,
+            sample_rows=[],
+            summary="",
+            error=error_message,
+        )
+        db.add(failed_run)
         detector.validation_status = "runtime_error"
-        detector.next_run_at = datetime.now(UTC) + timedelta(minutes=max(detector.schedule_minutes, 15))
+        detector.next_run_at = failed_at + timedelta(minutes=max(detector.schedule_minutes, 15))
         db.commit()
-        return {"run_id": run.id, "status": run.status, "row_count": 0, "error": str(exc)}
+        return {"run_id": failed_run.id, "status": failed_run.status, "row_count": 0, "error": error_message}
     finally:
         engine.dispose()
 
@@ -110,10 +136,12 @@ def _tick_scheduler() -> None:
             )
         ).all()
         for detector in due_detectors:
+            detector_id = detector.id
             try:
-                execute_detector_run(db, detector.id)
+                execute_detector_run(db, detector_id)
             except Exception:
-                logger.exception("scheduled_detector_run_failed detector_id=%s", detector.id)
+                db.rollback()
+                logger.exception("scheduled_detector_run_failed detector_id=%s", detector_id)
 
 
 async def _scheduler_loop() -> None:

@@ -1,0 +1,68 @@
+seed: 42
+organization:
+  name: Nexora Commerce
+  industry: E-Commerce & Retail
+  geography: United States
+departments:
+  - name: Warehouse Operations
+    category: operations
+    capacity_score: 96
+  - name: Vendor Management
+    category: procurement
+    capacity_score: 102
+  - name: Payments & Reconciliation
+    category: finance
+    capacity_score: 91
+  - name: Customer Success
+    category: service_quality
+    capacity_score: 105
+  - name: Platform Engineering
+    category: infrastructure
+    capacity_score: 99
+vendors:
+  - name: ShipNova Logistics
+    category: logistics
+    risk_rating: 0.33
+  - name: CloudPeak Infra
+    category: software
+    risk_rating: 0.18
+  - name: PackEdge Materials
+    category: supplies
+    risk_rating: 0.47
+  - name: HireFlex Staffing
+    category: shared_services
+    risk_rating: 0.55
+workload:
+  workflow_count: 150
+  invoice_count: 90
+  workflow_types:
+    - purchase_order
+    - return_processing
+    - inventory_replenishment
+    - vendor_onboarding
+    - customer_refund
+resources:
+  - resource_type: warehouse_slots
+    utilization_min: 55
+    utilization_max: 97
+  - resource_type: cloud_compute_units
+    utilization_min: 30
+    utilization_max: 88
+  - resource_type: delivery_fleet_hours
+    utilization_min: 40
+    utilization_max: 92
+anomalies:
+  duplicate_invoice_probability: 0.15
+  sla_delay_probability: 0.28
+  resource_overload_probability: 0.19
+  resource_underuse_probability: 0.17
+source_schema:
+  name: nexora_erp_export
+  type: csv_bundle
+  sample_columns:
+    - warehouse_id
+    - vendor_name
+    - shipment_tracking
+    - invoiced_qty
+    - fulfilled_qty
+    - delivery_eta

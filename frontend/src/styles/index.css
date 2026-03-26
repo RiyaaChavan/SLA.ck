@@ -481,6 +481,27 @@ button, select, textarea, input { font-family: var(--font); }
   color: var(--text-1);
 }
 
+.topnav-add-workspace {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  transition: background 100ms, border-color 100ms;
+  flex-shrink: 0;
+}
+
+.topnav-add-workspace:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .topnav-seed-btn {
   display: inline-flex;
   align-items: center;

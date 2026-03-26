@@ -7,8 +7,6 @@ type AppShellProps = PropsWithChildren<{
   organizations: Organization[];
   selectedOrganizationId?: number;
   onOrganizationChange: (id: number) => void;
-  onSeed: () => void;
-  seeding: boolean;
 }>;
 
 function IconChevron(): ReactNode {
@@ -330,8 +328,6 @@ export function AppShell({
   organizations,
   selectedOrganizationId,
   onOrganizationChange,
-  onSeed,
-  seeding,
   children,
 }: AppShellProps) {
   const location = useLocation();
@@ -388,6 +384,9 @@ export function AppShell({
                     </option>
                   ))}
                 </select>
+                <Link to="/onboarding" className="topnav-add-workspace" title="Add workspace">
+                  <IconPlus />
+                </Link>
               </label>
             ) : (
               <Link to="/onboarding" className="topnav-workspace-empty" aria-live="polite">
@@ -395,10 +394,6 @@ export function AppShell({
                 <span className="topnav-workspace-hint">Create workspace</span>
               </Link>
             )}
-            <button type="button" className="topnav-seed-btn" onClick={onSeed} disabled={seeding}>
-              <IconPlus />
-              {seeding ? "…" : "Seed"}
-            </button>
           </div>
         </div>
       </header>

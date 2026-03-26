@@ -88,12 +88,12 @@ export default function App() {
   });
 
   const seedMutation = useMutation({
-    mutationFn: () => api.bootstrapSeed(true),
+    mutationFn: () => api.bootstrapSeed(false),
     onSuccess: async () => {
       notify({
         tone: "success",
         title: "Workspace seeded",
-        message: "Demo data, alerts, and reports were refreshed for the selected workspace.",
+        message: "New profiles were seeded. Existing workspaces were preserved.",
       });
       await queryClient.invalidateQueries({ queryKey: ["organizations"] });
       const refreshed = await api.listOrganizations();
@@ -214,7 +214,6 @@ export default function App() {
           path="onboarding"
           element={
             <WorkspaceOnboardingPage
-              hasOrganizations={hasOrganizations}
               creating={workspaceMutation.isPending}
               onCreateWorkspace={(body) => workspaceMutation.mutateAsync(body).then(() => undefined)}
             />

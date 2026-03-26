@@ -1,5 +1,15 @@
 import { useState } from "react";
 
+function normalizeUri(uri: string): string {
+  if (uri.startsWith("postgresql://")) {
+    return uri.replace("postgresql://", "postgresql+psycopg://");
+  }
+  if (uri.startsWith("postgres://")) {
+    return uri.replace("postgres://", "postgresql+psycopg://");
+  }
+  return uri;
+}
+
 type ConnectRelationalCardProps = {
   title?: string;
   subtitle?: string;
@@ -48,8 +58,8 @@ export function ConnectRelationalCard({
                 className="bs-input bs-mono bs-input-with-action-field"
                 type={showDatabaseUrl ? "text" : "password"}
                 value={databaseUrl}
-                onChange={(e) => onDatabaseUrlChange(e.target.value)}
-                placeholder="postgresql+psycopg://user:pass@host:5432/db or sqlite:///absolute/path.db"
+                onChange={(e) => onDatabaseUrlChange(normalizeUri(e.target.value))}
+                placeholder="postgresql+psycopg://user:pass@host:5432/db (Supabase works!)"
               />
               <button
                 type="button"
