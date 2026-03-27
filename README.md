@@ -1,6 +1,37 @@
 # SLA.ck
 
-SLA.ck by Team LinkedOut is an intelligent operations management platform that combines agentic AI capabilities with enterprise-grade workflow automation. It leverages the Agent-to-Agent (A2A) protocol to orchestrate specialized AI agents that don't just generate reports—they take action within enterprise approval workflows.
+## SLA.ck: One Stop Agentic Business Sentry
+
+SLA.ck by Team LinkedOut is an agentic operations platform for two related jobs:
+
+- keeping ticket and approval workflows inside SLA and penalty guardrails
+- connecting operational PostgreSQL sources, generating anomaly detectors, and exposing those sources through dashboards and copilot investigations
+
+The system uses Agent-to-Agent (A2A) services for specialized reasoning, but keeps the main product loop in the FastAPI backend: connector setup, background artifact generation, detector persistence, copilot sessions, dashboard rendering, approval workflows, and audit trails.
+
+## Our Product
+
+SLA.ck AI is not a dashboarding layer placed on top of enterprise data. It is an agentic decision-support and execution system that converts fragmented operational, procurement, finance, and SLA signals into governed business actions.
+
+The product is built around a continuous intelligence loop:
+
+1. ingest enterprise data
+2. normalize it into a canonical business shape
+3. detect high-risk inefficiency patterns
+4. estimate financial exposure with explicit formulas
+5. recommend the next best intervention
+6. route the intervention through approval policy
+7. track the realized outcome through an auditable action trail
+
+Most enterprise monitoring stacks stop at visibility. SLA.ck is designed as an operational control plane for cost leakage prevention. It combines source intelligence, anomaly detection, SLA intelligence, financial impact modeling, approval orchestration, and bounded autonomous execution into a single workflow. The result is a system that does not merely explain where money is being lost, but can initiate corrective workflows before the loss is booked.
+
+## How the Solution Addresses the Problem
+
+The platform operationalizes three enterprise outcomes at once:
+
+- **Spend intelligence**: scans invoices, contracts, vendor records, reconciliations, and operational evidence for duplicate spend, rate drift, billing discrepancies, and waste patterns
+- **SLA and penalty prevention**: extracts contractual obligations from documents, maps those obligations to live work items, and flags impending breach scenarios before penalties materialize
+- **Governed autonomous action**: creates approval-aware actions such as payment review, vendor dispute initiation, workload rerouting, escalation, and capacity rebalancing
 
 ## Agentic Infrastructure
 
@@ -15,6 +46,20 @@ SLA.ck implements a multi-agent architecture based on the **Agent-to-Agent (A2A)
 ### Agent Categories
 
 SLA.ck deploys four distinct agent categories, each responsible for a specific domain of operational intelligence:
+
+---
+
+### Named Agent Roles
+
+The product pitch maps cleanly onto the actual runtime components in this repo:
+
+- **Source Intelligence Agent**: profiles schemas, inspects relation shapes, builds dataset memory, and generates reusable anomaly-query presets when a company connects relational sources
+- **SQL Investigation Agent**: acts as the analytical copilot for operators and analysts, producing safe read-only SQL over the connected business schema for drilldown, variance analysis, and root-cause validation
+- **SLA Extraction Agent**: ingests contracts, SOPs, PDFs, DOCX/text content, and document-derived evidence to produce structured SLA candidates that enter a review queue before activation
+- **Detection and Case Generation Engine**: continuously scans normalized business data and turns risky patterns into evidence-backed cases, alerts, and detector outcomes
+- **Approval and Action Orchestrator**: converts cases into approval-aware interventions, routes them through policy, and records state transitions for auditability
+
+These roles are implemented through a mix of A2A agents, backend services, and reviewable deterministic fallbacks.
 
 ---
 
@@ -33,6 +78,7 @@ These agents dig into **procurement, vendor, and operations data** to find anoma
   - `procurewatch` - Invoice, vendor, billing, procurement signals
   - `resource_optimization` - General resource utilization
 - **Security**: Validates all generated SQL to ensure only read-only SELECT/WITH queries (prevents injection)
+- **Copilot Question Answering**: Reuses the same SQL reasoning stack to answer plain-English investigation questions, produce checked SQL, execute it read-only, and stream the final result back to the UI
 
 **Detector Engine** (`backend/app/services/detectors.py`, `backend/app/services/detector_runtime.py`)
 
@@ -40,9 +86,22 @@ These agents dig into **procurement, vendor, and operations data** to find anoma
 - Triggers alerts when anomaly thresholds are met
 - Generates actionable playbooks with cost impact calculations
 
+**Dashboard Agent** (`backend/app/a2a_apps/dashboard_agent.py`)
+
+- **Dashboard Planning**: Takes connector memory, generated presets, and sampled query outputs to build dashboard specs
+- **Multi-View Layout Generation**: Produces more than one dashboard surface, rather than a single text-heavy page
+- **Binding-Aware Widgets**: Maps charts, lists, and tables onto supported bindings such as:
+  - preset inventory
+  - validation coverage
+  - module-level detector counts
+  - latest detector row volumes
+  - sampled query result rows
+- **SQL Sampling**: Can validate and sample generated preset queries directly from the connected source before producing the dashboard spec
+
 **Code Flow**:
 ```
-User connects data source → SQL Agent analyzes schema → Generates anomaly detection SQL presets → 
+User connects data source → SQL Agent analyzes schema and generates presets →
+Detector Engine persists generated detectors → Dashboard Agent generates dashboard spec →
 Detector Engine schedules queries → Results trigger alerts → Action Recommendation Agent generates playbook
 ```
 
@@ -206,6 +265,39 @@ Each agent implements deterministic fallback strategies:
 
 Location: `backend/app/services/agent_artifacts.py`
 
+### Data, Dashboard, and Copilot Runtime
+
+The newer product surface is built around a connector-centric loop:
+
+1. **Connect a Postgres source**
+2. **Cache tables, views, and preview rows**
+3. **Generate source memory, detector presets, and dashboard specs in the background**
+4. **Render generated dashboards from saved specs and detector run history**
+5. **Ask the copilot questions against the connected source**
+
+That loop is spread across:
+
+- `backend/app/services/connectors.py` for connector creation, schema introspection, and encryption/decryption
+- `backend/app/services/agent_artifacts.py` for calling A2A agents and persisting generated presets/dashboard specs
+- `backend/app/services/dashboard_render.py` for turning saved specs plus latest detector runs into frontend-ready widgets
+- `backend/app/services/query/investigator.py` for routing copilot questions to the SQL agent
+- `backend/app/services/artifact_stream.py` and `backend/app/services/copilot_stream.py` for SSE event streams
+
+### Canonical Business Flow
+
+At a business level, the platform behaves like a cost-intelligence operating system:
+
+```
+Enterprise source connected
+→ source memory and anomaly presets generated
+→ detectors and SLA intelligence monitor live signals
+→ risky patterns become cases, alerts, and financial exposure estimates
+→ recommendations become approval-aware actions
+→ execution and audit timeline record realized outcomes
+```
+
+This is the core difference between SLA.ck and a passive reporting tool: the system closes the loop from source intelligence to governed intervention.
+
 ### Intelligent Intake System
 
 The **Agentic Intake** system (`backend/app/services/agentic_intake.py`) uses hybrid AI/heuristic approaches to classify incoming tickets and approvals:
@@ -237,6 +329,7 @@ The **Agentic Intake** system (`backend/app/services/agentic_intake.py`) uses hy
 - **Schema Introspection**: Automatic extraction of tables, views, columns, and statistics
 - **Relation Caching**: Caches schema metadata for performance
 - **Secure Query Execution**: Read-only queries with configurable timeouts
+- **Artifact Streaming**: Connector setup emits live backend/agent progress to the frontend over SSE, so relation discovery can render immediately while SQL presets and dashboard specs continue in the background
 
 Location: `backend/app/services/connectors.py`
 
@@ -291,16 +384,37 @@ Location: `backend/app/services/reporting/`
 ### 7. Natural Language Querying
 
 - **Copilot Interface**: Ask questions in natural language
-- **AI-Powered Investigation**: Uses LLMs to analyze and respond to queries
-- **Context-Aware Responses**: Maintains conversation context
+- **AI-Powered Investigation**: Uses the SQL agent to plan a query, inspect schema, generate SQL, execute it read-only, and summarize the answer
+- **Streaming Trace UX**: Intermediate reasoning/tool-use events and final answers stream to the frontend over SSE
+- **Context-Aware Responses**: Grounds answers in connector memory, generated presets, and live SQL results
 
-Location: `backend/app/api/routes.py` (investigate endpoint)
+Location: `backend/app/api/routes.py`, `backend/app/services/query/investigator.py`, `backend/app/a2a_apps/sql_agent.py`
 
-### 8. Real-Time Operations
+### 8. Generated Dashboards
+
+- **Auto-Generated Dashboard Specs**: The dashboard agent produces specs from connector memory and preset/query metadata
+- **Render-Time Composition**: The backend combines saved specs with detector run history to build the actual payload returned to the frontend
+- **Multiple Visualization Types**: The render layer supports metrics, lists, tables, and chart-oriented bindings for bar/line/pie-style views
+- **Connector-Aware Dashboard Refresh**: New connector syncs or artifact regeneration invalidates and refreshes dashboard render payloads
+
+Location: `backend/app/a2a_apps/dashboard_agent.py`, `backend/app/services/dashboard_render.py`, `frontend/src/pages/ImpactPage.tsx`
+
+### 9. Real-Time Operations
 
 - **Live Ops Dashboard**: Real-time view of operational metrics
 - **SLA Rulebook**: Define and manage SLA rules
 - **Case Management**: Track and manage operational cases
+- **Background Event Streams**:
+  - connector artifact events for source setup and agent traces
+  - copilot events for investigation sessions and final answers
+
+### 10. Enterprise Guardrails
+
+- **Validation failures**: If an input feed is stale, malformed, or shows schema drift, connector refresh and downstream automation fail closed instead of silently operating on incomplete data
+- **Low-confidence extraction**: SLA rules extracted from documents are not silently activated; they enter review/edit/archive flows before becoming live rulebook entries
+- **Action risk controls**: Low-risk actions can be auto-approved under policy, while medium/high-risk actions still route to named approvers
+- **Execution failures**: If a downstream workflow or action fails, the case stays open, the failure is logged, and the system falls back to escalation/manual review rather than retrying blindly
+- **Auditability**: Cases, approvals, actions, detector runs, and generated recommendations all leave traceable state transitions
 
 ---
 
@@ -311,11 +425,13 @@ Location: `backend/app/api/routes.py` (investigate endpoint)
 ```
 1. User adds PostgreSQL connector via UI
 2. System validates and encrypts connection credentials
-3. Agentic Intake triggers SQL Agent via A2A
-4. SQL Agent analyzes schema and generates anomaly presets
-5. System creates DetectorDefinitions from presets
-6. Dashboard Agent generates visualization spec
-7. User can view auto-generated dashboard and enable detectors
+3. System refreshes relation metadata and preview samples
+4. Backend starts background artifact generation
+5. SQL Agent analyzes schema, writes source memory, and generates anomaly presets
+6. System creates DetectorDefinitions from presets
+7. Dashboard Agent samples queries and generates dashboard spec
+8. Frontend receives artifact events over SSE while relation previews remain usable
+9. User can inspect presets, generated dashboard views, and enable detectors
 ```
 
 ### Alert Detection Flow
@@ -340,6 +456,17 @@ Location: `backend/app/api/routes.py` (investigate endpoint)
 4. As deadlines approach, SLA risk is calculated
 5. Alerts are generated for at-risk SLAs
 6. Live Ops dashboard shows current SLA status
+```
+
+### Copilot Investigation Flow
+
+```
+1. User opens Copilot and asks a question in plain English
+2. Backend creates a streaming investigation session
+3. SQL Agent receives connector context and the natural-language question
+4. SQL Agent inspects schema/tools, proposes SQL, and executes it read-only
+5. Intermediate tool calls and progress messages stream back over SSE
+6. Final SQL, rows, explanation, and summary are pushed to the frontend
 ```
 
 ### Approval Workflow
@@ -382,17 +509,33 @@ POSTGRES_PORT=5432
 # Redis
 REDIS_URL=redis://localhost:6379/0
 
+# Frontend
+VITE_API_URL=http://localhost:8000/api
+
 # Security
 CONNECTOR_ENCRYPTION_KEY=your-secure-encryption-key
 
 # A2A Agent URLs
 SQL_AGENT_A2A_URL=http://sql-agent:8010
 DASHBOARD_AGENT_A2A_URL=http://dashboard-agent:8011
+AGENT_A2A_TIMEOUT_SECONDS=600
+
+# SSE callback targets used by the agents to stream trace events back to the backend
+ARTIFACT_EVENT_CALLBACK_URL=http://localhost:8000/api/internal/artifacts/events
+COPILOT_EVENT_CALLBACK_URL=http://localhost:8000/api/internal/copilot/events
 
 # Optional: AI Providers
 CEREBRAS_API_KEY=your-cerebras-api-key
+CEREBRAS_MODEL=gpt-oss-120b
 GEMINI_API_KEY=your-gemini-api-key
+GEMINI_MODEL=gemini-2.5-flash
 ```
+
+Notes:
+
+- Docker service-to-service URLs should use `sql-agent`, `dashboard-agent`, and `backend`, not `localhost`
+- local host-process runs can use `localhost`
+- the backend also reads `backend/.env`, so restart running services after changing env values
 
 ### Running with Docker Compose (Recommended)
 
@@ -422,6 +565,15 @@ uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 By default, this uses SQLite at `backend/costpulse_local.db`.
 
+Useful backend routes:
+
+- `/api/connectors/{organization_id}` for connector CRUD
+- `/api/data-sources/{organization_id}` for relation summaries
+- `/api/data-sources/stream/{connector_id}` for connector artifact SSE
+- `/api/data-sources/memory/{organization_id}` for generated source memory
+- `/api/dashboard/render/{organization_id}` for the compiled generated dashboard payload
+- `/api/investigate/sessions` and `/api/investigate/stream/{session_id}` for Copilot sessions
+
 ### Running Frontend Locally
 
 ```bash
@@ -446,6 +598,11 @@ cd backend
 uv run uvicorn app.a2a_apps.dashboard_agent:app --host 0.0.0.0 --port 8011
 ```
 
+**What the agents are used for**
+
+- `sql_agent`: source analysis, detector preset generation, copilot question answering
+- `dashboard_agent`: dashboard planning, SQL sampling, generated dashboard specs
+
 ---
 
 ## Tech Stack
@@ -457,26 +614,29 @@ uv run uvicorn app.a2a_apps.dashboard_agent:app --host 0.0.0.0 --port 8011
 - **TypeScript**: Type-safe JavaScript
 - **React Router**: Client-side routing
 - **TanStack Query**: Server state management
-- **Tailwind CSS**: Utility-first CSS framework
+- **Custom CSS UI Layer**: purpose-built dashboard, copilot, and operations workspace styling
 
 ### Backend
 
 - **FastAPI**: Modern Python web framework
+- **Python**: Primary backend runtime
 - **SQLAlchemy**: Python SQL toolkit and ORM
 - **Pydantic**: Data validation using Python type annotations
 - **LangChain**: Framework for building LLM applications
-- **Cerebras**: LLM provider for action recommendations
+- **A2A / JSON-RPC**: Agent-to-Agent communication contract for SQL and dashboard services
 
 ### Database & Infrastructure
 
 - **PostgreSQL**: Primary relational database
+- **Supabase-compatible Postgres connectors**: supported as external operational sources
 - **SQLite**: Development database
 - **Redis**: In-memory data store for caching and queues
+- **Docker / Docker Compose**: local multi-service orchestration
 
 ### AI/ML
 
 - **Cerebras API**: Primary LLM for action recommendations and approvals
-- **Gemini API**: Alternative LLM for certain features
+- **Gemini API**: Primary/alternate model path for SQL analysis, connector memory, dashboards, and copilot flows
 - **A2A Protocol**: Agent-to-Agent communication
 
 ---
@@ -510,6 +670,21 @@ SLA.ck addresses these challenges through:
 6. **Multi-Agent Collaboration**: A2A protocol enables specialized agents to work together, with graceful fallback to deterministic logic
 
 7. **Audit & Compliance**: Complete audit trail of all operations for compliance and governance
+
+8. **Analyst-Like Copilot**: Lets operators ask questions over live connected data without hand-writing SQL
+
+9. **Streaming Setup Experience**: Connector setup surfaces intermediate agent progress instead of blocking the UI on the full artifact pipeline
+
+## Quantifiable Cost Impact
+
+The business framing for SLA.ck is outcome-first. For a representative mid-sized enterprise, the intended value model is:
+
+- approximately **425 hours saved per month** in investigation and manual review effort
+- approximately **Rs 4.13 lakh per month** in direct cost reduction from invoice anomalies, duplicate spend, and unused resources
+- approximately **Rs 1.68 lakh per month** in avoided loss from SLA penalty prevention
+- approximately **Rs 10.85 lakh of monthly value creation**, or roughly **Rs 1.3 crore annually**
+
+This is why the product is best understood as an enterprise cost-intelligence operating system rather than a dashboard suite: anomaly detection, SLA governance, financial impact attribution, and controlled autonomous action all sit in one governed loop.
 
 ### Key Benefits
 
