@@ -29,6 +29,10 @@ services:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
       SQL_AGENT_A2A_URL: ${SQL_AGENT_A2A_URL:-http://sql-agent:8010}
       DASHBOARD_AGENT_A2A_URL: ${DASHBOARD_AGENT_A2A_URL:-http://dashboard-agent:8011}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY}
+      CEREBRAS_MODEL: ${CEREBRAS_MODEL:-gpt-oss-120b}
     depends_on:
       - postgres
       - redis
@@ -36,6 +40,8 @@ services:
       - dashboard-agent
     ports:
       - "8000:8000"
+    volumes:
+      - ./backend/.env:/app/.env:ro
 
   sql-agent:
     build:
@@ -44,10 +50,14 @@ services:
     command: ["uvicorn", "app.a2a_apps.sql_agent:app", "--host", "0.0.0.0", "--port", "8010"]
     environment:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     depends_on:
       - postgres
     ports:
       - "8010:8010"
+    volumes:
+      - ./backend/.env:/app/.env:ro
 
   dashboard-agent:
     build:

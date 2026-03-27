@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -100,13 +100,32 @@ from app.services.sla_rulebook import (
     list_rulebook_entries,
 )
 from app.services.sla.extraction import contract_pdf_path_for_batch
-from app.services.sla.rulebook import archive_rulebook_entry, create_rulebook_entry, update_rulebook_entry
+from app.services.sla.rulebook import (
+    archive_rulebook_entry,
+    create_rulebook_entry,
+    update_rulebook_entry,
+)
 from app.services.workflow.approval import decide_recommendation
 from app.utils.logging import get_logger
 
 
 router = APIRouter(prefix="/api")
 logger = get_logger("app.api.connectors")
+
+
+def _run_artifact_generation_background(connector_id: int) -> None:
+    from app.db.session import SessionLocal
+    from app.services.agent_artifacts import persist_connector_artifacts
+
+    db = SessionLocal()
+    try:
+        logger.info("background_artifact_start connector_id=%s", connector_id)
+        persist_connector_artifacts(db, connector_id)
+        logger.info("background_artifact_done connector_id=%s", connector_id)
+    except Exception:
+        logger.exception("background_artifact_error connector_id=%s", connector_id)
+    finally:
+        db.close()
 
 
 @router.get("/health")
@@ -244,7 +263,10 @@ def get_connectors(organization_id: int, db: Session = Depends(get_db)) -> list[
 
 @router.post("/connectors/{organization_id}", response_model=DataConnectorOut)
 def create_connector_route(
-    organization_id: int, payload: CreateConnectorIn, db: Session = Depends(get_db)
+    organization_id: int,
+    payload: CreateConnectorIn,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> DataConnectorOut:
     try:
         logger.info("api_connector_create organization_id=%s", organization_id)
@@ -255,17 +277,25 @@ def create_connector_route(
             uri=payload.uri,
             included_schemas=payload.included_schemas,
         )
-        persist_connector_artifacts(db, connector["id"])
-        refreshed = next(item for item in list_connectors(db, organization_id) if item["id"] == connector["id"])
+        # Run artifact generation in background
+        background_tasks.add_task(_run_artifact_generation_background, connector["id"])
+        refreshed = next(
+            item for item in list_connectors(db, organization_id) if item["id"] == connector["id"]
+        )
         return DataConnectorOut.model_validate(refreshed)
     except ValueError as exc:
-        logger.warning("api_connector_create_failed organization_id=%s detail=%s", organization_id, str(exc))
+        logger.warning(
+            "api_connector_create_failed organization_id=%s detail=%s", organization_id, str(exc)
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.patch("/connectors/{connector_id}", response_model=DataConnectorOut)
 def update_connector_route(
-    connector_id: int, payload: UpdateConnectorIn, db: Session = Depends(get_db)
+    connector_id: int,
+    payload: UpdateConnectorIn,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
 ) -> DataConnectorOut:
     try:
         logger.info("api_connector_update connector_id=%s", connector_id)
@@ -276,13 +306,44 @@ def update_connector_route(
             uri=payload.uri,
             included_schemas=payload.included_schemas,
         )
-        persist_connector_artifacts(db, connector_id)
+        # Run artifact generation in background
+        background_tasks.add_task(_run_artifact_generation_background, connector_id)
         return DataConnectorOut.model_validate(connector)
     except ValueError as exc:
-        logger.warning("api_connector_update_failed connector_id=%s detail=%s", connector_id, str(exc))
+        logger.warning(
+            "api_connector_update_failed connector_id=%s detail=%s", connector_id, str(exc)
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("api_connector_update_error connector_id=%s error_type=%s", connector_id, exc.__class__.__name__)
+        logger.exception(
+            "api_connector_update_error connector_id=%s error_type=%s",
+            connector_id,
+            exc.__class__.__name__,
+        )
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@router.post("/connectors/refresh/{connector_id}", response_model=DataConnectorOut)
+def refresh_connector_route(
+    connector_id: int, background_tasks: BackgroundTasks, db: Session = Depends(get_db)
+) -> DataConnectorOut:
+    try:
+        logger.info("api_connector_refresh connector_id=%s", connector_id)
+        connector = refresh_connector(db, connector_id)
+        # Run artifact generation in background
+        background_tasks.add_task(_run_artifact_generation_background, connector_id)
+        return DataConnectorOut.model_validate(connector)
+    except ValueError as exc:
+        logger.warning(
+            "api_connector_refresh_failed connector_id=%s detail=%s", connector_id, str(exc)
+        )
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception(
+            "api_connector_refresh_error connector_id=%s error_type=%s",
+            connector_id,
+            exc.__class__.__name__,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -294,10 +355,16 @@ def refresh_connector_route(connector_id: int, db: Session = Depends(get_db)) ->
         persist_connector_artifacts(db, connector_id)
         return DataConnectorOut.model_validate(connector)
     except ValueError as exc:
-        logger.warning("api_connector_refresh_failed connector_id=%s detail=%s", connector_id, str(exc))
+        logger.warning(
+            "api_connector_refresh_failed connector_id=%s detail=%s", connector_id, str(exc)
+        )
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except Exception as exc:
-        logger.exception("api_connector_refresh_error connector_id=%s error_type=%s", connector_id, exc.__class__.__name__)
+        logger.exception(
+            "api_connector_refresh_error connector_id=%s error_type=%s",
+            connector_id,
+            exc.__class__.__name__,
+        )
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
@@ -340,7 +407,9 @@ def upload_data_source(
 def get_detectors(
     organization_id: int, db: Session = Depends(get_db)
 ) -> list[DetectorDefinitionOut]:
-    return [DetectorDefinitionOut.model_validate(item) for item in list_detectors(db, organization_id)]
+    return [
+        DetectorDefinitionOut.model_validate(item) for item in list_detectors(db, organization_id)
+    ]
 
 
 @router.post("/detectors/prompt-draft", response_model=DetectorDraftOut)
@@ -379,7 +448,9 @@ def run_detector_test(detector_id: int, db: Session = Depends(get_db)) -> Detect
 
 @router.get("/detectors/{detector_id}/runs", response_model=list[DetectorRunOut])
 def get_detector_runs(detector_id: int, db: Session = Depends(get_db)) -> list[DetectorRunOut]:
-    return [DetectorRunOut.model_validate(item) for item in list_detector_run_history(db, detector_id)]
+    return [
+        DetectorRunOut.model_validate(item) for item in list_detector_run_history(db, detector_id)
+    ]
 
 
 @router.get("/sla/rules/{organization_id}", response_model=list[SlaRulebookEntryOut])
@@ -421,7 +492,9 @@ def update_sla_rule(
 ) -> SlaRulebookEntryOut:
     try:
         return SlaRulebookEntryOut.model_validate(
-            update_rulebook_entry(db, rule_id=rule_id, payload=payload.model_dump(exclude_none=True))
+            update_rulebook_entry(
+                db, rule_id=rule_id, payload=payload.model_dump(exclude_none=True)
+            )
         )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
@@ -457,7 +530,9 @@ def get_sla_contract_pdf(batch_id: int, db: Session = Depends(get_db)) -> FileRe
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     path = contract_pdf_path_for_batch(batch.id)
     if not path.exists():
-        raise HTTPException(status_code=404, detail="Contract PDF not generated for this extraction batch")
+        raise HTTPException(
+            status_code=404, detail="Contract PDF not generated for this extraction batch"
+        )
     return FileResponse(str(path), media_type="application/pdf", filename=path.name)
 
 
@@ -505,7 +580,9 @@ def approve_sla_extraction(
     try:
         return SlaExtractionReviewResult.model_validate(
             approve_extraction_batch(
-                db, batch_id=batch_id, edits=[item.model_dump(exclude_none=True) for item in payload.candidate_rules]
+                db,
+                batch_id=batch_id,
+                edits=[item.model_dump(exclude_none=True) for item in payload.candidate_rules],
             )
         )
     except ValueError as exc:
@@ -513,28 +590,35 @@ def approve_sla_extraction(
 
 
 @router.post("/sla/extractions/{batch_id}/discard", response_model=SlaExtractionReviewResult)
-def discard_sla_extraction(batch_id: int, db: Session = Depends(get_db)) -> SlaExtractionReviewResult:
+def discard_sla_extraction(
+    batch_id: int, db: Session = Depends(get_db)
+) -> SlaExtractionReviewResult:
     try:
-        return SlaExtractionReviewResult.model_validate(discard_extraction_batch(db, batch_id=batch_id))
+        return SlaExtractionReviewResult.model_validate(
+            discard_extraction_batch(db, batch_id=batch_id)
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
-@router.post("/sla/extractions/candidates/{candidate_id}/discard", response_model=SlaExtractionBatchOut)
-def discard_sla_extraction_candidate(candidate_id: int, db: Session = Depends(get_db)) -> SlaExtractionBatchOut:
+@router.post(
+    "/sla/extractions/candidates/{candidate_id}/discard", response_model=SlaExtractionBatchOut
+)
+def discard_sla_extraction_candidate(
+    candidate_id: int, db: Session = Depends(get_db)
+) -> SlaExtractionBatchOut:
     try:
-        return SlaExtractionBatchOut.model_validate(discard_extraction_candidate(db, candidate_id=candidate_id))
+        return SlaExtractionBatchOut.model_validate(
+            discard_extraction_candidate(db, candidate_id=candidate_id)
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
 
 @router.get("/actions/{organization_id}", response_model=list[ActionRequestOut])
-def get_actions(
-    organization_id: int, db: Session = Depends(get_db)
-) -> list[ActionRequestOut]:
+def get_actions(organization_id: int, db: Session = Depends(get_db)) -> list[ActionRequestOut]:
     return [
-        ActionRequestOut.model_validate(item)
-        for item in list_action_requests(db, organization_id)
+        ActionRequestOut.model_validate(item) for item in list_action_requests(db, organization_id)
     ]
 
 
@@ -617,9 +701,7 @@ def get_dashboard(organization_id: int, db: Session = Depends(get_db)) -> Dashbo
 
 
 @router.get("/dashboard/render/{organization_id}", response_model=DashboardRenderOut)
-def get_dashboard_render(
-    organization_id: int, db: Session = Depends(get_db)
-) -> DashboardRenderOut:
+def get_dashboard_render(organization_id: int, db: Session = Depends(get_db)) -> DashboardRenderOut:
     try:
         payload = build_dashboard_render_payload(db, organization_id)
     except ValueError as exc:
@@ -639,7 +721,9 @@ def list_alerts(organization_id: int, db: Session = Depends(get_db)) -> list[Ale
         if alert.recommendations:
             recommendation_id = alert.recommendations[0].id
             action = db.scalar(
-                select(Action).where(Action.recommendation_id == recommendation_id).order_by(Action.id.desc())
+                select(Action)
+                .where(Action.recommendation_id == recommendation_id)
+                .order_by(Action.id.desc())
             )
             action_id = action.id if action else None
         results.append(
@@ -682,7 +766,9 @@ def get_resources(organization_id: int, db: Session = Depends(get_db)) -> Resour
 @router.get("/audit/{organization_id}", response_model=list[AuditFeedItem])
 def get_audit_feed(organization_id: int, db: Session = Depends(get_db)) -> list[AuditFeedItem]:
     events = db.scalars(
-        select(AuditEvent).where(AuditEvent.organization_id == organization_id).order_by(AuditEvent.id.desc())
+        select(AuditEvent)
+        .where(AuditEvent.organization_id == organization_id)
+        .order_by(AuditEvent.id.desc())
     ).all()
     return [AuditFeedItem.model_validate(item, from_attributes=True) for item in events[:40]]
 
@@ -750,10 +836,16 @@ def run_action(action_id: int, db: Session = Depends(get_db)) -> ActionRequestOu
 @router.post("/reports/generate")
 def create_report(payload: ReportRequest, db: Session = Depends(get_db)) -> dict:
     try:
-        report = generate_pdf_report(db, organization_id=payload.organization_id, title=payload.title)
+        report = generate_pdf_report(
+            db, organization_id=payload.organization_id, title=payload.title
+        )
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
-    return {"report_id": report.id, "status": report.status.value, "storage_path": report.storage_path}
+    return {
+        "report_id": report.id,
+        "status": report.status.value,
+        "storage_path": report.storage_path,
+    }
 
 
 @router.get("/reports/{organization_id}")

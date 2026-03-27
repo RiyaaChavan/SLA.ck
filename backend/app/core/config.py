@@ -30,6 +30,7 @@ class Settings(BaseSettings):
     seed_profiles_dir: Path = DATA_DIR / "seed_profiles"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
+    gemini_sql_model: str = "gemini-2.0-flash-lite"
     cerebras_api_key: str | None = None
     cerebras_base_url: str = "https://api.cerebras.ai/v1"
     cerebras_model: str = "gpt-oss-120b"
