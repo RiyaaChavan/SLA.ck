@@ -233,6 +233,11 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
         logic_summary: "Deterministic stub: compare billed rate to contract catalog by vendor SKU.",
         query_logic: `-- stub draft\n-- prompt: ${prompt.slice(0, 120)}`,
         expected_output_fields: ["invoice_line_id", "delta_pct"],
+        module: "procure_watch",
+        business_domain: "accounts_payable",
+        severity: "medium",
+        linked_action_template: "Open commercial review",
+        linked_cost_formula: "sum(invoice_amount - contracted_amount)",
       },
     };
   },

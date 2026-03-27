@@ -78,7 +78,7 @@ def main() -> None:
     parser.add_argument("--schema", default="synthetic_demo", help="Destination schema name.")
     parser.add_argument(
         "--bundle-dir",
-        default=str(Path(__file__).resolve().parents[1] / "data" / "synthetic" / "quickbasket_india"),
+        default=str(Path(__file__).resolve().parents[1] / "data" / "synthetic" / "delivra_india"),
         help="Directory containing the synthetic CSV bundle.",
     )
     parser.add_argument("--no-reset", action="store_true", help="Do not drop existing tables before load.")

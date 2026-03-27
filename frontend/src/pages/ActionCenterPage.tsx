@@ -59,7 +59,7 @@ export function ActionCenterPage(_: ActionCenterPageProps) {
         />
       </div>
 
-      <div className="bs-kanban-board">
+      <div className="bs-kanban-board bs-kanban-board-approvals">
         {columns.map((column) => (
           <div key={column.id} className={`bs-kanban-column ${column.colClass}`}>
             <div className="bs-kanban-column-header">

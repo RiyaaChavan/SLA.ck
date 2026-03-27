@@ -91,7 +91,7 @@ export type SlaRulebookArchivePayload = {
   reviewed_by?: string | null;
 };
 
-/** Single boundary for Business Sentry API — pages depend only on this + domain types. */
+/** Single boundary for SLA.ck API — pages depend only on this + domain types. */
 export type BusinessSentryAdapter = {
   getImpact(organizationId: number): Promise<ImpactOverview>;
   listCases(organizationId: number, params: CasesListParams): Promise<CaseSummary[]>;

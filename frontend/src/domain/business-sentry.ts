@@ -1,4 +1,4 @@
-/** Business Sentry domain types — mirror WORKSTREAM_SYNC.md locked contracts. */
+/** SLA.ck domain types — mirror WORKSTREAM_SYNC.md locked contracts. */
 
 export type OrganizationSummary = {
   id: number;
@@ -29,6 +29,7 @@ export type RealizedVsProjected = {
   periods: string[];
   realized_savings: number[];
   projected_savings: number[];
+  capture_rate_pct?: number;
 };
 
 export type ApprovalExecutionFunnel = {

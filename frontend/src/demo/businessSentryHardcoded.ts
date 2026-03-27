@@ -113,18 +113,18 @@ export const demoSourceCards: DemoSourceCard[] = [
 ];
 
 export const demoDatasets: DatasetSummary[] = [
-  { name: "orders", record_count: 149811, columns: ["order_id", "store_id", "city_id", "promised_eta_min", "delivered_at", "basket_value"], source_uri: "demo://quickbasket/orders", schema: "synthetic_demo" },
-  { name: "delivery_events", record_count: 1198488, columns: ["event_id", "order_id", "event_type", "event_ts", "driver_id", "minutes_from_order"], source_uri: "demo://quickbasket/delivery_events", schema: "synthetic_demo" },
-  { name: "inventory_snapshots", record_count: 8160, columns: ["snapshot_date", "store_id", "picker_utilization_pct", "dispatch_bay_utilization_pct", "cold_storage_utilization_pct"], source_uri: "demo://quickbasket/inventory_snapshots", schema: "synthetic_demo" },
-  { name: "invoices", record_count: 354, columns: ["invoice_id", "vendor_id", "contract_id", "billed_units", "contracted_rate", "invoice_amount"], source_uri: "demo://quickbasket/invoices", schema: "synthetic_demo" },
-  { name: "work_items", record_count: 1102, columns: ["work_item_id", "store_id", "category", "status", "sla_deadline_at", "assigned_team"], source_uri: "demo://quickbasket/work_items", schema: "synthetic_demo" },
+  { name: "orders", record_count: 149811, columns: ["order_id", "store_id", "city_id", "promised_eta_min", "delivered_at", "basket_value"], source_uri: "demo://delivra/orders", schema: "synthetic_demo" },
+  { name: "delivery_events", record_count: 1198488, columns: ["event_id", "order_id", "event_type", "event_ts", "driver_id", "minutes_from_order"], source_uri: "demo://delivra/delivery_events", schema: "synthetic_demo" },
+  { name: "inventory_snapshots", record_count: 8160, columns: ["snapshot_date", "store_id", "picker_utilization_pct", "dispatch_bay_utilization_pct", "cold_storage_utilization_pct"], source_uri: "demo://delivra/inventory_snapshots", schema: "synthetic_demo" },
+  { name: "invoices", record_count: 354, columns: ["invoice_id", "vendor_id", "contract_id", "billed_units", "contracted_rate", "invoice_amount"], source_uri: "demo://delivra/invoices", schema: "synthetic_demo" },
+  { name: "work_items", record_count: 1102, columns: ["work_item_id", "store_id", "category", "status", "sla_deadline_at", "assigned_team"], source_uri: "demo://delivra/work_items", schema: "synthetic_demo" },
 ];
 
 export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   orders: {
     name: "orders",
     schema: "synthetic_demo",
-    source_uri: "demo://quickbasket/orders",
+    source_uri: "demo://delivra/orders",
     row_count: 149811,
     columns: ["order_id", "store_id", "city_id", "promised_eta_min", "delivered_at", "basket_value", "driver_id"],
     rows: [
@@ -137,7 +137,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   delivery_events: {
     name: "delivery_events",
     schema: "synthetic_demo",
-    source_uri: "demo://quickbasket/delivery_events",
+    source_uri: "demo://delivra/delivery_events",
     row_count: 1198488,
     columns: ["event_id", "order_id", "event_type", "event_ts", "driver_id", "minutes_from_order"],
     rows: [
@@ -150,7 +150,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   inventory_snapshots: {
     name: "inventory_snapshots",
     schema: "synthetic_demo",
-    source_uri: "demo://quickbasket/inventory_snapshots",
+    source_uri: "demo://delivra/inventory_snapshots",
     row_count: 8160,
     columns: ["snapshot_date", "store_id", "picker_utilization_pct", "dispatch_bay_utilization_pct", "cold_storage_utilization_pct", "idle_driver_minutes"],
     rows: [
@@ -163,7 +163,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   invoices: {
     name: "invoices",
     schema: "synthetic_demo",
-    source_uri: "demo://quickbasket/invoices",
+    source_uri: "demo://delivra/invoices",
     row_count: 354,
     columns: ["invoice_id", "vendor_id", "contract_id", "billed_units", "contracted_rate", "invoice_amount", "variance_pct"],
     rows: [
@@ -176,7 +176,7 @@ export const demoDatasetPreviews: Record<string, DatasetPreview> = {
   work_items: {
     name: "work_items",
     schema: "synthetic_demo",
-    source_uri: "demo://quickbasket/work_items",
+    source_uri: "demo://delivra/work_items",
     row_count: 1102,
     columns: ["work_item_id", "store_id", "category", "status", "sla_deadline_at", "assigned_team", "risk_band"],
     rows: [
@@ -198,7 +198,7 @@ export const demoSourceMemory: SourceAgentMemory = {
     "Recommended dashboard blocks: top anomaly leakage by detector, city/store breach map, vendor variance ranking, overloaded teams, and saved actions awaiting approval. Emphasize Bengaluru HSR, Mumbai Andheri, and Gurgaon Sector 54 because they have the strongest combined financial and SLA risk signals in the current slice.",
   schema_notes:
     "Dark stores represent warehouse-like fulfillment nodes. Drivers are modeled as resources. Team routing should prioritize Regional Fleet Control, Dark Store Operations, Procurement Controls, and Finance AP Audit.",
-  memory_path: "/memory/quickbasket_india_snapshot.json",
+  memory_path: "/memory/delivra_india_snapshot.json",
   context_snapshot: {},
   created_at: "2026-03-29T18:42:00+05:30",
   updated_at: "2026-03-29T18:42:00+05:30",
@@ -250,38 +250,39 @@ export const demoAnomalyQueries: SavedAnomalyQuery[] = [
 export const demoImpactOverview: ImpactOverview = {
   organization: {
     id: 101,
-    name: "QuickBasket India",
+    name: "Delivra India",
     industry: "Quick commerce",
     geography: "India",
   },
   metrics: [
-    { label: "Projected leakage", value: 5520000, delta: 14 },
-    { label: "SLA penalty exposure", value: 2940000, delta: 9 },
-    { label: "Open critical anomalies", value: 37, delta: 6 },
-    { label: "Approved actions", value: 19, delta: 21 },
+    { label: "Projected leakage", value: 4180000, delta: null },
+    { label: "SLA penalty exposure", value: 1360000, delta: null },
+    { label: "Open critical anomalies", value: 14, delta: null },
+    { label: "Approved actions", value: 23, delta: null },
   ],
   top_vendors_by_risk: [
-    { vendor: "RapidFleet Logistics", risk_score: 0.92, projected_impact: 1680000 },
-    { vendor: "PolarNest Cold Chain", risk_score: 0.87, projected_impact: 1140000 },
-    { vendor: "PackRight Consumables", risk_score: 0.81, projected_impact: 910000 },
-    { vendor: "ShiftStack Staffing", risk_score: 0.69, projected_impact: 620000 },
+    { vendor: "RapidFleet Logistics", risk_score: 0.93, projected_impact: 1180000 },
+    { vendor: "PolarNest Cold Chain", risk_score: 0.88, projected_impact: 790000 },
+    { vendor: "PackRight Consumables", risk_score: 0.74, projected_impact: 540000 },
+    { vendor: "ShiftStack Staffing", risk_score: 0.63, projected_impact: 420000 },
   ],
   top_teams_by_overload: [
-    { team: "Regional Fleet Control", open_items: 42, sla_breach_risk: "high" },
-    { team: "Dark Store Operations", open_items: 31, sla_breach_risk: "high" },
-    { team: "Cold Chain Operations", open_items: 16, sla_breach_risk: "medium" },
-    { team: "Finance AP Audit", open_items: 12, sla_breach_risk: "medium" },
+    { team: "Regional Fleet Control", open_items: 18, sla_breach_risk: "high" },
+    { team: "Dark Store Operations", open_items: 14, sla_breach_risk: "high" },
+    { team: "Cold Chain Operations", open_items: 9, sla_breach_risk: "medium" },
+    { team: "Finance AP Audit", open_items: 7, sla_breach_risk: "medium" },
   ],
   realized_vs_projected: {
-    periods: ["W1", "W2", "W3", "W4"],
-    realized_savings: [410000, 680000, 920000, 1180000],
-    projected_savings: [620000, 840000, 1160000, 1430000],
+    periods: ["Mar 24", "Mar 25", "Mar 26", "Mar 27", "Mar 28", "Mar 29"],
+    realized_savings: [220000, 250000, 310000, 360000, 410000, 480000],
+    projected_savings: [420000, 460000, 510000, 590000, 620000, 710000],
+    capture_rate_pct: 61.3,
   },
   approval_execution_funnel: {
-    pending_approval: 12,
-    approved: 19,
-    rejected: 4,
-    executed: 11,
+    pending_approval: 7,
+    approved: 23,
+    rejected: 3,
+    executed: 18,
   },
   recent_cases: [
     {
@@ -363,29 +364,29 @@ export const demoAnomalyHits = [
   {
     queryId: 1,
     title: "RapidFleet and PolarNest show repeated contract-rate drift",
-    triggeredCases: 8,
-    impactInr: 1360000,
+    triggeredCases: 6,
+    impactInr: 980000,
     owner: "Finance AP Audit",
   },
   {
     queryId: 2,
     title: "Bengaluru HSR and Mumbai Andheri have delay clusters tied to bay saturation",
-    triggeredCases: 11,
-    impactInr: 1210000,
+    triggeredCases: 9,
+    impactInr: 820000,
     owner: "Regional Fleet Control",
   },
   {
     queryId: 3,
     title: "Cold-chain queues are on track to miss escalation windows in Mumbai and Gurgaon",
-    triggeredCases: 6,
-    impactInr: 840000,
+    triggeredCases: 4,
+    impactInr: 610000,
     owner: "Cold Chain Operations",
   },
   {
     queryId: 4,
     title: "Idle rider capacity is concentrated in Hyderabad KPHB and Noida Sector 76",
-    triggeredCases: 12,
-    impactInr: 390000,
+    triggeredCases: 7,
+    impactInr: 280000,
     owner: "Last Mile Scheduling",
   },
 ];
@@ -495,7 +496,7 @@ export const demoCaseDetails: Record<string, CaseDetail> = {
     ],
     timeline: [
       { at: "2026-03-29T15:20:00+05:30", event: "Detector triggered", actor: "Contract rate drift on vendor invoices" },
-      { at: "2026-03-29T16:02:00+05:30", event: "Leakage estimate computed", actor: "Business Sentry" },
+      { at: "2026-03-29T16:02:00+05:30", event: "Leakage estimate computed", actor: "SLA.ck" },
       { at: "2026-03-29T18:20:00+05:30", event: "Approval packet drafted", actor: "Ananya Shah" },
     ],
   },
@@ -527,7 +528,7 @@ export const demoCaseDetails: Record<string, CaseDetail> = {
     ],
     timeline: [
       { at: "2026-03-29T17:08:00+05:30", event: "Delay cluster opened", actor: "SLA Sentinel" },
-      { at: "2026-03-29T17:46:00+05:30", event: "Dispatch saturation confirmed", actor: "Business Sentry" },
+      { at: "2026-03-29T17:46:00+05:30", event: "Dispatch saturation confirmed", actor: "SLA.ck" },
       { at: "2026-03-29T18:28:00+05:30", event: "Rebalance plan approved", actor: "Pooja Nair" },
     ],
   },
@@ -552,7 +553,7 @@ export const demoCaseDetails: Record<string, CaseDetail> = {
       { step: 1, role: "Scheduling Lead", name: "Sandeep Kulkarni", state: "pending" },
     ],
     timeline: [
-      { at: "2026-03-29T14:12:00+05:30", event: "Idle capacity detector triggered", actor: "Business Sentry" },
+      { at: "2026-03-29T14:12:00+05:30", event: "Idle capacity detector triggered", actor: "SLA.ck" },
       { at: "2026-03-29T17:10:00+05:30", event: "Run-rate estimate prepared", actor: "Megha Iyer" },
     ],
   },
@@ -965,7 +966,7 @@ export function pickCopilotScenario(question: string): DemoCopilotScenario {
     result: {
       query_label: "Top anomaly opportunities",
       sql: "select anomaly_name, owner_team, projected_impact_inr, next_action from anomaly_opportunity_rank order by projected_impact_inr desc limit 4;",
-      explanation: "The highest-value issues are not random outliers. They line up directly with the saved anomaly queries already configured in Business Sentry, which is why the same patterns surface in the dashboard.",
+      explanation: "The highest-value issues are not random outliers. They line up directly with the saved anomaly queries already configured in SLA.ck, which is why the same patterns surface in the dashboard.",
       rows: [
         { anomaly_name: "RapidFleet contract rate drift", owner_team: "Finance AP Audit", projected_impact_inr: 684000, next_action: "Issue disputed-line hold and request credit note" },
         { anomaly_name: "Bengaluru HSR dispatch saturation", owner_team: "Regional Fleet Control", projected_impact_inr: 452000, next_action: "Rebalance riders and cap slot density" },

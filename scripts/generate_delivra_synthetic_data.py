@@ -547,7 +547,7 @@ def generate_bundle(output_dir: Path, days: int, seed: int) -> dict[str, int]:
     organizations_writer.writerow(
         {
             "org_id": 1,
-            "org_name": "QuickBasket India",
+            "org_name": "Delivra India",
             "industry": "Quick Commerce",
             "country": "India",
             "currency_code": "INR",
@@ -1518,9 +1518,9 @@ def generate_bundle(output_dir: Path, days: int, seed: int) -> dict[str, int]:
     writer.close()
 
     readme_lines = [
-        "# QuickBasket India Synthetic Dataset",
+        "# Delivra India Synthetic Dataset",
         "",
-        "This bundle contains Blinkit-style quick-commerce synthetic data generated for Business Sentry demos.",
+        "This bundle contains Blinkit-style quick-commerce synthetic data generated for SLA.ck demos.",
         "",
         f"- Seed: `{seed}`",
         f"- Date range: `{start_date.isoformat()}` to `{(today - timedelta(days=1)).isoformat()}`",
@@ -1573,10 +1573,10 @@ def generate_bundle(output_dir: Path, days: int, seed: int) -> dict[str, int]:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Generate QuickBasket India synthetic quick-commerce data.")
+    parser = argparse.ArgumentParser(description="Generate Delivra India synthetic quick-commerce data.")
     parser.add_argument(
         "--output-dir",
-        default=str(Path(__file__).resolve().parents[1] / "data" / "synthetic" / "quickbasket_india"),
+        default=str(Path(__file__).resolve().parents[1] / "data" / "synthetic" / "delivra_india"),
         help="Directory where the CSV bundle will be written.",
     )
     parser.add_argument("--days", type=int, default=14, help="Number of historical days to generate.")
@@ -1586,7 +1586,7 @@ def main() -> None:
     output_dir = Path(args.output_dir)
     ensure_dir(output_dir)
     counts = generate_bundle(output_dir=output_dir, days=args.days, seed=args.seed)
-    print(f"Generated QuickBasket dataset at {output_dir}")
+    print(f"Generated Delivra dataset at {output_dir}")
     for name, count in sorted(counts.items()):
         print(f"{name}: {count}")
 

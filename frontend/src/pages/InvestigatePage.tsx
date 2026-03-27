@@ -28,6 +28,15 @@ const EXAMPLE_QUERIES = [
   "Which warehouses or drivers look overprovisioned?",
 ];
 
+const COPILOT_PACING = {
+  reasoningBaseMs: 820,
+  reasoningJitterMs: 280,
+  actionBaseMs: 1320,
+  actionJitterMs: 420,
+  packagingMs: 1180,
+  finalPauseMs: 780,
+};
+
 function sleep(ms: number) {
   return new Promise((resolve) => window.setTimeout(resolve, ms));
 }
@@ -107,7 +116,7 @@ function AssistantMessage({ turn }: { turn: ChatTurn }) {
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" /></svg>
       </div>
       <div className="chat-msg-body chat-msg-body-assistant">
-        <div className="chat-msg-sender">Business Sentry Copilot</div>
+        <div className="chat-msg-sender">SLA.ck Copilot</div>
 
         <div className="chat-answer-summary">{turn.summary}</div>
         <div className="chat-answer-explanation">{turn.result.explanation}</div>
@@ -161,7 +170,7 @@ function AssistantMessage({ turn }: { turn: ChatTurn }) {
 }
 
 export function InvestigatePage(_: InvestigatePageProps) {
-  const [draftQuestion, setDraftQuestion] = useState(EXAMPLE_QUERIES[0]);
+  const [draftQuestion, setDraftQuestion] = useState("");
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveStream, setLiveStream] = useState<StreamEvent[]>([]);
@@ -202,22 +211,23 @@ export function InvestigatePage(_: InvestigatePageProps) {
 
     const scenario = pickCopilotScenario(input);
     setCurrentQuestion(input);
+    setDraftQuestion("");
     setLoading(true);
     setLiveStream([]);
 
     for (const text of scenario.reasoning) {
-      await sleep(380 + Math.random() * 180);
+      await sleep(COPILOT_PACING.reasoningBaseMs + Math.random() * COPILOT_PACING.reasoningJitterMs);
       appendReasoning(text);
     }
 
     for (const action of scenario.actions) {
-      await sleep(560 + Math.random() * 240);
+      await sleep(COPILOT_PACING.actionBaseMs + Math.random() * COPILOT_PACING.actionJitterMs);
       appendAction(action);
     }
 
-    await sleep(620);
+    await sleep(COPILOT_PACING.packagingMs);
     appendReasoning("Packaging a concise answer, attaching the strongest rows, and preserving the execution trace.");
-    await sleep(460);
+    await sleep(COPILOT_PACING.finalPauseMs);
 
     setChat((current) => [
       ...current,
@@ -250,7 +260,6 @@ export function InvestigatePage(_: InvestigatePageProps) {
 
     setLoading(false);
     setLiveStream([]);
-    setDraftQuestion("");
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -318,7 +327,7 @@ export function InvestigatePage(_: InvestigatePageProps) {
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3l1.5 5.5L19 10l-5.5 1.5L12 17l-1.5-5.5L5 10l5.5-1.5L12 3z" /></svg>
                 </div>
                 <div className="chat-msg-body chat-msg-body-assistant">
-                  <div className="chat-msg-sender">Business Sentry Copilot</div>
+                  <div className="chat-msg-sender">SLA.ck Copilot</div>
                   <div className="chat-thinking">
                     <span className="chat-thinking-dot" />
                     <span className="chat-thinking-dot" />

@@ -167,7 +167,7 @@ export function DataSourcesPage({ onSourceConnected }: DataSourcesPageProps) {
           <div className="ds-connected-strip-left">
             <span className="ds-connected-check"><IconCheck /></span>
             <div>
-              <strong>QuickBasket India connected</strong>
+              <strong>Delivra India connected</strong>
               <span className="ds-connected-detail">6 tables mapped · 4 anomaly queries saved · Dashboard brief ready</span>
             </div>
           </div>
@@ -307,7 +307,7 @@ export function DataSourcesPage({ onSourceConnected }: DataSourcesPageProps) {
                 <span className="bs-pill">{item.category}</span>
               </div>
               <div className="card-subtitle" style={{ marginBottom: 10 }}>{item.description}</div>
-              <div className="bg-[#050810] border border-white/5 rounded-md overflow-hidden mt-2">
+              <div className="ds-query-sql-shell bg-[#050810] border border-white/5 rounded-md overflow-hidden mt-2">
                 <Editor
                   value={item.sql_text}
                   onValueChange={() => {}}

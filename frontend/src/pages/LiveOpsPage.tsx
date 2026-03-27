@@ -421,7 +421,7 @@ export function LiveOpsPage(_: LiveOpsPageProps) {
   }));
 
   return (
-    <div className="page-content bs-kanban-layout">
+    <div className="page-content bs-kanban-layout bs-live-ops">
       <PageHeader
         title="Live Case Monitor"
         subtitle="Prioritized operating queue from the SLA runtime. Drag cards across stages to simulate workflow movement."

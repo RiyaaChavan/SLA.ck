@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 type ConnectRelationalCardProps = {
   databaseUrl: string;
   schema: string;
@@ -21,13 +23,15 @@ export function ConnectRelationalCard({
   onConnect,
   connecting,
 }: ConnectRelationalCardProps) {
+  const [showDatabaseUrl, setShowDatabaseUrl] = useState(false);
+
   return (
     <div className="card bs-connect-card">
       <div className="card-header">
         <div>
           <div className="card-title">Connect a source</div>
           <div className="card-subtitle">
-            Connect a relational database, add optional operating notes, and let Business Sentry prepare source
+            Connect a relational database, add optional operating notes, and let SLA.ck prepare source
             memory and reusable anomaly checks.
           </div>
         </div>
@@ -36,12 +40,24 @@ export function ConnectRelationalCard({
         <div className="bs-source-form">
           <label className="bs-field">
             <span>Connection URI</span>
-            <input
-              className="bs-input bs-mono"
-              value={databaseUrl}
-              onChange={(e) => onDatabaseUrlChange(e.target.value)}
-              placeholder="postgresql+psycopg://user:pass@host:5432/db or sqlite:///absolute/path.db"
-            />
+            <div className="bs-input-with-action">
+              <input
+                className="bs-input bs-mono bs-input-with-action-field"
+                type={showDatabaseUrl ? "text" : "password"}
+                value={databaseUrl}
+                onChange={(e) => onDatabaseUrlChange(e.target.value)}
+                placeholder="postgresql+psycopg://user:pass@host:5432/db or sqlite:///absolute/path.db"
+              />
+              <button
+                type="button"
+                className="bs-input-action"
+                onClick={() => setShowDatabaseUrl((current) => !current)}
+                aria-label={showDatabaseUrl ? "Hide connection URI" : "Show connection URI"}
+                aria-pressed={showDatabaseUrl}
+              >
+                {showDatabaseUrl ? "Hide" : "Show"}
+              </button>
+            </div>
           </label>
           <label className="bs-field">
             <span>Schema</span>

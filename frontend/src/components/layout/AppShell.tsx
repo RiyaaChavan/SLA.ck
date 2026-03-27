@@ -342,14 +342,14 @@ export function AppShell({
   }, []);
 
   return (
-    <div className="app-shell">
+    <div className={`app-shell ${isHome ? "app-shell-home" : "app-shell-workspace"}`}>
       <header className="app-topnav">
         <div className="app-topnav-inner">
           <div className="app-topnav-brand">
             <Link to="/" className="app-topnav-logo-link">
               <span className="app-topnav-mark">BS</span>
               <span className="app-topnav-brand-text">
-                <span className="app-topnav-name">Business Sentry</span>
+                <span className="app-topnav-name">SLA.ck</span>
               </span>
             </Link>
           </div>

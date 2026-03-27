@@ -50,7 +50,7 @@ def humanize(value: str) -> str:
 
 
 def module_for_alert_type(alert_type: str) -> str:
-    return MODULE_BY_ALERT_TYPE.get(alert_type, "Business Sentry")
+    return MODULE_BY_ALERT_TYPE.get(alert_type, "SLA.ck")
 
 
 def default_owner_name(module: str, team: str | None) -> str:

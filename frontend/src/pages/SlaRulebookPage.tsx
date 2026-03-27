@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import type { SlaExtractionBatch, SlaExtractionCandidate, SlaRulebookEntry } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
@@ -12,10 +12,60 @@ type SlaRulebookPageProps = {
   organizationId?: number;
 };
 
-function SlaDropzone({ onUpload }: { onUpload: (fileName: string) => void }) {
+type ExtractionRun = {
+  fileName: string;
+  progress: number;
+  startedAt: number;
+};
+
+function buildExtractionBatch(fileName: string, offset: number): SlaExtractionBatch {
+  return {
+    id: `BATCH-${offset + 301}`,
+    source_document_name: fileName,
+    document_type: fileName.split(".").pop() ?? "file",
+    status: "pending_review",
+    uploaded_at: new Date().toISOString(),
+    extraction_source: "gemini_contract_parse",
+    run_metadata: { generated_from_demo: true, candidates_found: 2 },
+    candidate_rules: [
+      {
+        id: 1201 + offset * 2,
+        name: "Newly extracted SLA candidate",
+        applies_to: "Uploaded document obligations",
+        applies_to_payload: { label: "Uploaded document obligations" },
+        conditions: "Detected threshold language requiring manual confirmation.",
+        response_deadline_hours: 2,
+        resolution_deadline_hours: 8,
+        penalty_amount: 85000,
+        escalation_owner: "Operations",
+        business_hours_logic: "business_hours",
+        auto_action_allowed: false,
+        status: "pending_review",
+        confidence_score: 0.84,
+      },
+      {
+        id: 1202 + offset * 2,
+        name: "Escalation policy candidate",
+        applies_to: "Service recovery exceptions",
+        applies_to_payload: { label: "Service recovery exceptions" },
+        conditions: "Possible dispatch or response clause found in uploaded text.",
+        response_deadline_hours: 1,
+        resolution_deadline_hours: 4,
+        penalty_amount: 135000,
+        escalation_owner: "Regional Fleet Control",
+        business_hours_logic: "24x7",
+        auto_action_allowed: true,
+        status: "pending_review",
+        confidence_score: 0.79,
+      },
+    ],
+  };
+}
+
+function SlaDropzone({ onUpload, uploading }: { onUpload: (fileName: string) => void; uploading: boolean }) {
   const inputRef = useRef<HTMLInputElement>(null);
   return (
-    <div className="bs-dropzone" onClick={() => inputRef.current?.click()}>
+    <div className={uploading ? "bs-dropzone bs-dropzone-uploading" : "bs-dropzone"} onClick={() => !uploading && inputRef.current?.click()}>
       <input
         ref={inputRef}
         type="file"
@@ -33,6 +83,31 @@ function SlaDropzone({ onUpload }: { onUpload: (fileName: string) => void }) {
           <strong>Upload contract or policy doc</strong>
         </div>
         <div className="bs-dropzone-subtext">PDF, DOCX, text, or images. This demo immediately creates review candidates.</div>
+      </div>
+    </div>
+  );
+}
+
+function ExtractionProgressModal({ fileName, progress }: { fileName: string; progress: number }) {
+  return (
+    <div className="bs-modal-backdrop" role="presentation">
+      <div className="card bs-modal-card bs-sla-progress-modal" role="dialog" aria-modal="true" aria-labelledby="sla-progress-title">
+        <div className="card-body bs-sla-progress-body">
+          <div className="bs-sla-progress-kicker">SLA Extraction Runtime</div>
+          <div id="sla-progress-title" className="card-title bs-sla-progress-title">
+            Extracting SLA clauses from {fileName}
+          </div>
+          <p className="bs-sla-progress-copy">
+            Parsing the document, isolating obligations, and shaping review-ready SLA candidates.
+          </p>
+          <div className="bs-sla-progress-track" aria-hidden="true">
+            <div className="bs-sla-progress-fill" style={{ width: `${progress}%` }} />
+          </div>
+          <div className="bs-sla-progress-meta">
+            <span>Processing contract</span>
+            <strong>{progress}%</strong>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -179,6 +254,7 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
   const [editCandidate, setEditCandidate] = useState<SlaExtractionCandidate | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const [pendingConfirm, setPendingConfirm] = useState<(ConfirmConfig & { onConfirm: () => void }) | null>(null);
+  const [extractionRun, setExtractionRun] = useState<ExtractionRun | null>(null);
 
   const confirm = (cfg: ConfirmConfig & { onConfirm: () => void }) => setPendingConfirm(cfg);
 
@@ -198,6 +274,28 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
         rule.applies_to.toLowerCase().includes(filter.toLowerCase()) ||
         rule.conditions.toLowerCase().includes(filter.toLowerCase())),
   );
+
+  useEffect(() => {
+    if (!extractionRun) return;
+
+    const currentRun = extractionRun;
+    const durationMs = 4000;
+    const timer = window.setInterval(() => {
+      const elapsed = Date.now() - currentRun.startedAt;
+      const progress = Math.min(100, Math.round((elapsed / durationMs) * 100));
+
+      setExtractionRun((run) => (run ? { ...run, progress } : run));
+
+      if (progress >= 100) {
+        window.clearInterval(timer);
+        setBatches((current) => [buildExtractionBatch(currentRun.fileName, current.length), ...current]);
+        setMessage(`Uploaded ${currentRun.fileName}. Generated 2 candidate rules for review.`);
+        setExtractionRun(null);
+      }
+    }, 80);
+
+    return () => window.clearInterval(timer);
+  }, [extractionRun?.startedAt]);
 
   return (
     <div className="page-content">
@@ -233,52 +331,10 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
       {tab === "extraction" ? (
         <>
           <SlaDropzone
+            uploading={Boolean(extractionRun)}
             onUpload={(fileName) => {
-              setMessage(`Uploaded ${fileName}. Generated 2 candidate rules for review.`);
-              setBatches((current) => [
-                {
-                  id: `BATCH-${current.length + 301}`,
-                  source_document_name: fileName,
-                  document_type: fileName.split(".").pop() ?? "file",
-                  status: "pending_review",
-                  uploaded_at: new Date().toISOString(),
-                  extraction_source: "gemini_contract_parse",
-                  run_metadata: { generated_from_demo: true, candidates_found: 2 },
-                  candidate_rules: [
-                    {
-                      id: 1201 + current.length * 2,
-                      name: "Newly extracted SLA candidate",
-                      applies_to: "Uploaded document obligations",
-                      applies_to_payload: { label: "Uploaded document obligations" },
-                      conditions: "Detected threshold language requiring manual confirmation.",
-                      response_deadline_hours: 2,
-                      resolution_deadline_hours: 8,
-                      penalty_amount: 85000,
-                      escalation_owner: "Operations",
-                      business_hours_logic: "business_hours",
-                      auto_action_allowed: false,
-                      status: "pending_review",
-                      confidence_score: 0.84,
-                    },
-                    {
-                      id: 1202 + current.length * 2,
-                      name: "Escalation policy candidate",
-                      applies_to: "Service recovery exceptions",
-                      applies_to_payload: { label: "Service recovery exceptions" },
-                      conditions: "Possible dispatch or response clause found in uploaded text.",
-                      response_deadline_hours: 1,
-                      resolution_deadline_hours: 4,
-                      penalty_amount: 135000,
-                      escalation_owner: "Regional Fleet Control",
-                      business_hours_logic: "24x7",
-                      auto_action_allowed: true,
-                      status: "pending_review",
-                      confidence_score: 0.79,
-                    },
-                  ],
-                },
-                ...current,
-              ]);
+              setMessage(null);
+              setExtractionRun({ fileName, progress: 0, startedAt: Date.now() });
             }}
           />
 
@@ -371,7 +427,7 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
                               <div className="td-sub">Penalty</div>
                               <strong>{formatMoneyInr(candidate.penalty_amount)}</strong>
                             </div>
-                          <div>
+                            <div>
                               <div className="td-sub">Confidence</div>
                               <strong style={{ color: (candidate.confidence_score ?? 0) > 0.8 ? "#6EE7B7" : (candidate.confidence_score ?? 0) > 0.6 ? "#FBB424" : "#F87171" }}>
                                 {Math.round((candidate.confidence_score ?? 0) * 100)}%
@@ -533,6 +589,8 @@ export function SlaRulebookPage(_: SlaRulebookPageProps) {
           onCancel={() => setPendingConfirm(null)}
         />
       ) : null}
+
+      {extractionRun ? <ExtractionProgressModal fileName={extractionRun.fileName} progress={extractionRun.progress} /> : null}
     </div>
   );
 }

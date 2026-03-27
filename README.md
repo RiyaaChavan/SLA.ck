@@ -78,20 +78,20 @@ The backend converts these profiles into normalized relational data, then scans 
 
 ## Quick-Commerce Synthetic Data
 
-A richer Blinkit-style synthetic dataset is available under [`data/synthetic/quickbasket_india`](./data/synthetic/quickbasket_india). It includes dark stores, teams, employees, drivers, orders, delivery events, inventory snapshots, work items, invoices, and ground-truth anomalies.
+A richer Blinkit-style synthetic dataset is available under [`data/synthetic/delivra_india`](./data/synthetic/delivra_india). It includes dark stores, teams, employees, drivers, orders, delivery events, inventory snapshots, work items, invoices, and ground-truth anomalies.
 
 To regenerate it:
 
 ```bash
 cd backend
-uv run python ../scripts/generate_quickbasket_synthetic_data.py --output-dir ../data/synthetic/quickbasket_india --days 14
+uv run python ../scripts/generate_delivra_synthetic_data.py --output-dir ../data/synthetic/delivra_india --days 14
 ```
 
 The generation spec used for this bundle lives in [`docs/blinkit_synthetic_data_guide.md`](./docs/blinkit_synthetic_data_guide.md).
 
 ### Load It Into The App Database
 
-The website should consume normalized Business Sentry entities, not QuickBasket-specific tables. To test that path, import the synthetic bundle into the app database through the generic bundle adapter.
+The website should consume normalized SLA.ck entities, not Delivra-specific tables. To test that path, import the synthetic bundle into the app database through the generic bundle adapter.
 
 Start the Docker stack with PostgreSQL:
 
@@ -103,7 +103,7 @@ Then import the bundle into the app DB:
 
 ```bash
 cd backend
-uv run python ../scripts/import_synthetic_bundle_to_app.py --bundle-name quickbasket_india
+uv run python ../scripts/import_synthetic_bundle_to_app.py --bundle-name delivra_india
 ```
 
 Or through the API:
@@ -111,7 +111,7 @@ Or through the API:
 ```bash
 curl -X POST http://localhost:8000/api/bootstrap/import-synthetic-bundle \
   -H "Content-Type: application/json" \
-  -d '{"bundle_name":"quickbasket_india","reset":true}'
+  -d '{"bundle_name":"delivra_india","reset":true}'
 ```
 
 The importer maps the raw quick-commerce CSVs into the app’s generic models:

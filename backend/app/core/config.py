@@ -11,7 +11,7 @@ LOCAL_DB_PATH = BASE_DIR / "costpulse_local.db"
 
 
 class Settings(BaseSettings):
-    app_name: str = "Business Sentry"
+    app_name: str = "SLA.ck"
     app_env: str = "development"
     debug: bool = True
     host: str = "0.0.0.0"

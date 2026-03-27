@@ -55,7 +55,7 @@ def execute_action(db: Session, *, action_id: int) -> Action:
 
     action.status = ActionStatus.executed
     action.executed_at = datetime.now(UTC)
-    action.result_summary = f"Executed {action.action_type} through Business Sentry workflow engine."
+    action.result_summary = f"Executed {action.action_type} through SLA.ck workflow engine."
     recommendation = db.get(Recommendation, action.recommendation_id)
     if recommendation is not None:
         alert = db.get(Alert, recommendation.alert_id)

@@ -10,7 +10,7 @@ class SeedResponse(BaseModel):
 
 
 class SyntheticBundleImportIn(BaseModel):
-    bundle_name: str | None = "quickbasket_india"
+    bundle_name: str | None = "delivra_india"
     bundle_path: str | None = None
     reset: bool = True
 

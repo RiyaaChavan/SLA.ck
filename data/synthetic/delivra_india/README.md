@@ -1,6 +1,6 @@
-# QuickBasket India Synthetic Dataset
+# Delivra India Synthetic Dataset
 
-This bundle contains Blinkit-style quick-commerce synthetic data generated for Business Sentry demos.
+This bundle contains Blinkit-style quick-commerce synthetic data generated for SLA.ck demos.
 
 - Seed: `20260329`
 - Date range: `2026-03-15` to `2026-03-28`

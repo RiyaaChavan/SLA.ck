@@ -397,6 +397,29 @@ function mapImpactOverview(raw: Record<string, unknown>): ImpactOverview {
   );
   const topTeams = Array.isArray(raw.top_teams_by_overload) ? raw.top_teams_by_overload : [];
   const realizedProjected = (raw.realized_vs_projected ?? {}) as Record<string, unknown>;
+  const periodsRaw = Array.isArray(realizedProjected.periods)
+    ? realizedProjected.periods.map((item) => String(item))
+    : ["Current"];
+  const projectedSeriesRaw = Array.isArray(realizedProjected.projected_savings)
+    ? realizedProjected.projected_savings.map((item) => Number(item ?? 0))
+    : [Number(realizedProjected.projected_savings ?? 0)];
+  const realizedSeriesRaw = Array.isArray(realizedProjected.realized_savings)
+    ? realizedProjected.realized_savings.map((item) => Number(item ?? 0))
+    : [Number(realizedProjected.realized_savings ?? 0)];
+  const seriesLength = Math.max(periodsRaw.length, projectedSeriesRaw.length, realizedSeriesRaw.length, 1);
+  const periods = Array.from({ length: seriesLength }, (_, index) => periodsRaw[index] ?? `P${index + 1}`);
+  const projectedSeries = Array.from(
+    { length: seriesLength },
+    (_, index) => projectedSeriesRaw[index] ?? 0,
+  );
+  const realizedSeries = Array.from(
+    { length: seriesLength },
+    (_, index) => realizedSeriesRaw[index] ?? 0,
+  );
+  const funnelRaw =
+    raw.approval_execution_funnel && typeof raw.approval_execution_funnel === "object"
+      ? (raw.approval_execution_funnel as Record<string, unknown>)
+      : null;
   return {
     organization: raw.organization as ImpactOverview["organization"],
     metrics: raw.metrics as ImpactOverview["metrics"],
@@ -420,15 +443,25 @@ function mapImpactOverview(raw: Record<string, unknown>): ImpactOverview {
       };
     }),
     realized_vs_projected: {
-      periods: ["Current"],
-      realized_savings: [Number(realizedProjected.realized_savings ?? 0)],
-      projected_savings: [Number(realizedProjected.projected_savings ?? 0)],
+      periods,
+      realized_savings: realizedSeries,
+      projected_savings: projectedSeries,
+      capture_rate_pct: Number(
+        realizedProjected.capture_rate_pct ??
+          (projectedSeries.reduce((sum, value) => sum + value, 0)
+            ? (realizedSeries.reduce((sum, value) => sum + value, 0) /
+                projectedSeries.reduce((sum, value) => sum + value, 0)) *
+              100
+            : 0),
+      ),
     },
     approval_execution_funnel: {
-      pending_approval: Math.round(metricValue("Open high-risk cases")),
-      approved: Math.round(metricValue("Approved actions")),
-      rejected: 0,
-      executed: Math.round(metricValue("Executed actions")),
+      pending_approval: Math.round(
+        Number(funnelRaw?.pending_approval ?? metricValue("Open high-risk cases")),
+      ),
+      approved: Math.round(Number(funnelRaw?.approved ?? metricValue("Approved actions"))),
+      rejected: Math.round(Number(funnelRaw?.rejected ?? 0)),
+      executed: Math.round(Number(funnelRaw?.executed ?? metricValue("Executed actions"))),
     },
     recent_cases: (raw.recent_cases ?? []) as ImpactOverview["recent_cases"],
   };
@@ -540,6 +573,11 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
       logic_summary: raw.logic_summary,
       query_logic: raw.query_logic,
       expected_output_fields: raw.expected_output_fields ?? [],
+      module: raw.module,
+      business_domain: raw.business_domain,
+      severity: raw.severity,
+      linked_action_template: raw.linked_action_template,
+      linked_cost_formula: raw.linked_cost_formula,
     };
     return { draft };
   },

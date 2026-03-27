@@ -18,23 +18,6 @@ function IconSpinner(): ReactNode {
   );
 }
 
-function IconStar(): ReactNode {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
-      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-    </svg>
-  );
-}
-
-function IconSearch(): ReactNode {
-  return (
-    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-      <circle cx="11" cy="11" r="8" />
-      <line x1="21" y1="21" x2="16.65" y2="16.65" />
-    </svg>
-  );
-}
-
 function IconEye(): ReactNode {
   return (
     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -186,18 +169,6 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
             CONNECT • DETECT • RESOLVE
           </div>
 
-          {/* Feature pills row */}
-          <div className="home-feat-pills">
-            <div className="home-feat-pill home-feat-pill-teal">
-              <IconStar />
-              ProcureWatch
-            </div>
-            <div className="home-feat-pill home-feat-pill-dark">
-              <IconSearch />
-              SLA Sentinel
-            </div>
-          </div>
-
           {/* Main heading — serif display font */}
           <h1 className="home-h1">
             Operational issues,<br />
@@ -207,7 +178,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
 
           {/* Lead copy */}
           <p className="home-lead">
-            Business Sentry connects your data, detects anomalies and SLA risk, estimates money at
+            SLA.ck connects your data, detects anomalies and SLA risk, estimates money at
             risk, recommends actions, routes them through approval, and tracks outcomes — with a case
             at the center of every workflow.
           </p>
@@ -219,7 +190,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
               onClick={onSeed}
               disabled={seeding}
             >
-              {seeding ? <><IconSpinner /> Bootstrapping data...</> : "Bootstrap Demo Data →"}
+              {seeding ? <><IconSpinner /> Launching signal deck...</> : "Launch Signal Deck →"}
             </button>
             {hasData && (
               <button
@@ -233,7 +204,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
 
           {/* Meta strip */}
           <div className="home-meta-strip">
-            <span><strong>2</strong> MVP modules · ProcureWatch & SLA Sentinel</span>
+            <span><strong>2</strong> MVP modules</span>
             <span className="home-meta-dot">·</span>
             <span>Case-centric workflow</span>
             <span className="home-meta-dot">·</span>
@@ -254,7 +225,7 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
               <div className="home-console-header">
                 <div className="home-console-title-group">
                   <span className="home-console-live-ring" />
-                  <span className="home-console-name">Business Sentry</span>
+                  <span className="home-console-name">SLA.ck</span>
                   <span className="home-console-live-badge">LIVE</span>
                 </div>
                 <span className="home-console-action">Pause</span>
@@ -567,14 +538,14 @@ export function HomePage({ onSeed, seeding, hasData }: HomePageProps) {
       <section className="home-cta-section">
         <div className="home-cta-glow" aria-hidden="true" />
         <h2 className="home-cta-h2">
-          Ready to run the<br />Business Sentry demo?
+          Ready to run the<br />SLA.ck demo?
         </h2>
         <p className="home-cta-desc">
-          Bootstrap the workspace seed, then walk Connected data → Anomaly queries → Anomalies → Tickets → Approvals
+          Launch the signal deck, then walk Connected data → Anomaly queries → Anomalies → Tickets → Approvals
           → Audit — contracts are mocked; UX and API shapes are real.
         </p>
         <button className="home-cta-primary" onClick={onSeed} disabled={seeding}>
-          {seeding ? "Bootstrapping..." : "Get Started →"}
+          {seeding ? "Launching signal deck..." : "Get Started →"}
         </button>
       </section>
 

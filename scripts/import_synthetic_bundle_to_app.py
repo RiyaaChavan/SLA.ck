@@ -9,8 +9,8 @@ from app.services.ingestion.bundle_importer import import_synthetic_bundle
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import a synthetic data bundle into the Business Sentry app database.")
-    parser.add_argument("--bundle-name", default="quickbasket_india", help="Synthetic bundle name under data/synthetic.")
+    parser = argparse.ArgumentParser(description="Import a synthetic data bundle into the SLA.ck app database.")
+    parser.add_argument("--bundle-name", default="delivra_india", help="Synthetic bundle name under data/synthetic.")
     parser.add_argument("--bundle-path", default=None, help="Override bundle path.")
     parser.add_argument("--no-reset", action="store_true", help="Do not reset existing database contents before import.")
     args = parser.parse_args()

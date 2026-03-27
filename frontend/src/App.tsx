@@ -60,7 +60,7 @@ export default function App() {
 
   const reportMutation = useMutation({
     mutationFn: () =>
-      api.generateReport(selectedOrganizationId!, "On-demand Business Sentry Executive Summary"),
+      api.generateReport(selectedOrganizationId!, "On-demand SLA.ck Executive Summary"),
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: ["reports", selectedOrganizationId] }),

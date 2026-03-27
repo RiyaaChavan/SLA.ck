@@ -9,7 +9,7 @@ from app.services.ingestion.relational_source import import_quick_commerce_relat
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Import a relational source database into the Business Sentry app.")
+    parser = argparse.ArgumentParser(description="Import a relational source database into the SLA.ck app.")
     parser.add_argument(
         "--database-url",
         default="postgresql+psycopg://source_demo:source_demo@localhost:5433/source_demo",

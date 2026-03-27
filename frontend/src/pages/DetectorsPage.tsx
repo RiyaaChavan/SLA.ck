@@ -164,9 +164,7 @@ export function DetectorsPage(_: DetectorsPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(DEMO_DETECTORS[0]?.id ?? null);
   const [draftLocal, setDraftLocal] = useState<DetectorDefinition | null>(null);
   const [promptOpen, setPromptOpen] = useState(false);
-  const [promptText, setPromptText] = useState(
-    "Flag stores where rider idle minutes stay high while dispatch utilization stays below 80% for two consecutive days.",
-  );
+  const [promptText, setPromptText] = useState("");
   const [draftResult, setDraftResult] = useState<DetectorDraft | null>(null);
   const [testResult, setTestResult] = useState<DetectorTestResult | null>(null);
   const [saving, setSaving] = useState(false);
@@ -226,7 +224,16 @@ export function DetectorsPage(_: DetectorsPageProps) {
         title="Anomaly queries"
         subtitle="Editable detector logic for vendor anomalies, SLA clusters, and resource optimization."
         actions={
-          <button type="button" className="btn btn-primary" onClick={() => { setPromptOpen(true); setSavedToLibrary(false); setDraftResult(null); }}>
+          <button
+            type="button"
+            className="btn btn-primary"
+            onClick={() => {
+              setPromptOpen(true);
+              setPromptText("");
+              setSavedToLibrary(false);
+              setDraftResult(null);
+            }}
+          >
             <IconPlus /> Prompt to draft
           </button>
         }

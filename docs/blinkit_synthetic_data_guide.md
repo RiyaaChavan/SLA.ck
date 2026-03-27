@@ -2,7 +2,7 @@
 
 ## Goal
 
-Generate realistic synthetic data for a quick-commerce company similar to Blinkit so Business Sentry can demonstrate:
+Generate realistic synthetic data for a quick-commerce company similar to Blinkit so SLA.ck can demonstrate:
 
 - procurement leakage and vendor billing anomalies
 - SLA breach prediction and queue monitoring
@@ -82,7 +82,7 @@ If the smaller agent must minimize scope, the minimum viable set is:
 
 One row only. Use:
 
-- `org_name = QuickBasket India`
+- `org_name = Delivra India`
 - `industry = Quick Commerce`
 - `country = India`
 - `currency_code = INR`
@@ -624,7 +624,7 @@ Store `formula_name` and `formula_inputs_json` in `ground_truth_anomalies.csv`.
 
 ## Team Routing Rules
 
-The dataset must let Business Sentry know where to route action requests.
+The dataset must let SLA.ck know where to route action requests.
 
 Use these routing defaults:
 
@@ -703,7 +703,7 @@ Before accepting the dataset, verify:
 
 Give the smaller agent this task:
 
-1. Generate a `medium`-tier quick-commerce synthetic dataset for `QuickBasket India` using the schema and realism rules in this file.
+1. Generate a `medium`-tier quick-commerce synthetic dataset for `Delivra India` using the schema and realism rules in this file.
 2. Produce the sixteen files listed above as CSV in one folder.
 3. Keep all foreign keys valid and all timestamps in `Asia/Kolkata`.
 4. Inject the anomaly types listed above at the target prevalence.
