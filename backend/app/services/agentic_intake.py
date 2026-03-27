@@ -97,14 +97,28 @@ def _extract_sla_signals(text: str, mode: str) -> tuple[list[str], float | None]
     for match in _TIME_PATTERN.finditer(text):
         amount = float(match.group("amount"))
         hours = _hours_from_text(amount, match.group("unit"))
-        window = lowered[max(match.start() - 24, 0): min(match.end() + 24, len(lowered))]
-        if any(token in window for token in ("response", "respond", "ack", "decision", "approve", "approval", "resolution", "resolve")):
+        window = lowered[max(match.start() - 24, 0) : min(match.end() + 24, len(lowered))]
+        if any(
+            token in window
+            for token in (
+                "response",
+                "respond",
+                "ack",
+                "decision",
+                "approve",
+                "approval",
+                "resolution",
+                "resolve",
+            )
+        ):
             signals.append(f"Explicit SLA cue: {match.group(0)} in '{window.strip()}'.")
             explicit_deadlines_hours.append(hours)
     if "eod" in lowered or "end of day" in lowered:
         signals.append("Explicit SLA cue: end-of-day deadline referenced.")
         explicit_deadlines_hours.append(8.0)
-    if mode == "approval" and any(token in lowered for token in ("approval pending", "awaiting sign-off", "waiting approval")):
+    if mode == "approval" and any(
+        token in lowered for token in ("approval pending", "awaiting sign-off", "waiting approval")
+    ):
         signals.append("Approval workflow language indicates approval turnaround SLA relevance.")
     return signals, (min(explicit_deadlines_hours) if explicit_deadlines_hours else None)
 
@@ -130,7 +144,9 @@ def _extract_currency_amount(text: str) -> float | None:
     return best
 
 
-def _infer_estimated_value(*, text: str, workflow_type: str, priority: str, customer_tier: str) -> float:
+def _infer_estimated_value(
+    *, text: str, workflow_type: str, priority: str, customer_tier: str
+) -> float:
     explicit = _extract_currency_amount(text)
     if explicit is not None:
         return round(explicit, 2)
@@ -144,14 +160,22 @@ def _infer_estimated_value(*, text: str, workflow_type: str, priority: str, cust
         baseline = max(baseline, 325000.0)
     if priority == "P1":
         baseline *= 1.35
-    if any(token in lowered for token in ("launch", "go live", "rollout", "checkout", "payments", "revenue")):
+    if any(
+        token in lowered
+        for token in ("launch", "go live", "rollout", "checkout", "payments", "revenue")
+    ):
         baseline *= 1.3
-    if any(token in lowered for token in ("contract", "renewal", "vendor onboarding", "po", "purchase order")):
+    if any(
+        token in lowered
+        for token in ("contract", "renewal", "vendor onboarding", "po", "purchase order")
+    ):
         baseline *= 1.2
     return round(baseline, 2)
 
 
-def _infer_risk_flags(*, text: str, mode: str, explicit_sla_hours: float | None) -> tuple[list[str], bool]:
+def _infer_risk_flags(
+    *, text: str, mode: str, explicit_sla_hours: float | None
+) -> tuple[list[str], bool]:
     lowered = text.lower()
     risk_flags: list[str] = []
     high_risk_tokens = {
@@ -166,7 +190,9 @@ def _infer_risk_flags(*, text: str, mode: str, explicit_sla_hours: float | None)
     for token, label in high_risk_tokens.items():
         if token in lowered:
             risk_flags.append(label)
-    if mode == "approval" and any(token in lowered for token in ("approval", "sign-off", "approve")):
+    if mode == "approval" and any(
+        token in lowered for token in ("approval", "sign-off", "approve")
+    ):
         risk_flags.append("Approval-gated workflow detected.")
     if explicit_sla_hours is not None and explicit_sla_hours <= 4:
         risk_flags.append("Short explicit SLA window detected from request text.")
@@ -176,7 +202,9 @@ def _infer_risk_flags(*, text: str, mode: str, explicit_sla_hours: float | None)
     return risk_flags, should_raise_alert
 
 
-def _suggested_backlog_hours(priority: str, customer_tier: str, explicit_sla_hours: float | None, *, mode: str) -> float:
+def _suggested_backlog_hours(
+    priority: str, customer_tier: str, explicit_sla_hours: float | None, *, mode: str
+) -> float:
     if explicit_sla_hours is not None:
         if explicit_sla_hours <= 1:
             return 60.0
@@ -192,8 +220,29 @@ def _suggested_backlog_hours(priority: str, customer_tier: str, explicit_sla_hou
     return 24.0 if mode == "approval" else 12.0
 
 
+def _ensure_departments(db: Session, organization_id: int) -> list[Department]:
+    departments = list(
+        db.scalars(select(Department).where(Department.organization_id == organization_id)).all()
+    )
+    if not departments:
+        default = Department(
+            organization_id=organization_id,
+            name="General",
+            category="operations",
+            capacity_score=100,
+        )
+        db.add(default)
+        db.flush()
+        departments.append(default)
+    return departments
+
+
 def _select_department(
-    departments: list[Department], preferred_name: str | None, text: str, *, fallback: str | None = None
+    departments: list[Department],
+    preferred_name: str | None,
+    text: str,
+    *,
+    fallback: str | None = None,
 ) -> Department:
     lowered = text.lower()
     if preferred_name:
@@ -235,10 +284,14 @@ def _apply_ticket_text_overrides(
     department_name = classification.department_name
     vendor = _select_vendor(vendors, classification.vendor_name, text)
 
-    if any(token in text for token in _DELIVERY_TOKENS) and not any(token in text for token in _FINANCE_DISPUTE_TOKENS):
+    if any(token in text for token in _DELIVERY_TOKENS) and not any(
+        token in text for token in _FINANCE_DISPUTE_TOKENS
+    ):
         department = _select_department(departments, None, text, fallback="operations")
         department_name = department.name
-        rationale.append("Overrode classification to delivery from explicit last-mile or pickup signals in the ticket.")
+        rationale.append(
+            "Overrode classification to delivery from explicit last-mile or pickup signals in the ticket."
+        )
         return classification.model_copy(
             update={
                 "workflow_type": "delivery_issue",
@@ -254,7 +307,9 @@ def _apply_ticket_text_overrides(
     if any(token in text for token in _FINANCE_DISPUTE_TOKENS):
         department = _select_department(departments, None, text, fallback="finance")
         department_name = department.name
-        rationale.append("Confirmed finance or procurement discrepancy routing from explicit commercial dispute signals.")
+        rationale.append(
+            "Confirmed finance or procurement discrepancy routing from explicit commercial dispute signals."
+        )
         return classification.model_copy(
             update={
                 "workflow_type": "vendor_dispute",
@@ -273,12 +328,26 @@ def _apply_ticket_text_overrides(
 
 
 def _heuristic_ticket_classification(
-    *, departments: list[Department], vendors: list[Vendor], title: str, description: str, department_name: str | None, vendor_name: str | None
+    *,
+    departments: list[Department],
+    vendors: list[Vendor],
+    title: str,
+    description: str,
+    department_name: str | None,
+    vendor_name: str | None,
 ) -> IntakeClassification:
     text = f"{title}\n{description}".lower()
     rationale: list[str] = []
-    priority = "P1" if any(token in text for token in ("urgent", "sev1", "p1", "outage", "down")) else "standard"
-    customer_tier = "premium" if any(token in text for token in ("premium", "vip", "enterprise")) else "standard"
+    priority = (
+        "P1"
+        if any(token in text for token in ("urgent", "sev1", "p1", "outage", "down"))
+        else "standard"
+    )
+    customer_tier = (
+        "premium"
+        if any(token in text for token in ("premium", "vip", "enterprise"))
+        else "standard"
+    )
     workflow_type = "support_ticket"
     workflow_category = "support"
     issue_type = "support_ticket"
@@ -320,9 +389,13 @@ def _heuristic_ticket_classification(
     if sla_signals:
         rationale.append("Detected explicit SLA language from ticket title/description.")
 
-    department = _select_department(departments, department_name, text, fallback=department_fallback)
+    department = _select_department(
+        departments, department_name, text, fallback=department_fallback
+    )
     vendor = _select_vendor(vendors, vendor_name, text)
-    backlog_hours = _suggested_backlog_hours(priority, customer_tier, explicit_sla_hours, mode="ticket")
+    backlog_hours = _suggested_backlog_hours(
+        priority, customer_tier, explicit_sla_hours, mode="ticket"
+    )
     inferred_estimated_value = _infer_estimated_value(
         text=f"{title}\n{description}",
         workflow_type=workflow_type,
@@ -349,7 +422,13 @@ def _heuristic_ticket_classification(
 
 
 def _heuristic_approval_classification(
-    *, departments: list[Department], vendors: list[Vendor], title: str, description: str, department_name: str | None, vendor_name: str | None
+    *,
+    departments: list[Department],
+    vendors: list[Vendor],
+    title: str,
+    description: str,
+    department_name: str | None,
+    vendor_name: str | None,
 ) -> IntakeClassification:
     text = f"{title}\n{description}".lower()
     rationale = ["Defaulted approval intake to approval workflow."]
@@ -364,8 +443,14 @@ def _heuristic_approval_classification(
         business_unit = "procurement"
         department_fallback = "finance"
         rationale.append("Detected procurement approval language.")
-    priority = "P1" if any(token in text for token in ("urgent", "blocker", "today", "immediate")) else "standard"
-    customer_tier = "premium" if any(token in text for token in ("premium", "vip", "executive")) else "standard"
+    priority = (
+        "P1"
+        if any(token in text for token in ("urgent", "blocker", "today", "immediate"))
+        else "standard"
+    )
+    customer_tier = (
+        "premium" if any(token in text for token in ("premium", "vip", "executive")) else "standard"
+    )
     sla_signals, explicit_sla_hours = _extract_sla_signals(f"{title}\n{description}", "approval")
     risk_flags, should_raise_alert = _infer_risk_flags(
         text=f"{title}\n{description}",
@@ -374,9 +459,13 @@ def _heuristic_approval_classification(
     )
     if sla_signals:
         rationale.append("Detected approval-turnaround or deadline language in the request.")
-    department = _select_department(departments, department_name, text, fallback=department_fallback)
+    department = _select_department(
+        departments, department_name, text, fallback=department_fallback
+    )
     vendor = _select_vendor(vendors, vendor_name, text)
-    backlog_hours = _suggested_backlog_hours(priority, customer_tier, explicit_sla_hours, mode="approval")
+    backlog_hours = _suggested_backlog_hours(
+        priority, customer_tier, explicit_sla_hours, mode="approval"
+    )
     inferred_estimated_value = _infer_estimated_value(
         text=f"{title}\n{description}",
         workflow_type=workflow_type,
@@ -435,7 +524,11 @@ def _classify_with_model(
             f"Description: {description}"
         )
         payload = model.invoke(prompt)
-        return payload if isinstance(payload, IntakeClassification) else IntakeClassification.model_validate(payload)
+        return (
+            payload
+            if isinstance(payload, IntakeClassification)
+            else IntakeClassification.model_validate(payload)
+        )
     except Exception:
         return None
 
@@ -447,7 +540,10 @@ def _evaluate_workflow(db: Session, workflow: Workflow) -> tuple[dict[str, Any],
     vendor = db.get(Vendor, workflow.vendor_id) if workflow.vendor_id else None
     rulebook_entries = db.scalars(
         select(SlaRulebookEntry)
-        .where(SlaRulebookEntry.organization_id == workflow.organization_id, SlaRulebookEntry.status == "active")
+        .where(
+            SlaRulebookEntry.organization_id == workflow.organization_id,
+            SlaRulebookEntry.status == "active",
+        )
         .order_by(SlaRulebookEntry.rule_version.desc(), SlaRulebookEntry.created_at.desc())
     ).all()
     legacy_sla = db.scalar(
@@ -464,11 +560,14 @@ def _evaluate_workflow(db: Session, workflow: Workflow) -> tuple[dict[str, Any],
     live_item = {
         "id": workflow.id,
         "item_type": workflow.workflow_type,
-        "title": workflow.intake_metadata.get("title") or f"{workflow.workflow_type.replace('_', ' ').title()} work item",
+        "title": workflow.intake_metadata.get("title")
+        or f"{workflow.workflow_type.replace('_', ' ').title()} work item",
         "team": department.name if department else None,
         "owner_name": evaluation.live_item.owner_name or "Operations Queue Owner",
         "status": workflow.status,
-        "current_stage": "escalation" if (evaluation.risk.time_remaining_minutes or 0) <= 0 else "monitoring",
+        "current_stage": "escalation"
+        if (evaluation.risk.time_remaining_minutes or 0) <= 0
+        else "monitoring",
         "assigned_sla_name": evaluation.rule_match.rule_name,
         "response_deadline": evaluation.risk.response_deadline,
         "resolution_deadline": evaluation.risk.resolution_deadline,
@@ -494,7 +593,10 @@ def _create_sla_alert_for_workflow(
     title: str,
     description: str,
 ) -> tuple[int | None, int | None]:
-    if evaluation.risk.predicted_breach_risk not in {"high", "critical"} and not classification.should_raise_alert:
+    if (
+        evaluation.risk.predicted_breach_risk not in {"high", "critical"}
+        and not classification.should_raise_alert
+    ):
         return None, None
     alert_risk = evaluation.risk.predicted_breach_risk or "medium"
     if classification.should_raise_alert and alert_risk not in {"high", "critical"}:
@@ -546,10 +648,14 @@ def ingest_ticket(
     status: str,
     region: str,
 ) -> dict[str, Any]:
-    departments = db.scalars(select(Department).where(Department.organization_id == organization_id)).all()
+    departments = _ensure_departments(db, organization_id)
     vendors = db.scalars(select(Vendor).where(Vendor.organization_id == organization_id)).all()
     classification = _classify_with_model(
-        title=title, description=description, departments=departments, vendors=vendors, mode="ticket"
+        title=title,
+        description=description,
+        departments=departments,
+        vendors=vendors,
+        mode="ticket",
     ) or _heuristic_ticket_classification(
         departments=departments,
         vendors=vendors,
@@ -565,9 +671,13 @@ def ingest_ticket(
         departments=departments,
         vendors=vendors,
     )
-    department = _select_department(departments, classification.department_name, title + description)
+    department = _select_department(
+        departments, classification.department_name, title + description
+    )
     vendor = _select_vendor(vendors, classification.vendor_name, title + description)
-    resolved_estimated_value = estimated_value if estimated_value is not None else classification.inferred_estimated_value
+    resolved_estimated_value = (
+        estimated_value if estimated_value is not None else classification.inferred_estimated_value
+    )
     workflow = Workflow(
         organization_id=organization_id,
         department_id=department.id,
@@ -575,10 +685,13 @@ def ingest_ticket(
         workflow_type=classification.workflow_type,
         status=status,
         opened_at=datetime.now(UTC),
-        expected_by=datetime.now(UTC) + timedelta(hours=max(int(backlog_hours or classification.suggested_backlog_hours), 4)),
+        expected_by=datetime.now(UTC)
+        + timedelta(hours=max(int(backlog_hours or classification.suggested_backlog_hours), 4)),
         resolved_at=None,
         estimated_value=resolved_estimated_value,
-        backlog_hours=backlog_hours if backlog_hours is not None else classification.suggested_backlog_hours,
+        backlog_hours=backlog_hours
+        if backlog_hours is not None
+        else classification.suggested_backlog_hours,
         intake_metadata={
             "title": title,
             "description": description,
@@ -635,10 +748,14 @@ def ingest_approval(
     status: str,
     region: str,
 ) -> dict[str, Any]:
-    departments = db.scalars(select(Department).where(Department.organization_id == organization_id)).all()
+    departments = _ensure_departments(db, organization_id)
     vendors = db.scalars(select(Vendor).where(Vendor.organization_id == organization_id)).all()
     classification = _classify_with_model(
-        title=title, description=description, departments=departments, vendors=vendors, mode="approval"
+        title=title,
+        description=description,
+        departments=departments,
+        vendors=vendors,
+        mode="approval",
     ) or _heuristic_approval_classification(
         departments=departments,
         vendors=vendors,
@@ -647,9 +764,13 @@ def ingest_approval(
         department_name=department_name,
         vendor_name=vendor_name,
     )
-    department = _select_department(departments, classification.department_name, title + description)
+    department = _select_department(
+        departments, classification.department_name, title + description
+    )
     vendor = _select_vendor(vendors, classification.vendor_name, title + description)
-    resolved_estimated_value = estimated_value if estimated_value is not None else classification.inferred_estimated_value
+    resolved_estimated_value = (
+        estimated_value if estimated_value is not None else classification.inferred_estimated_value
+    )
     workflow = Workflow(
         organization_id=organization_id,
         department_id=department.id,
@@ -657,10 +778,13 @@ def ingest_approval(
         workflow_type=classification.workflow_type,
         status=status,
         opened_at=datetime.now(UTC),
-        expected_by=datetime.now(UTC) + timedelta(hours=max(int(backlog_hours or classification.suggested_backlog_hours), 4)),
+        expected_by=datetime.now(UTC)
+        + timedelta(hours=max(int(backlog_hours or classification.suggested_backlog_hours), 4)),
         resolved_at=None,
         estimated_value=resolved_estimated_value,
-        backlog_hours=backlog_hours if backlog_hours is not None else classification.suggested_backlog_hours,
+        backlog_hours=backlog_hours
+        if backlog_hours is not None
+        else classification.suggested_backlog_hours,
         intake_metadata={
             "title": title,
             "description": description,
@@ -695,14 +819,18 @@ def ingest_approval(
     )
     auto_mode = get_auto_mode_settings(db, organization_id)
     matching_policies = [
-        policy for policy in auto_mode["policies"] if policy["enabled"] and requested_action_type in policy["allowed_actions"]
+        policy
+        for policy in auto_mode["policies"]
+        if policy["enabled"] and requested_action_type in policy["allowed_actions"]
     ]
     approval_preview: ApprovalSuggestionPayload = get_agent().suggest_approval(
         {
             "risk_level": evaluation.risk.predicted_breach_risk,
             "action_type": requested_action_type,
             "allowed_actions": matching_policies[0]["allowed_actions"] if matching_policies else [],
-            "default_approver": matching_policies[0]["approver_name"] if matching_policies else "Operations Director",
+            "default_approver": matching_policies[0]["approver_name"]
+            if matching_policies
+            else "Operations Director",
             "policies": matching_policies,
             "classification": classification.model_dump(),
         }

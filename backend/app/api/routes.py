@@ -1,7 +1,16 @@
 from pathlib import Path
 from uuid import uuid4
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi import (
+    APIRouter,
+    BackgroundTasks,
+    Depends,
+    File,
+    Form,
+    HTTPException,
+    Request,
+    UploadFile,
+)
 from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -319,18 +328,24 @@ def get_live_ops(
 def create_ticket_intake(
     organization_id: int, payload: TicketIntakeIn, db: Session = Depends(get_db)
 ) -> AgenticIntakeResultOut:
-    return AgenticIntakeResultOut.model_validate(
-        ingest_ticket(db, organization_id=organization_id, **payload.model_dump())
-    )
+    try:
+        return AgenticIntakeResultOut.model_validate(
+            ingest_ticket(db, organization_id=organization_id, **payload.model_dump())
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.post("/intake/approvals/{organization_id}", response_model=AgenticIntakeResultOut)
 def create_approval_intake(
     organization_id: int, payload: ApprovalIntakeIn, db: Session = Depends(get_db)
 ) -> AgenticIntakeResultOut:
-    return AgenticIntakeResultOut.model_validate(
-        ingest_approval(db, organization_id=organization_id, **payload.model_dump())
-    )
+    try:
+        return AgenticIntakeResultOut.model_validate(
+            ingest_approval(db, organization_id=organization_id, **payload.model_dump())
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 @router.delete("/workflows/{workflow_id}")
