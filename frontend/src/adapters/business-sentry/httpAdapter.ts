@@ -71,13 +71,34 @@ type ApiDashboardRenderOut = {
   };
   title: string;
   subtitle: string;
-  metrics: Array<{ label: string; value: number; delta?: number | null }>;
+  theme_preset?: string;
+  metrics: Array<{ title: string; value: number; value_format?: string; tone?: string }>;
   widgets: Array<{
     kind: string;
     title: string;
+    subtitle?: string;
     empty_copy?: string;
+    chart_type?: string | null;
+    value_format?: string;
     items?: Array<Record<string, unknown>>;
     rows?: Array<Record<string, unknown>>;
+  }>;
+  dashboards?: Array<{
+    key: string;
+    title: string;
+    subtitle: string;
+    layout?: string;
+    metrics?: Array<{ title: string; value: number; value_format?: string; tone?: string }>;
+    widgets?: Array<{
+      kind: string;
+      title: string;
+      subtitle?: string;
+      empty_copy?: string;
+      chart_type?: string | null;
+      value_format?: string;
+      items?: Array<Record<string, unknown>>;
+      rows?: Array<Record<string, unknown>>;
+    }>;
   }>;
 };
 
@@ -303,17 +324,45 @@ function mapDataSourceSummary(r: ApiDataSourceSummaryOut): DataSourceSummary {
 }
 
 function mapDashboardRender(r: ApiDashboardRenderOut): DashboardRender {
+  const mapMetric = (metric: { title: string; value: number; value_format?: string; tone?: string }) => ({
+    title: metric.title,
+    value: metric.value,
+    value_format: metric.value_format ?? "count",
+    tone: metric.tone ?? "neutral",
+  });
+  const mapWidget = (widget: {
+    kind: string;
+    title: string;
+    subtitle?: string;
+    empty_copy?: string;
+    chart_type?: string | null;
+    value_format?: string;
+    items?: Array<Record<string, unknown>>;
+    rows?: Array<Record<string, unknown>>;
+  }) => ({
+    kind: widget.kind,
+    title: widget.title,
+    subtitle: widget.subtitle ?? "",
+    empty_copy: widget.empty_copy ?? "No data available.",
+    chart_type: widget.chart_type ?? null,
+    value_format: widget.value_format ?? "count",
+    items: widget.items ?? [],
+    rows: widget.rows ?? [],
+  });
   return {
     organization: r.organization,
     title: r.title,
     subtitle: r.subtitle,
-    metrics: r.metrics ?? [],
-    widgets: (r.widgets ?? []).map((widget) => ({
-      kind: widget.kind,
-      title: widget.title,
-      empty_copy: widget.empty_copy ?? "No data available.",
-      items: widget.items ?? [],
-      rows: widget.rows ?? [],
+    theme_preset: r.theme_preset ?? "cobalt",
+    metrics: (r.metrics ?? []).map(mapMetric),
+    widgets: (r.widgets ?? []).map(mapWidget),
+    dashboards: (r.dashboards ?? []).map((dashboard) => ({
+      key: dashboard.key,
+      title: dashboard.title,
+      subtitle: dashboard.subtitle,
+      layout: dashboard.layout ?? "grid",
+      metrics: (dashboard.metrics ?? []).map(mapMetric),
+      widgets: (dashboard.widgets ?? []).map(mapWidget),
     })),
   };
 }

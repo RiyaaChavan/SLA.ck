@@ -688,17 +688,38 @@ class AgenticIntakeResultOut(BaseModel):
     approval_preview: AgenticApprovalPreviewOut | None = None
 
 
+class DashboardRenderMetricOut(BaseModel):
+    title: str
+    value: float
+    value_format: str = "count"
+    tone: str = "neutral"
+
+
 class DashboardWidgetOut(BaseModel):
     kind: str
     title: str
+    subtitle: str = ""
     empty_copy: str = ""
+    chart_type: str | None = None
+    value_format: str = "count"
     items: list[dict] = Field(default_factory=list)
     rows: list[dict] = Field(default_factory=list)
+
+
+class DashboardViewOut(BaseModel):
+    key: str
+    title: str
+    subtitle: str
+    layout: str = "grid"
+    metrics: list[DashboardRenderMetricOut] = Field(default_factory=list)
+    widgets: list[DashboardWidgetOut] = Field(default_factory=list)
 
 
 class DashboardRenderOut(BaseModel):
     organization: OrganizationOut
     title: str
     subtitle: str
-    metrics: list[DashboardMetric] = Field(default_factory=list)
+    theme_preset: str = "cobalt"
+    metrics: list[DashboardRenderMetricOut] = Field(default_factory=list)
     widgets: list[DashboardWidgetOut] = Field(default_factory=list)
+    dashboards: list[DashboardViewOut] = Field(default_factory=list)

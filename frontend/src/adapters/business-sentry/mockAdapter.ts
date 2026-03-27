@@ -99,31 +99,59 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
   async getDashboardRender(organizationId): Promise<DashboardRender> {
     await delay();
     const impact = mockImpact(organizationId);
+    const widgets = [
+      {
+        kind: "chart",
+        chart_type: "bar",
+        title: "Top vendors by projected impact",
+        subtitle: "Mock chart preview",
+        empty_copy: "No vendor anomalies.",
+        value_format: "currency",
+        items: impact.top_vendors_by_risk.map((item) => ({
+          label: item.vendor,
+          value: item.projected_impact,
+        })),
+        rows: [],
+      },
+      {
+        kind: "chart",
+        chart_type: "pie",
+        title: "Top teams by overload",
+        subtitle: "Mock distribution preview",
+        empty_copy: "No overloaded teams.",
+        value_format: "count",
+        items: impact.top_teams_by_overload.map((item) => ({
+          label: item.team,
+          value: item.open_items,
+        })),
+        rows: [],
+      },
+    ];
     return {
       organization: impact.organization,
       title: `${impact.organization.name} anomaly dashboard`,
       subtitle: "Generated dashboard preview from mock data.",
-      metrics: impact.metrics.slice(0, 4),
-      widgets: [
+      theme_preset: "cobalt",
+      metrics: impact.metrics.slice(0, 4).map((metric) => ({
+        title: metric.label,
+        value: metric.value,
+        value_format: "count",
+        tone: "neutral",
+      })),
+      widgets,
+      dashboards: [
         {
-          kind: "list",
-          title: "Top vendors by projected impact",
-          empty_copy: "No vendor anomalies.",
-          items: impact.top_vendors_by_risk.map((item) => ({
-            label: item.vendor,
-            value: item.projected_impact,
+          key: "overview",
+          title: "Overview",
+          subtitle: "Mock overview dashboard",
+          layout: "grid",
+          metrics: impact.metrics.slice(0, 4).map((metric) => ({
+            title: metric.label,
+            value: metric.value,
+            value_format: "count",
+            tone: "neutral",
           })),
-          rows: [],
-        },
-        {
-          kind: "list",
-          title: "Top teams by overload",
-          empty_copy: "No overloaded teams.",
-          items: impact.top_teams_by_overload.map((item) => ({
-            label: item.team,
-            value: item.open_items,
-          })),
-          rows: [],
+          widgets,
         },
       ],
     };

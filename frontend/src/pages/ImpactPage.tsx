@@ -1,8 +1,15 @@
+import { useEffect, useMemo, useState } from "react";
 import { NavLink } from "react-router-dom";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { SectionCard } from "../components/shared/SectionCard";
 import { StatCard } from "../components/shared/StatCard";
-import type { DashboardRenderWidget, ImpactMetric, ImpactOverview } from "../domain/business-sentry";
+import type {
+  DashboardRenderMetric,
+  DashboardRenderView,
+  DashboardRenderWidget,
+  ImpactMetric,
+  ImpactOverview,
+} from "../domain/business-sentry";
 import { demoImpactOverview } from "../demo/businessSentryHardcoded";
 import { useDashboardRender, useImpactOverview } from "../hooks/useBusinessSentry";
 import { formatMoneyInr, formatModuleLabel } from "../lib/formatters";
@@ -12,6 +19,15 @@ type ImpactPageProps = {
 };
 
 type StatTone = "positive" | "negative" | "neutral";
+type DashboardTone = "positive" | "negative" | "neutral" | "accent";
+
+const CHART_COLORS = [
+  "var(--dashboard-accent-strong)",
+  "var(--dashboard-accent)",
+  "var(--dashboard-accent-soft)",
+  "var(--dashboard-ink-soft)",
+  "rgba(255,255,255,0.34)",
+];
 
 function sum(values: number[]) {
   return values.reduce((total, value) => total + value, 0);
@@ -49,7 +65,171 @@ function pressureBadgeClass(level: string) {
   return "badge-low";
 }
 
+function formatDashboardValue(value: number, valueFormat: string) {
+  if (valueFormat === "currency") return formatMoneyInr(value);
+  if (valueFormat === "percent") return `${value.toFixed(value >= 10 ? 0 : 1)}%`;
+  return Math.round(value).toLocaleString("en-IN");
+}
+
+function formatDashboardCell(value: unknown, valueFormat: string) {
+  if (typeof value === "number") {
+    return formatDashboardValue(value, valueFormat);
+  }
+  return String(value ?? "—");
+}
+
+function dashboardToneClass(tone: string): DashboardTone {
+  if (tone === "positive" || tone === "negative" || tone === "accent") return tone;
+  return "neutral";
+}
+
+function chartLabel(item: Record<string, unknown>, index: number) {
+  return String(
+    item.label ??
+      item.name ??
+      item.module ??
+      item.validation_status ??
+      item.detector ??
+      `Item ${index + 1}`,
+  );
+}
+
+function chartValue(item: Record<string, unknown>) {
+  const raw =
+    item.value ??
+    item.latest_row_count ??
+    item.schedule_minutes ??
+    item.row_count ??
+    item.count ??
+    0;
+  const numeric = Number(raw);
+  return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function chartNote(item: Record<string, unknown>, label: string) {
+  if (item.name && String(item.name) !== label) return String(item.name);
+  if (item.module) return String(item.module);
+  if (item.validation_status) return String(item.validation_status);
+  if (item.detector) return String(item.detector);
+  return "";
+}
+
+function normalizedChartItems(widget: DashboardRenderWidget) {
+  return widget.items
+    .map((item, index) => ({
+      label: chartLabel(item, index),
+      value: chartValue(item),
+      note: chartNote(item, chartLabel(item, index)),
+    }))
+    .filter((item) => item.label);
+}
+
+function renderBarChart(widget: DashboardRenderWidget) {
+  const items = normalizedChartItems(widget).slice(0, 6);
+  const maxValue = Math.max(...items.map((item) => item.value), 1);
+  return (
+    <div className="generated-chart-bar">
+      {items.map((item, index) => (
+        <div key={`${item.label}-${index}`} className="generated-chart-bar-column">
+          <div className="generated-chart-bar-track">
+            <div
+              className="generated-chart-bar-fill"
+              style={{
+                height: `${Math.max((item.value / maxValue) * 100, item.value > 0 ? 10 : 0)}%`,
+                background: CHART_COLORS[index % CHART_COLORS.length],
+              }}
+              title={`${item.label}: ${formatDashboardValue(item.value, widget.value_format)}`}
+            />
+          </div>
+          <div className="generated-chart-bar-value">
+            {formatDashboardValue(item.value, widget.value_format)}
+          </div>
+          <div className="generated-chart-bar-label">{item.label}</div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function renderLineChart(widget: DashboardRenderWidget) {
+  const items = normalizedChartItems(widget).slice(0, 8);
+  const maxValue = Math.max(...items.map((item) => item.value), 1);
+  const points = items
+    .map((item, index) => {
+      const x = items.length === 1 ? 180 : (index / (items.length - 1)) * 360;
+      const y = 140 - (item.value / maxValue) * 110;
+      return `${x},${Number.isFinite(y) ? y : 140}`;
+    })
+    .join(" ");
+  return (
+    <div className="generated-chart-line">
+      <svg viewBox="0 0 360 160" className="generated-chart-line-svg" preserveAspectRatio="none">
+        <path d="M0 140 H360" className="generated-chart-axis" />
+        <polyline points={points} className="generated-chart-line-path" />
+        {items.map((item, index) => {
+          const x = items.length === 1 ? 180 : (index / (items.length - 1)) * 360;
+          const y = 140 - (item.value / maxValue) * 110;
+          return <circle key={`${item.label}-${index}`} cx={x} cy={y} r="5" className="generated-chart-line-dot" />;
+        })}
+      </svg>
+      <div className="generated-chart-line-labels">
+        {items.map((item) => (
+          <div key={item.label} className="generated-chart-line-label">
+            <span>{item.label}</span>
+            <strong>{formatDashboardValue(item.value, widget.value_format)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function renderPieChart(widget: DashboardRenderWidget) {
+  const items = normalizedChartItems(widget).slice(0, 5);
+  const total = Math.max(sum(items.map((item) => item.value)), 1);
+  let cursor = 0;
+  const segments = items.map((item, index) => {
+    const span = (item.value / total) * 100;
+    const start = cursor;
+    cursor += span;
+    return `${CHART_COLORS[index % CHART_COLORS.length]} ${start}% ${cursor}%`;
+  });
+  return (
+    <div className="generated-chart-pie">
+      <div
+        className="generated-chart-pie-visual"
+        style={{ backgroundImage: `conic-gradient(${segments.join(", ")})` }}
+      >
+        <div className="generated-chart-pie-hole">
+          <strong>{formatDashboardValue(total, widget.value_format)}</strong>
+          <span>Total</span>
+        </div>
+      </div>
+      <div className="generated-chart-pie-legend">
+        {items.map((item, index) => (
+          <div key={item.label} className="generated-chart-pie-row">
+            <span className="generated-chart-pie-key">
+              <i
+                className="generated-chart-pie-swatch"
+                style={{ background: CHART_COLORS[index % CHART_COLORS.length] }}
+              />
+              {item.label}
+            </span>
+            <strong>{formatDashboardValue(item.value, widget.value_format)}</strong>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function renderGeneratedWidget(widget: DashboardRenderWidget) {
+  if (widget.kind === "chart" && widget.items.length) {
+    if (widget.chart_type === "pie") return renderPieChart(widget);
+    if (widget.chart_type === "line") return renderLineChart(widget);
+    return renderBarChart(widget);
+  }
+
   if (widget.rows.length) {
     const headers = Object.keys(widget.rows[0] ?? {});
     return (
@@ -66,7 +246,7 @@ function renderGeneratedWidget(widget: DashboardRenderWidget) {
             {widget.rows.map((row, index) => (
               <tr key={index}>
                 {headers.map((header) => (
-                  <td key={header}>{String(row[header] ?? "—")}</td>
+                  <td key={header}>{formatDashboardCell(row[header], widget.value_format)}</td>
                 ))}
               </tr>
             ))}
@@ -78,36 +258,18 @@ function renderGeneratedWidget(widget: DashboardRenderWidget) {
 
   if (widget.items.length) {
     return (
-      <div className="bs-ranked-list">
+      <div className="generated-list">
         {widget.items.map((item, index) => {
-          const label = String(
-            item.label ??
-              item.name ??
-              item.module ??
-              item.validation_status ??
-              `Item ${index + 1}`,
-          );
-          const note =
-            item.name && item.name !== label
-              ? String(item.name)
-              : item.validation_status
-                ? String(item.validation_status)
-                : item.module
-                  ? String(item.module)
-                  : "";
-          const value =
-            item.value ??
-            item.latest_row_count ??
-            item.schedule_minutes ??
-            item.validation_status ??
-            "";
+          const label = chartLabel(item, index);
+          const note = chartNote(item, label);
+          const value = item.value ?? item.latest_row_count ?? item.schedule_minutes ?? item.validation_status ?? "";
           return (
-            <div key={`${label}-${index}`} className="bs-ranked-row">
+            <div key={`${label}-${index}`} className="generated-list-row">
               <div>
-                <div className="bs-ranked-label">{label}</div>
-                {note ? <div className="bs-ranked-note">{note}</div> : null}
+                <div className="generated-list-label">{label}</div>
+                {note ? <div className="generated-list-note">{note}</div> : null}
               </div>
-              <strong>{String(value || "—")}</strong>
+              <strong>{formatDashboardCell(value, widget.value_format)}</strong>
             </div>
           );
         })}
@@ -115,7 +277,41 @@ function renderGeneratedWidget(widget: DashboardRenderWidget) {
     );
   }
 
-  return <div className="bs-footnote">{widget.empty_copy}</div>;
+  return <div className="generated-empty">{widget.empty_copy}</div>;
+}
+
+function buildDashboardViews(dashboardRender: NonNullable<ReturnType<typeof useDashboardRender>["data"]>) {
+  if (dashboardRender.dashboards.length) return dashboardRender.dashboards;
+  return [
+    {
+      key: "overview",
+      title: dashboardRender.title,
+      subtitle: dashboardRender.subtitle,
+      layout: "grid",
+      metrics: dashboardRender.metrics,
+      widgets: dashboardRender.widgets,
+    },
+  ] satisfies DashboardRenderView[];
+}
+
+function generatedWidgetClass(widget: DashboardRenderWidget, layout: string) {
+  const isTable = widget.kind === "table" || widget.rows.length > 0;
+  const isWideChart = widget.kind === "chart" && (widget.chart_type === "line" || widget.items.length > 5);
+  if (layout === "hero" && (isTable || isWideChart)) return "generated-widget generated-widget-wide";
+  if (layout === "dense" && isTable) return "generated-widget generated-widget-wide";
+  return "generated-widget";
+}
+
+function themeAccentVar(theme: string) {
+  if (theme === "teal") return "var(--dashboard-accent, #4CC3A7)";
+  if (theme === "amber") return "var(--dashboard-accent, #F59E0B)";
+  return "var(--dashboard-accent, #2477D0)";
+}
+
+function themeAccentSoftVar(theme: string) {
+  if (theme === "teal") return "var(--dashboard-accent-soft, rgba(76,195,167,0.18))";
+  if (theme === "amber") return "var(--dashboard-accent-soft, rgba(245,158,11,0.15))";
+  return "var(--dashboard-accent-soft, rgba(36,119,208,0.12))";
 }
 
 export function ImpactPage({ organizationId }: ImpactPageProps) {
@@ -126,12 +322,19 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
     dashboardRender &&
       (dashboardRender.metrics.length > 0 ||
         dashboardRender.widgets.length > 0 ||
+        dashboardRender.dashboards.length > 0 ||
         dashboardRender.title !== "No dashboard yet"),
   );
 
+  const [activeTab, setActiveTab] = useState(0);
+
   if (hasGeneratedDashboard && dashboardRender) {
+    const views = buildDashboardViews(dashboardRender);
+    const current = views[activeTab] ?? views[0];
+    const theme = dashboardRender.theme_preset ?? "cobalt";
+
     return (
-      <div className="page-content">
+      <div className={`page-content generated-dashboard generated-theme-${theme}`}>
         <PageHeader
           title={dashboardRender.title}
           subtitle={dashboardRender.subtitle}
@@ -150,34 +353,65 @@ export function ImpactPage({ organizationId }: ImpactPageProps) {
           }
         />
 
-        <div className="stat-grid">
-          {dashboardRender.metrics.map((metric, index) => {
-            const accentClass =
-              index === 0
-                ? "stat-card-blue"
-                : index === 1
-                  ? "stat-card-teal"
-                  : index === 2
-                    ? "stat-card-amber"
-                    : "stat-card-red";
-            return (
-              <div key={metric.label} className={accentClass} style={{ borderRadius: "var(--radius-lg)" }}>
-                <StatCard
-                  label={metric.label}
-                  value={Number(metric.value ?? 0).toLocaleString("en-IN")}
-                  detail="Generated from the connector, presets, and latest detector output."
-                  detailTone="neutral"
-                />
-              </div>
-            );
-          })}
-        </div>
+        {views.length > 1 && (
+          <nav className="generated-tabs" role="tablist">
+            {views.map((view, index) => (
+              <button
+                key={view.key}
+                role="tab"
+                aria-selected={index === activeTab}
+                className={`generated-tab ${index === activeTab ? "generated-tab-active" : ""}`}
+                onClick={() => setActiveTab(index)}
+                style={
+                  index === activeTab
+                    ? {
+                        borderColor: themeAccentVar(theme),
+                        color: themeAccentVar(theme),
+                        background: themeAccentSoftVar(theme),
+                      }
+                    : undefined
+                }
+              >
+                {view.title}
+              </button>
+            ))}
+          </nav>
+        )}
 
-        <div className="split-grid">
-          {dashboardRender.widgets.map((widget) => (
-            <SectionCard key={widget.title} title={widget.title} subtitle={widget.empty_copy}>
-              {renderGeneratedWidget(widget)}
-            </SectionCard>
+        {current.subtitle ? (
+          <div className="generated-view-subtitle">{current.subtitle}</div>
+        ) : null}
+
+        {current.metrics.length > 0 && (
+          <div className="generated-metric-strip">
+            {current.metrics.map((metric, index) => (
+              <div key={`${current.key}-m-${index}`} className="generated-metric-card">
+                <span className="generated-metric-label">{metric.title}</span>
+                <span className="generated-metric-value">
+                  {formatDashboardValue(metric.value, metric.value_format)}
+                </span>
+                <span className={`generated-metric-tone generated-metric-tone-${dashboardToneClass(metric.tone)}`} />
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className={`generated-widget-grid generated-widget-grid-${current.layout ?? "grid"}`}>
+          {current.widgets.map((widget, index) => (
+            <div
+              key={`${current.key}-w-${index}`}
+              className={generatedWidgetClass(widget, current.layout ?? "grid")}
+            >
+              <div className="generated-widget-header">
+                <div>
+                  <div className="generated-widget-title">{widget.title}</div>
+                  {widget.subtitle ? (
+                    <div className="generated-widget-subtitle">{widget.subtitle}</div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="generated-widget-body">{renderGeneratedWidget(widget)}</div>
+            </div>
           ))}
         </div>
       </div>

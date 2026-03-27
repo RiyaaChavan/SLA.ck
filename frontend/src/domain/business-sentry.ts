@@ -50,25 +50,40 @@ export type ImpactOverview = {
 };
 
 export type DashboardRenderMetric = {
-  label: string;
+  title: string;
   value: number;
-  delta?: number | null;
+  value_format: string;
+  tone: string;
 };
 
 export type DashboardRenderWidget = {
   kind: string;
   title: string;
+  subtitle: string;
   empty_copy: string;
+  chart_type?: string | null;
+  value_format: string;
   items: Array<Record<string, unknown>>;
   rows: Array<Record<string, unknown>>;
+};
+
+export type DashboardRenderView = {
+  key: string;
+  title: string;
+  subtitle: string;
+  layout: string;
+  metrics: DashboardRenderMetric[];
+  widgets: DashboardRenderWidget[];
 };
 
 export type DashboardRender = {
   organization: OrganizationSummary;
   title: string;
   subtitle: string;
+  theme_preset: string;
   metrics: DashboardRenderMetric[];
   widgets: DashboardRenderWidget[];
+  dashboards: DashboardRenderView[];
 };
 
 export type CaseSummary = {
