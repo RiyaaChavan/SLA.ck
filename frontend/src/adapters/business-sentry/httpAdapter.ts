@@ -8,6 +8,7 @@ import type {
   AutoModePolicyUpdate,
   AutoModeSettings,
   CasesListParams,
+  DashboardRender,
   DataConnector,
   DataSourceSummary,
   DetectorDefinition,
@@ -60,6 +61,25 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return response.json() as Promise<T>;
 }
+
+type ApiDashboardRenderOut = {
+  organization: {
+    id: number;
+    name: string;
+    industry: string;
+    geography: string;
+  };
+  title: string;
+  subtitle: string;
+  metrics: Array<{ label: string; value: number; delta?: number | null }>;
+  widgets: Array<{
+    kind: string;
+    title: string;
+    empty_copy?: string;
+    items?: Array<Record<string, unknown>>;
+    rows?: Array<Record<string, unknown>>;
+  }>;
+};
 
 /** Multipart or other requests where the body sets Content-Type (e.g. FormData). */
 async function requestNoJsonBody<T>(path: string, options: RequestInit): Promise<T> {
@@ -279,6 +299,22 @@ function mapDataSourceSummary(r: ApiDataSourceSummaryOut): DataSourceSummary {
     })),
     size_bytes: r.size_bytes ?? 0,
     preview_row_count: r.preview_row_count ?? 0,
+  };
+}
+
+function mapDashboardRender(r: ApiDashboardRenderOut): DashboardRender {
+  return {
+    organization: r.organization,
+    title: r.title,
+    subtitle: r.subtitle,
+    metrics: r.metrics ?? [],
+    widgets: (r.widgets ?? []).map((widget) => ({
+      kind: widget.kind,
+      title: widget.title,
+      empty_copy: widget.empty_copy ?? "No data available.",
+      items: widget.items ?? [],
+      rows: widget.rows ?? [],
+    })),
   };
 }
 
@@ -613,6 +649,10 @@ function scrubCandidateEdits(edits: SlaExtractionCandidateEdit[]) {
 
 export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
   getImpact: (organizationId) => request(`/impact/${organizationId}`),
+  getDashboardRender: async (organizationId) => {
+    const payload = await request<ApiDashboardRenderOut>(`/dashboard/render/${organizationId}`);
+    return mapDashboardRender(payload);
+  },
   listCases: (organizationId, params) =>
     request(`/cases/${organizationId}${casesQuery(params)}`),
   getCaseDetail: (caseId) => request(`/cases/detail/${caseId}`),

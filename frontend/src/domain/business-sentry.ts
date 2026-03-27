@@ -49,6 +49,28 @@ export type ImpactOverview = {
   approval_execution_funnel: ApprovalExecutionFunnel;
 };
 
+export type DashboardRenderMetric = {
+  label: string;
+  value: number;
+  delta?: number | null;
+};
+
+export type DashboardRenderWidget = {
+  kind: string;
+  title: string;
+  empty_copy: string;
+  items: Array<Record<string, unknown>>;
+  rows: Array<Record<string, unknown>>;
+};
+
+export type DashboardRender = {
+  organization: OrganizationSummary;
+  title: string;
+  subtitle: string;
+  metrics: DashboardRenderMetric[];
+  widgets: DashboardRenderWidget[];
+};
+
 export type CaseSummary = {
   id: string;
   organization_id: number;

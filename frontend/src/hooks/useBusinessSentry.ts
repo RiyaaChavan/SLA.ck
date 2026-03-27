@@ -23,6 +23,14 @@ export function useImpactOverview(organizationId: number | undefined) {
   });
 }
 
+export function useDashboardRender(organizationId: number | undefined) {
+  return useQuery({
+    queryKey: ["bs", "dashboardRender", organizationId],
+    queryFn: () => adapter.getDashboardRender(organizationId!),
+    enabled: Boolean(organizationId),
+  });
+}
+
 export function useCasesList(organizationId: number | undefined, params: CasesListParams) {
   return useQuery({
     queryKey: ["bs", "cases", organizationId, params],
@@ -100,6 +108,7 @@ export function useCreateConnector(organizationId: number | undefined) {
       await qc.invalidateQueries({ queryKey: ["bs", "sourceMemory", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "detectors", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "dashboardRender", organizationId] });
     },
   });
 }
@@ -115,6 +124,7 @@ export function useUpdateConnector(organizationId: number | undefined) {
       await qc.invalidateQueries({ queryKey: ["bs", "sourceMemory", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "detectors", organizationId] });
       await qc.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
+      await qc.invalidateQueries({ queryKey: ["bs", "dashboardRender", organizationId] });
     },
   });
 }

@@ -9,6 +9,15 @@ from sqlalchemy.orm import Session
 from app.models.domain import DashboardSpec, DataConnector, DetectorDefinition, DetectorRun, Organization
 
 
+def _normalized_key(value: str | None) -> str:
+    return (value or "").strip().lower()
+
+
+def _looks_like_any(value: str | None, keywords: list[str]) -> bool:
+    normalized = _normalized_key(value)
+    return any(keyword in normalized for keyword in keywords)
+
+
 def latest_runs_by_detector(db: Session, organization_id: int) -> dict[int, DetectorRun]:
     runs = db.scalars(
         select(DetectorRun)
@@ -98,18 +107,39 @@ def build_dashboard_render_payload(db: Session, organization_id: int) -> dict[st
     grouped_modules: dict[str, int] = defaultdict(int)
     for detector in detectors:
         grouped_modules[detector.module] += latest_runs.get(detector.id).row_count if detector.id in latest_runs else 0
+    validated_preset_count = sum(
+        1 for detector in detectors if (detector.validation_status or "").lower() == "validated"
+    )
+    validation_overview = [
+        {"label": "Validated", "value": validated_preset_count},
+        {"label": "Needs review", "value": max(len(detectors) - validated_preset_count, 0)},
+        {"label": "Enabled", "value": sum(1 for detector in detectors if detector.enabled)},
+    ]
     spec_json = spec.spec_json if spec is not None else {}
     metrics = []
     for item in spec_json.get("metrics", []):
         binding = item.get("binding")
+        label = item.get("title", binding or "Metric")
         value = 0
         if binding == "relation_count":
             value = len(preset_summaries)
         elif binding == "preset_count":
             value = len(detectors)
+        elif binding == "validated_preset_count":
+            value = validated_preset_count
         elif binding == "latest_row_count":
             value = total_rows
-        metrics.append({"label": item.get("title", binding or "Metric"), "value": value})
+        elif binding == "module_count":
+            value = len(grouped_modules)
+        elif _looks_like_any(binding, ["preset", "detector"]) or _looks_like_any(label, ["preset", "detector"]):
+            value = len(detectors)
+        elif _looks_like_any(binding, ["module"]) or _looks_like_any(label, ["module"]):
+            value = len(grouped_modules)
+        elif _looks_like_any(binding, ["valid", "review"]) or _looks_like_any(label, ["valid", "review"]):
+            value = validated_preset_count
+        else:
+            value = max(total_rows, len(detectors))
+        metrics.append({"label": label, "value": value})
     widgets = []
     for widget in spec_json.get("widgets", []):
         binding = widget.get("binding")
@@ -124,6 +154,14 @@ def build_dashboard_render_payload(db: Session, organization_id: int) -> dict[st
             payload["rows"] = latest_rows
         elif binding == "module_rollup":
             payload["items"] = [{"label": key, "value": value} for key, value in grouped_modules.items()]
+        elif binding == "validation_overview":
+            payload["items"] = validation_overview
+        elif payload["kind"] == "table":
+            payload["rows"] = latest_rows or preset_summaries
+        elif payload["kind"] == "chart" and grouped_modules:
+            payload["items"] = [{"label": key, "value": value} for key, value in grouped_modules.items()]
+        else:
+            payload["items"] = preset_summaries
         widgets.append(payload)
     return {
         "organization": {

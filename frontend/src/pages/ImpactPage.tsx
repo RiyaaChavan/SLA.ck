@@ -2,9 +2,9 @@ import { NavLink } from "react-router-dom";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { SectionCard } from "../components/shared/SectionCard";
 import { StatCard } from "../components/shared/StatCard";
-import type { ImpactMetric, ImpactOverview } from "../domain/business-sentry";
+import type { DashboardRenderWidget, ImpactMetric, ImpactOverview } from "../domain/business-sentry";
 import { demoImpactOverview } from "../demo/businessSentryHardcoded";
-import { useImpactOverview } from "../hooks/useBusinessSentry";
+import { useDashboardRender, useImpactOverview } from "../hooks/useBusinessSentry";
 import { formatMoneyInr, formatModuleLabel } from "../lib/formatters";
 
 type ImpactPageProps = {
@@ -49,8 +49,141 @@ function pressureBadgeClass(level: string) {
   return "badge-low";
 }
 
+function renderGeneratedWidget(widget: DashboardRenderWidget) {
+  if (widget.rows.length) {
+    const headers = Object.keys(widget.rows[0] ?? {});
+    return (
+      <div className="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              {headers.map((header) => (
+                <th key={header}>{header}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {widget.rows.map((row, index) => (
+              <tr key={index}>
+                {headers.map((header) => (
+                  <td key={header}>{String(row[header] ?? "—")}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  }
+
+  if (widget.items.length) {
+    return (
+      <div className="bs-ranked-list">
+        {widget.items.map((item, index) => {
+          const label = String(
+            item.label ??
+              item.name ??
+              item.module ??
+              item.validation_status ??
+              `Item ${index + 1}`,
+          );
+          const note =
+            item.name && item.name !== label
+              ? String(item.name)
+              : item.validation_status
+                ? String(item.validation_status)
+                : item.module
+                  ? String(item.module)
+                  : "";
+          const value =
+            item.value ??
+            item.latest_row_count ??
+            item.schedule_minutes ??
+            item.validation_status ??
+            "";
+          return (
+            <div key={`${label}-${index}`} className="bs-ranked-row">
+              <div>
+                <div className="bs-ranked-label">{label}</div>
+                {note ? <div className="bs-ranked-note">{note}</div> : null}
+              </div>
+              <strong>{String(value || "—")}</strong>
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
+
+  return <div className="bs-footnote">{widget.empty_copy}</div>;
+}
+
 export function ImpactPage({ organizationId }: ImpactPageProps) {
+  const dashboardRenderQuery = useDashboardRender(organizationId);
   const impactQuery = useImpactOverview(organizationId);
+  const dashboardRender = dashboardRenderQuery.data;
+  const hasGeneratedDashboard = Boolean(
+    dashboardRender &&
+      (dashboardRender.metrics.length > 0 ||
+        dashboardRender.widgets.length > 0 ||
+        dashboardRender.title !== "No dashboard yet"),
+  );
+
+  if (hasGeneratedDashboard && dashboardRender) {
+    return (
+      <div className="page-content">
+        <PageHeader
+          title={dashboardRender.title}
+          subtitle={dashboardRender.subtitle}
+          actions={
+            <span
+              className={`badge ${
+                dashboardRenderQuery.isFetching && dashboardRenderQuery.data
+                  ? "badge-blue"
+                  : "badge-green"
+              }`}
+            >
+              {dashboardRenderQuery.isFetching && dashboardRenderQuery.data
+                ? "Refreshing generated dashboard"
+                : "Generated dashboard"}
+            </span>
+          }
+        />
+
+        <div className="stat-grid">
+          {dashboardRender.metrics.map((metric, index) => {
+            const accentClass =
+              index === 0
+                ? "stat-card-blue"
+                : index === 1
+                  ? "stat-card-teal"
+                  : index === 2
+                    ? "stat-card-amber"
+                    : "stat-card-red";
+            return (
+              <div key={metric.label} className={accentClass} style={{ borderRadius: "var(--radius-lg)" }}>
+                <StatCard
+                  label={metric.label}
+                  value={Number(metric.value ?? 0).toLocaleString("en-IN")}
+                  detail="Generated from the connector, presets, and latest detector output."
+                  detailTone="neutral"
+                />
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="split-grid">
+          {dashboardRender.widgets.map((widget) => (
+            <SectionCard key={widget.title} title={widget.title} subtitle={widget.empty_copy}>
+              {renderGeneratedWidget(widget)}
+            </SectionCard>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   const d: ImpactOverview = impactQuery.data ?? demoImpactOverview;
   const usingFallback = !impactQuery.data;
   const leakageMetric =

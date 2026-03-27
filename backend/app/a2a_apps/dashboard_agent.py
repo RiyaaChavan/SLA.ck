@@ -1,6 +1,6 @@
 import json
 import time
-from typing import Any
+from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from langchain_core.callbacks.base import BaseCallbackHandler
@@ -59,13 +59,18 @@ class AgentTraceCallbackHandler(BaseCallbackHandler):
 class DashboardMetric(BaseModel):
     kind: str
     title: str
-    binding: str
+    binding: Literal["preset_count", "validated_preset_count", "latest_row_count", "module_count"]
 
 
 class DashboardWidget(BaseModel):
     kind: str
     title: str
-    binding: str
+    binding: Literal[
+        "preset_summaries",
+        "latest_detector_rows",
+        "module_rollup",
+        "validation_overview",
+    ]
     empty_copy: str | None = None
 
 
@@ -250,8 +255,17 @@ Requirements:
 - Metrics kinds must be 'stat' or 'chart'.
 - Widget kinds must be 'list', 'table', or 'chart'.
 - Use concise titles and stable snake_case bindings.
-- Bindings must be grounded in the sampled query outputs above, not invented arbitrarily.
-- Prefer widgets whose bindings correspond to actual output columns or meaningful derived aggregates from the sampled queries.
+- Use only these metric bindings:
+  - preset_count: total generated presets
+  - validated_preset_count: presets whose SQL validated successfully
+  - latest_row_count: total rows from latest detector runs
+  - module_count: number of detector modules represented
+- Use only these widget bindings:
+  - preset_summaries: generated detector inventory
+  - latest_detector_rows: recent sampled detector rows
+  - module_rollup: detector output grouped by module
+  - validation_overview: validation status summary for generated presets
+- Choose bindings that match the generated presets and sampled outputs above. Do not invent arbitrary business-specific bindings.
 - Subtitle should be short and business-facing.
 - Set version to 1.
 - Set preset_count to {len(presets)}.
@@ -268,21 +282,21 @@ Requirements:
             "title": "Operations Dashboard",
             "subtitle": dashboard_brief or "Generated dashboard",
             "metrics": [
-                {"kind": "stat", "title": "Total Anomalies", "binding": "total_anomalies"},
-                {"kind": "stat", "title": "Active Presets", "binding": "preset_count"},
+                {"kind": "stat", "title": "Generated presets", "binding": "preset_count"},
+                {"kind": "stat", "title": "Validated presets", "binding": "validated_preset_count"},
             ],
             "widgets": [
                 {
                     "kind": "list",
-                    "title": "Recent Anomalies",
-                    "binding": "recent_anomalies",
-                    "empty_copy": "No anomalies",
+                    "title": "Generated preset inventory",
+                    "binding": "preset_summaries",
+                    "empty_copy": "No presets generated yet.",
                 },
                 {
                     "kind": "table",
-                    "title": "Anomaly Details",
-                    "binding": "anomaly_details",
-                    "empty_copy": "No anomaly rows available",
+                    "title": "Preset validation overview",
+                    "binding": "validation_overview",
+                    "empty_copy": "Validation summary unavailable.",
                 },
             ],
             "version": 1,

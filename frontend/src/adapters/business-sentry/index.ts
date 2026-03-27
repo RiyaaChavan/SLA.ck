@@ -9,6 +9,7 @@ export function createBusinessSentryAdapter(): BusinessSentryAdapter {
   const h = httpBusinessSentryAdapter;
   return {
     getImpact: LIVE_ENDPOINTS.impact ? h.getImpact : m.getImpact,
+    getDashboardRender: LIVE_ENDPOINTS.impact ? h.getDashboardRender : m.getDashboardRender,
     listCases: LIVE_ENDPOINTS.cases ? h.listCases : m.listCases,
     getCaseDetail: LIVE_ENDPOINTS.caseDetail ? h.getCaseDetail : m.getCaseDetail,
     listLiveOps: LIVE_ENDPOINTS.liveOps ? h.listLiveOps : m.listLiveOps,

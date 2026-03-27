@@ -33,6 +33,8 @@ export function useConnectorArtifactStream(connectorId: number | null, organizat
         void queryClient.invalidateQueries({ queryKey: ["bs", "connectors", organizationId] });
         void queryClient.invalidateQueries({ queryKey: ["bs", "sourceMemory", organizationId] });
         void queryClient.invalidateQueries({ queryKey: ["bs", "detectors", organizationId] });
+        void queryClient.invalidateQueries({ queryKey: ["bs", "dashboardRender", organizationId] });
+        void queryClient.invalidateQueries({ queryKey: ["bs", "impact", organizationId] });
       }
     });
 

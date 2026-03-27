@@ -8,6 +8,7 @@ import type {
   CaseDetail,
   CaseSummary,
   CasesListParams,
+  DashboardRender,
   DataSourceSummary,
   DetectorDefinition,
   DetectorDraft,
@@ -114,6 +115,7 @@ export type SlaRulebookArchivePayload = {
 /** Single boundary for Business Sentry API — pages depend only on this + domain types. */
 export type BusinessSentryAdapter = {
   getImpact(organizationId: number): Promise<ImpactOverview>;
+  getDashboardRender(organizationId: number): Promise<DashboardRender>;
   listCases(organizationId: number, params: CasesListParams): Promise<CaseSummary[]>;
   getCaseDetail(caseId: string): Promise<CaseDetail | null>;
   listLiveOps(organizationId: number): Promise<LiveWorkItem[]>;

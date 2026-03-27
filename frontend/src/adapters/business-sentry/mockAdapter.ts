@@ -4,6 +4,7 @@ import type {
   ApprovalIntakePayload,
   CaseSummary,
   CasesListParams,
+  DashboardRender,
   DetectorDefinition,
   LiveWorkItem,
   TicketIntakePayload,
@@ -93,6 +94,39 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       "newest",
     ).slice(0, 3);
     return data;
+  },
+
+  async getDashboardRender(organizationId): Promise<DashboardRender> {
+    await delay();
+    const impact = mockImpact(organizationId);
+    return {
+      organization: impact.organization,
+      title: `${impact.organization.name} anomaly dashboard`,
+      subtitle: "Generated dashboard preview from mock data.",
+      metrics: impact.metrics.slice(0, 4),
+      widgets: [
+        {
+          kind: "list",
+          title: "Top vendors by projected impact",
+          empty_copy: "No vendor anomalies.",
+          items: impact.top_vendors_by_risk.map((item) => ({
+            label: item.vendor,
+            value: item.projected_impact,
+          })),
+          rows: [],
+        },
+        {
+          kind: "list",
+          title: "Top teams by overload",
+          empty_copy: "No overloaded teams.",
+          items: impact.top_teams_by_overload.map((item) => ({
+            label: item.team,
+            value: item.open_items,
+          })),
+          rows: [],
+        },
+      ],
+    };
   },
 
   async listCases(organizationId, params) {
