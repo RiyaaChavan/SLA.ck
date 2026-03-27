@@ -4,11 +4,13 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { LiveWorkItem, AgenticIntakeResult } from "../domain/business-sentry";
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { ConfirmModal } from "../components/shared/ConfirmModal";
 import { useNotifications } from "../components/shared/Notifications";
 import { formatDateTime, formatMoneyInr } from "../lib/formatters";
 import {
   useCreateApprovalIntake,
   useCreateTicketIntake,
+  useDeleteWorkflow,
   useLiveOps,
 } from "../hooks/useBusinessSentry";
 
@@ -67,7 +69,6 @@ function AddTicketDrawer({
       },
       {
         onSuccess: (data) => {
-          // Add a small delay to simulate "AI thinking" even if API is fast, for UX consistency with UI branch
           setTimeout(() => {
             setAiResult(data);
             setPhase("result");
@@ -216,9 +217,9 @@ function AddTicketDrawer({
               </div>
 
               <div className="ai-result-field">
-                <div className="ai-result-label">Projected Penalty Exposure</div>
+                <div className="ai-result-label">Penalty Exposure</div>
                 <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text-1)", letterSpacing: "-0.025em" }}>
-                  {formatMoneyInr(aiResult.live_item.projected_penalty)}
+                  {formatMoneyInr(aiResult.live_item.projected_penalty || aiResult.live_item.contract_penalty || 0)}
                 </div>
               </div>
 
@@ -265,10 +266,12 @@ function CompactCard({
   row,
   onDragStart,
   onClick,
+  onDelete,
 }: {
   row: LiveWorkItem;
   onDragStart: (e: React.DragEvent, id: string) => void;
   onClick: () => void;
+  onDelete: (id: string, title: string) => void;
 }) {
   const [expanded, setExpanded] = useState(false);
 
@@ -280,9 +283,23 @@ function CompactCard({
       onClick={onClick}
     >
       <div className="bs-kanban-card-top">
-        <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-3)" }}>
-          {row.id}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+          <span style={{ fontFamily: "var(--font-mono)", fontSize: 10, color: "var(--text-3)" }}>
+            {row.id}
+          </span>
+          <button
+            type="button"
+            className="bs-kanban-expand-btn"
+            onClick={(e) => { e.stopPropagation(); onDelete(row.id, row.title); }}
+            title="Delete ticket"
+            style={{ padding: "2px 6px", minWidth: "auto", height: "auto" }}
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+            </svg>
+          </button>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span className={`badge ${riskBadge(row.predicted_breach_risk)}`} style={{ fontSize: 10.5 }}>
             {row.predicted_breach_risk}
@@ -323,7 +340,7 @@ function CompactCard({
           </div>
           <div className="bs-kanban-meta-item">
             <span className="bs-muted">Penalty</span>
-            <strong>{formatMoneyInr(row.projected_penalty)}</strong>
+            <strong>{formatMoneyInr(row.projected_penalty || row.contract_penalty || 0)}</strong>
           </div>
           {row.projected_business_impact > 0 && (
             <div className="bs-kanban-meta-item">
@@ -379,6 +396,21 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
   const [prepended, setPrepended] = useState<LiveWorkItem[]>([]);
   const [showAddTicket, setShowAddTicket] = useState(false);
   const [drawerItem, setDrawerItem] = useState<LiveWorkItem | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+
+  const deleteMut = useDeleteWorkflow(organizationId);
+
+  const handleDeleteWorkflow = async () => {
+    if (!deleteTarget) return;
+    try {
+      await deleteMut.mutateAsync(Number(deleteTarget.id));
+      setPrepended((prev) => prev.filter((item) => item.id !== deleteTarget.id));
+      notify({ tone: "success", title: "Ticket deleted", message: `Successfully deleted ${deleteTarget.title}` });
+    } catch {
+      notify({ tone: "error", title: "Delete failed", message: "Could not delete the ticket. Please try again." });
+    }
+    setDeleteTarget(null);
+  };
 
   const mergedData = useMemo(() => {
     if (!q.data) return prepended;
@@ -470,6 +502,9 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                         row={row} 
                         onDragStart={handleDragStart} 
                         onClick={() => setDrawerItem(row)}
+                        onDelete={(id, title) => {
+                          setDeleteTarget({ id, title: title || `Ticket #${id}` });
+                        }}
                       />
                     ))
                   )}
@@ -524,7 +559,7 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
                   <dt>Owner</dt><dd>{drawerItem.owner_name}</dd>
                   <dt>SLA Name</dt><dd>{drawerItem.assigned_sla_name ?? "—"}</dd>
                   <dt>Risk Level</dt><dd className={breachBadgeClass(drawerItem.predicted_breach_risk)}>{drawerItem.predicted_breach_risk}</dd>
-                  <dt>Penalty Exposure</dt><dd>{formatMoneyInr(drawerItem.projected_penalty)}</dd>
+                  <dt>Penalty Exposure</dt><dd>{formatMoneyInr(drawerItem.projected_penalty || drawerItem.contract_penalty || 0)}</dd>
                 </dl>
               </section>
 
@@ -559,6 +594,18 @@ export function LiveOpsPage({ organizationId }: LiveOpsPageProps) {
             </div>
           </div>
         </div>
+      )}
+
+      {deleteTarget && (
+        <ConfirmModal
+          title="Delete Ticket"
+          message={`Are you sure you want to delete "${deleteTarget.title}"? This action cannot be undone.`}
+          confirmLabel={deleteMut.isPending ? "Deleting..." : "Delete"}
+          cancelLabel="Cancel"
+          variant="danger"
+          onConfirm={handleDeleteWorkflow}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   );

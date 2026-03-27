@@ -33,6 +33,100 @@ SUPPORTED_DOCUMENT_TYPES = {
     "scan": "image/scan",
 }
 
+_DELIVERY_SCOPE_TOKENS = (
+    "last-mile",
+    "last mile",
+    "pickup",
+    "rider",
+    "dispatch",
+    "delivery",
+    "proof-of-delivery",
+    "completed drop",
+    "transport",
+    "dark stores",
+)
+
+_FINANCE_SCOPE_TOKENS = (
+    "invoice",
+    "billing",
+    "payment",
+    "reconciliation",
+    "rate",
+    "commercial dispute",
+    "purchase order",
+    "po",
+)
+
+_SUPPORT_SCOPE_TOKENS = (
+    "support",
+    "incident",
+    "outage",
+    "ticket",
+    "service desk",
+)
+
+_WAREHOUSE_SCOPE_TOKENS = (
+    "warehouse",
+    "inventory",
+    "putaway",
+    "fulfilment center",
+    "fulfillment center",
+)
+
+
+def _contains_any(text: str, tokens: tuple[str, ...]) -> bool:
+    lowered = text.lower()
+    return any(token in lowered for token in tokens)
+
+
+def _infer_candidate_applies_to(candidate: SlaCandidateContract) -> tuple[dict, list[str]]:
+    applies_to = dict(candidate.applies_to or {})
+    notes: list[str] = []
+    document = candidate.business_document
+    source_text = " | ".join(
+        [
+            candidate.name,
+            candidate.conditions,
+            document.executive_summary,
+            *document.service_scope,
+            *document.service_level_commitments,
+            *document.operational_obligations,
+            *document.commercial_terms,
+            *document.risk_watchouts,
+        ]
+    ).lower()
+
+    if "critical" in source_text and "priority" not in applies_to:
+        applies_to["priority"] = "P1"
+        notes.append("Inferred priority=P1 from critical incident language.")
+
+    if _contains_any(source_text, _DELIVERY_SCOPE_TOKENS):
+        applies_to.setdefault("workflow_category", "delivery")
+        applies_to.setdefault("issue_type", "ops_task")
+        applies_to.setdefault("business_unit", "delivery")
+        applies_to.setdefault("workflow", "delivery_issue")
+        notes.append("Inferred delivery routing dimensions from service-scope language.")
+    elif _contains_any(source_text, _FINANCE_SCOPE_TOKENS):
+        applies_to.setdefault("workflow_category", "finance")
+        applies_to.setdefault("issue_type", "discrepancy_case")
+        applies_to.setdefault("business_unit", "procurement")
+        applies_to.setdefault("workflow", "vendor_dispute")
+        notes.append("Inferred finance or procurement routing dimensions from commercial language.")
+    elif _contains_any(source_text, _WAREHOUSE_SCOPE_TOKENS):
+        applies_to.setdefault("workflow_category", "warehouse")
+        applies_to.setdefault("issue_type", "ops_task")
+        applies_to.setdefault("business_unit", "warehouse")
+        applies_to.setdefault("workflow", "warehouse_request")
+        notes.append("Inferred warehouse routing dimensions from operational scope language.")
+    elif _contains_any(source_text, _SUPPORT_SCOPE_TOKENS):
+        applies_to.setdefault("workflow_category", "support")
+        applies_to.setdefault("issue_type", "support_ticket")
+        applies_to.setdefault("business_unit", "support")
+        applies_to.setdefault("workflow", "support_ticket")
+        notes.append("Inferred support routing dimensions from incident language.")
+
+    return applies_to, notes
+
 
 def detect_document_intake(
     *,
@@ -71,9 +165,12 @@ def normalize_candidate(candidate: SlaCandidateContract, *, intake: DocumentInta
         parsing_notes.append("Normalized response deadline to minimum supported value.")
     if resolution_hours != candidate.resolution_deadline_hours:
         parsing_notes.append("Normalized resolution deadline to remain >= response deadline.")
+    inferred_applies_to, inference_notes = _infer_candidate_applies_to(candidate)
+    parsing_notes.extend(inference_notes)
     return candidate.model_copy(
         update={
             "name": candidate.name.strip(),
+            "applies_to": inferred_applies_to,
             "response_deadline_hours": response_hours,
             "resolution_deadline_hours": resolution_hours,
             "penalty_amount": round(float(candidate.penalty_amount), 2),

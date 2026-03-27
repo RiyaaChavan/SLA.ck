@@ -178,22 +178,77 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
     await delay();
     const workflow_id = (Date.now() % 900_000) + 100_000;
     const id = String(workflow_id);
+    
+    const titleLower = (body.title ?? "").toLowerCase();
+    const descLower = (body.description ?? "").toLowerCase();
+    const fullText = titleLower + " " + descLower;
+    
+    const matchedSlaRule = mockSlaRules.find((rule) => {
+      if (rule.status !== "active") return false;
+      const payload = rule.applies_to_payload as Record<string, unknown> | undefined;
+      const appliesToLower = (payload?.label as string ?? "").toLowerCase();
+      if (fullText.includes(appliesToLower) || fullText.includes(rule.applies_to.toLowerCase())) {
+        return true;
+      }
+      if (payload?.module) {
+        const moduleLower = (payload.module as string).toLowerCase();
+        if (fullText.includes(moduleLower)) return true;
+      }
+      if (rule.conditions) {
+        const condLower = rule.conditions.toLowerCase();
+        if (fullText.includes("p1") && condLower.includes("p1")) return true;
+        if (fullText.includes("enterprise") && condLower.includes("enterprise")) return true;
+        if ((fullText.includes("invoice") || fullText.includes("dispute")) && condLower.includes("invoice")) return true;
+        if (fullText.includes("ap ") && condLower.includes("ap")) return true;
+      }
+      return false;
+    });
+
+    const slaName = matchedSlaRule?.name ?? "General Policy";
+    const penaltyAmount = matchedSlaRule?.penalty_amount ?? 0;
+    const responseHours = matchedSlaRule?.response_deadline_hours ?? 4;
+    const resolutionHours = matchedSlaRule?.resolution_deadline_hours ?? 24;
+    const responseDeadline = new Date(Date.now() + responseHours * 3600 * 1000);
+    const resolutionDeadline = new Date(Date.now() + resolutionHours * 3600 * 1000);
+    const riskFlags: string[] = [];
+    const detectedSlaSignals: string[] = [];
+    
+    if (matchedSlaRule) {
+      detectedSlaSignals.push(`Matched SLA rule: ${matchedSlaRule.name}`);
+      riskFlags.push("SLA-matched ticket");
+      if (penaltyAmount > 50000) {
+        riskFlags.push("High penalty exposure");
+      }
+    } else {
+      detectedSlaSignals.push("No matching SLA rule found");
+    }
+
+    const priority = (fullText.includes("critical") || fullText.includes("p1") || fullText.includes("urgent")) 
+      ? "high" 
+      : (fullText.includes("medium") || fullText.includes("p2")) 
+        ? "medium" 
+        : "standard";
+    const breachRisk = penaltyAmount > 70000 ? "high" : penaltyAmount > 30000 ? "medium" : "low";
+    const matchedPayload = matchedSlaRule?.applies_to_payload as Record<string, unknown> | undefined;
+
     const classification: AgenticClassification = {
       workflow_type: "support_ticket",
-      workflow_category: "support",
+      workflow_category: (matchedPayload?.module as string ?? "support") ?? "support",
       issue_type: "support_ticket",
-      priority: "standard",
-      customer_tier: "standard",
+      priority,
+      customer_tier: fullText.includes("enterprise") ? "enterprise" : "standard",
       business_unit: "support",
       department_name: body.department_name?.trim() || "Operations",
       vendor_name: body.vendor_name?.trim() || null,
       suggested_backlog_hours: body.backlog_hours ?? 12,
-      inferred_estimated_value: 150000,
-      risk_flags: [],
-      detected_sla_signals: [],
-      should_raise_alert: false,
-      confidence: 0.72,
-      rationale: ["Mock intake: ticket-like content classified as support.", "Department from payload or default."],
+      inferred_estimated_value: penaltyAmount > 0 ? penaltyAmount : 150000,
+      risk_flags: riskFlags,
+      detected_sla_signals: detectedSlaSignals,
+      should_raise_alert: penaltyAmount > 50000,
+      confidence: matchedSlaRule ? 0.85 : 0.72,
+      rationale: matchedSlaRule 
+        ? [`Matched SLA rule: ${matchedSlaRule.name}`, `Penalty exposure: ₹${penaltyAmount.toLocaleString()}`]
+        : ["Mock intake: ticket-like content classified as support.", "No matching SLA rule found"],
     };
     const approval_preview = null;
     const intakeContext = {
@@ -211,16 +266,21 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       owner_name: "Mock Queue Owner",
       status: body.status ?? "open",
       current_stage: "monitoring",
-      assigned_sla_name: "Mock SLA — P2 response",
-      response_deadline: new Date(Date.now() + 4 * 3600 * 1000).toISOString(),
-      resolution_deadline: new Date(Date.now() + 48 * 3600 * 1000).toISOString(),
-      time_remaining_minutes: 240,
-      predicted_breach_risk: "medium",
-      projected_penalty: 0,
-      projected_business_impact: 0,
+      assigned_sla_name: slaName,
+      response_deadline: responseDeadline.toISOString(),
+      resolution_deadline: resolutionDeadline.toISOString(),
+      time_remaining_minutes: responseHours * 60,
+      predicted_breach_risk: breachRisk,
+      contract_penalty: penaltyAmount,
+      projected_penalty: penaltyAmount,
+      projected_business_impact: penaltyAmount,
       linked_case_id: null,
-      suggested_action: "Triage in mock workspace",
-      match_rationale: ["Mock rule match for demo intake"],
+      suggested_action: matchedSlaRule 
+        ? `Monitor closely — ${slaName} SLA with ₹${penaltyAmount.toLocaleString()} penalty exposure`
+        : "Triage in mock workspace",
+      match_rationale: matchedSlaRule 
+        ? [`Matched rule: ${matchedSlaRule.name}`, `Penalty: ₹${penaltyAmount.toLocaleString()}`]
+        : ["No SLA rule matched"],
       workflow_category: classification.workflow_category,
       intakeContext,
     };
@@ -285,6 +345,7 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
       resolution_deadline: new Date(Date.now() + 72 * 3600 * 1000).toISOString(),
       time_remaining_minutes: 480,
       predicted_breach_risk: "low",
+      contract_penalty: 0,
       projected_penalty: 0,
       projected_business_impact: 0,
       linked_case_id: null,
@@ -683,6 +744,10 @@ export const mockBusinessSentryAdapter: BusinessSentryAdapter = {
   },
 
   async rescanAlerts(_organizationId) {
+    await delay();
+  },
+
+  async deleteWorkflow(workflowId: number) {
     await delay();
   },
 };

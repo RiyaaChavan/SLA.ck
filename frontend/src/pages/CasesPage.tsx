@@ -4,8 +4,9 @@ import type { CaseDetail, CaseSummary, CasesListParams } from "../domain/busines
 import { PageHeader } from "../components/business-sentry/PageHeader";
 import { FilterBar } from "../components/business-sentry/FilterBar";
 import { StateBlock } from "../components/business-sentry/StateBlock";
+import { useNotifications } from "../components/shared/Notifications";
 import { formatDateTime, formatModuleLabel, formatMoneyInr } from "../lib/formatters";
-import { useCaseDetail, useCasesList } from "../hooks/useBusinessSentry";
+import { useCaseDetail, useCasesList, useCreateTicketIntake } from "../hooks/useBusinessSentry";
 
 type CasesPageProps = { organizationId?: number };
 type AddTicketPhase = "form" | "processing" | "result";
@@ -24,66 +25,75 @@ function accentClass(severity: string) {
   return "ticket-accent-low";
 }
 
-/* ── AI ticket generation (simulated) ─────────────────────── */
-const AI_TAGS: string[][] = [
-  ["contract-dispute", "vendor:RapidFleet", "module:procurement", "auto-flagged"],
-  ["sla-breach-risk", "late-delivery", "module:sla-sentinel", "ai-detected"],
-  ["cost-overrun", "vendor:PolarNest", "cold-chain", "recurring"],
-];
-const AI_ACTIONS = [
-  "Hold disputed line items and request vendor credit note",
-  "Escalate to Fleet Control — rebalance rider allocation",
-  "Trigger cold-chain incident protocol and reroute chilled orders",
-];
-const AI_SLAS = ["SLA-AP-02 · Response 4h · Resolution 24h", "SLA-LM-01 · Response 2h · Resolution 12h", "SLA-CC-03 · Response 1h · Resolution 6h"];
-
-function generateAiData(title: string) {
-  const idx = Math.abs(title.length) % 3;
-  return {
-    tags: AI_TAGS[idx],
-    severity: "high" as const,
-    cost_estimate: 145000 + idx * 100000,
-    sla: AI_SLAS[idx],
-    action: AI_ACTIONS[idx],
-    team: "Procurement Team",
-    approver: "Ananya Shah",
-  };
-}
-
 /* ── Add Ticket Drawer ─────────────────────────────────────── */
-function AddTicketDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (c: CaseSummary) => void }) {
+function AddTicketDrawer({ 
+  onClose, 
+  onAdd,
+  organizationId,
+}: { 
+  onClose: () => void; 
+  onAdd: (c: CaseSummary) => void;
+  organizationId?: number;
+}) {
   const [phase, setPhase] = useState<AddTicketPhase>("form");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
-  const [aiData, setAiData] = useState<ReturnType<typeof generateAiData> | null>(null);
+  const [aiResult, setAiResult] = useState<any>(null);
+
+  const ticketMut = useCreateTicketIntake(organizationId);
+  const { notify } = useNotifications();
 
   const handleSubmit = async () => {
-    if (!title.trim()) return;
+    if (!title.trim() || !organizationId) return;
     setPhase("processing");
-    await new Promise((r) => setTimeout(r, 2800));
-    setAiData(generateAiData(title));
-    setPhase("result");
+    
+    ticketMut.mutate(
+      {
+        title: title.trim(),
+        description: description.trim(),
+        status: "open",
+        region: "default",
+      },
+      {
+        onSuccess: (data) => {
+          setTimeout(() => {
+            setAiResult(data);
+            setPhase("result");
+          }, 1500);
+        },
+        onError: () => {
+          setPhase("form");
+          notify({
+            tone: "error",
+            title: "Analysis failed",
+            message: "Could not create the ticket from the provided details.",
+          });
+        },
+      }
+    );
   };
 
   const handleAdd = () => {
-    if (!aiData) return;
+    if (!aiResult) return;
+    const liveItem = aiResult.live_item;
     const newCase = {
-      id: `CASE-AI-${Date.now()}`,
-      title,
+      id: `CASE-${liveItem.id}`,
+      title: liveItem.title,
       summary: description || "AI-analyzed case from manual submission.",
-      case_type: "cost_anomaly",
-      severity: aiData.severity,
+      case_type: aiResult.classification?.workflow_category || "support_ticket",
+      severity: aiResult.classification?.priority === "high" ? "high" : 
+                aiResult.classification?.priority === "medium" ? "medium" : "low",
       status: "open",
-      module: "procurewatch",
-      team: aiData.team,
-      vendor: "RapidFleet Logistics",
-      detector_name: "Manual submission",
-      approver_name: aiData.approver,
+      module: aiResult.classification?.business_unit || "support",
+      team: liveItem.team,
+      vendor: aiResult.classification?.vendor_name || "",
+      detector_name: "AI Intake",
+      approver_name: "",
       approval_state: "pending",
       action_state: "unactioned",
-      projected_impact: aiData.cost_estimate,
-      sla_countdown_minutes: 480,
-      sla_risk_level: "medium",
+      projected_impact: liveItem.projected_penalty || liveItem.contract_penalty || 0,
+      sla_countdown_minutes: liveItem.time_remaining_minutes,
+      sla_risk_level: liveItem.predicted_breach_risk,
       created_at: new Date().toISOString(),
     } as unknown as CaseSummary;
     onAdd(newCase);
@@ -156,32 +166,49 @@ function AddTicketDrawer({ onClose, onAdd }: { onClose: () => void; onAdd: (c: C
             </div>
           )}
 
-          {phase === "result" && aiData && (
+          {phase === "result" && aiResult && (
             <div className="bs-detail-stack bs-ai-result-view">
               <div className="bs-ai-result-head">
                 <div className="text-emerald-400 font-mono text-[10px] uppercase tracking-wider mb-2">Analysis Complete</div>
                 <h3 className="text-white font-bold text-xl leading-tight mb-2">{title}</h3>
                 <div className="flex flex-wrap gap-2 mb-4">
-                  {aiData.tags.map((t) => (
-                    <span key={t} className="badge badge-default">{t}</span>
+                  {aiResult.classification?.detected_sla_signals?.slice(0, 4).map((tag: string) => (
+                    <span key={tag} className="badge badge-default">{tag}</span>
+                  ))}
+                  {aiResult.classification?.risk_flags?.slice(0, 2).map((tag: string) => (
+                    <span key={tag} className="badge badge-default border-rose-500/30 text-rose-400">{tag}</span>
                   ))}
                 </div>
               </div>
 
-              <div className="bs-detail-card border-emerald-500/20 bg-emerald-500/[0.03]">
-                <div className="text-emerald-400/80 text-[10px] uppercase font-bold tracking-widest mb-3">SLA.ck Recommendation</div>
+              <div className="bs-detail-card border-amber-500/20 bg-amber-500/[0.03]">
+                <div className="text-amber-400/80 text-[10px] uppercase font-bold tracking-widest mb-3">SLA Context & Penalty Exposure</div>
                 <div className="flex flex-col gap-4">
                    <div className="flex justify-between items-baseline">
-                     <span className="text-white/40 text-xs">Projected leakage</span>
-                     <span className="text-white font-mono font-bold">{formatMoneyInr(aiData.cost_estimate)}</span>
+                     <span className="text-white/40 text-xs">Penalty Exposure</span>
+                     <span className="text-white font-mono font-bold">
+                       {formatMoneyInr(aiResult.live_item.projected_penalty || aiResult.live_item.contract_penalty || 0)}
+                     </span>
                    </div>
                    <div className="flex justify-between items-baseline">
                      <span className="text-white/40 text-xs">SLA Framework</span>
-                     <span className="text-white text-xs">{aiData.sla}</span>
+                     <span className="text-white text-xs">{aiResult.live_item.assigned_sla_name ?? "General Policy"}</span>
+                   </div>
+                   <div className="flex justify-between items-baseline">
+                     <span className="text-white/40 text-xs">Response Deadline</span>
+                     <span className="text-white text-xs">{formatDateTime(aiResult.live_item.response_deadline)}</span>
+                   </div>
+                   <div className="flex justify-between items-baseline">
+                     <span className="text-white/40 text-xs">Resolution Deadline</span>
+                     <span className="text-white text-xs">{formatDateTime(aiResult.live_item.resolution_deadline)}</span>
+                   </div>
+                   <div className="flex justify-between items-baseline">
+                     <span className="text-white/40 text-xs">Time Remaining</span>
+                     <span className="text-amber-400 font-bold">{aiResult.live_item.time_remaining_minutes}m</span>
                    </div>
                    <div className="pt-3 border-t border-white/5">
-                     <div className="text-white/40 text-[10px] uppercase font-bold mb-1.5">Suggested remediation</div>
-                     <p className="text-white text-sm leading-relaxed">{aiData.action}</p>
+                     <div className="text-white/40 text-[10px] uppercase font-bold mb-1.5">Suggested Action</div>
+                     <p className="text-white text-sm leading-relaxed">{aiResult.live_item.suggested_action}</p>
                    </div>
                 </div>
               </div>
@@ -381,6 +408,7 @@ export function CasesPage({ organizationId }: CasesPageProps) {
 
       {isAddOpen && (
         <AddTicketDrawer
+          organizationId={organizationId}
           onClose={() => setIsAddOpen(false)}
           onAdd={(_newCase) => {
             // In a real app, this would be a mutation. 

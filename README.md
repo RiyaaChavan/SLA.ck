@@ -1,40 +1,418 @@
-# CostPulse AI
+# SLA.ck
 
-CostPulse AI is a modular full-stack SaaS prototype for PS 3. It includes:
+SLA.ck by Team LinkedOut is an intelligent operations management platform that combines agentic AI capabilities with enterprise-grade workflow automation. It leverages the Agent-to-Agent (A2A) protocol to orchestrate specialized AI agents that don't just generate reports—they take action within enterprise approval workflows.
 
-- a FastAPI backend with a normalized enterprise cost domain
-- synthetic organization seeding without hardcoded records
-- cost leakage, SLA risk, resource optimization, and vendor discrepancy alerts
-- approval and action workflows
-- natural-language investigative querying
-- audit feed and PDF report generation
-- a Vite React frontend with a business-grade dashboard
-- Docker Compose for local end-to-end execution
+## Agentic Infrastructure
 
-## Stack
+### A2A Protocol Implementation
 
-- Frontend: Vite + React + TypeScript
-- Backend: FastAPI + SQLAlchemy + uv
-- DB: PostgreSQL
-- Support: Redis
+SLA.ck implements a multi-agent architecture based on the **Agent-to-Agent (A2A)** protocol, enabling specialized agents to communicate and collaborate on complex operational tasks:
 
-## Local Run
+- Agents expose capabilities via `/agent-card` endpoints
+- Communication uses JSON-RPC 2.0 messages via `/message/send`
+- Graceful fallback mechanisms ensure continuous operation
 
-### Docker
+### Agent Categories
+
+SLA.ck deploys four distinct agent categories, each responsible for a specific domain of operational intelligence:
+
+---
+
+#### 1. Spend Intelligence Agents
+
+These agents dig into **procurement, vendor, and operations data** to find anomalies, duplicate costs, and rate optimization opportunities—then generate actionable playbooks or trigger downstream workflows.
+
+**SQL Agent** (`backend/app/a2a_apps/sql_agent.py`)
+
+- **Data Source Analysis**: Connects to PostgreSQL databases to analyze schema and extract relation metadata (tables, views, materialized views)
+- **Anomaly Detection Query Generation**: Automatically generates read-only SQL queries to detect:
+  - Duplicate spend patterns
+  - Rate mismatches between contracts and invoices
+  - Vendor discrepancies and billing anomalies
+- **Category Classification**: Categorizes data sources into:
+  - `procurewatch` - Invoice, vendor, billing, procurement signals
+  - `resource_optimization` - General resource utilization
+- **Security**: Validates all generated SQL to ensure only read-only SELECT/WITH queries (prevents injection)
+
+**Detector Engine** (`backend/app/services/detectors.py`, `backend/app/services/detector_runtime.py`)
+
+- Executes AI-generated SQL queries on scheduled intervals
+- Triggers alerts when anomaly thresholds are met
+- Generates actionable playbooks with cost impact calculations
+
+**Code Flow**:
+```
+User connects data source → SQL Agent analyzes schema → Generates anomaly detection SQL presets → 
+Detector Engine schedules queries → Results trigger alerts → Action Recommendation Agent generates playbook
+```
+
+---
+
+#### 2. Service Level Agreement (SLA) and Penalty Prevention Agents
+
+These agents detect **approaching breaches from operational signals** and reroute work, shift resources, or escalate before the financial hit lands.
+
+**Agentic Intake System** (`backend/app/services/agentic_intake.py`)
+
+- **Intelligent Classification**: Uses NLP and heuristic analysis to classify incoming tickets:
+  - Delivery issues vs. vendor disputes vs. support tickets
+  - Priority detection (P1, P2, standard)
+  - Customer tier identification
+- **SLA Context Matching**: Matches tickets against extracted SLA contracts:
+  - Parses PDF contracts to extract SLA terms
+  - Matches ticket attributes (workflow type, priority, vendor) against SLA rules
+  - Calculates time remaining and penalty exposure from contract terms
+- **Risk Assessment**: Predicts breach probability based on:
+  - Time remaining vs. SLA targets
+  - Backlog hours and workload
+  - Historical resolution patterns
+
+**SLA Runtime Engine** (`backend/app/services/sla/runtime.py`)
+
+- **Real-time SLA Tracking**: Monitors active workflows against SLA targets
+- **Breach Prediction**: Calculates risk levels (low, medium, high, critical) based on time remaining
+- **Penalty Calculation**: Computes penalty exposure directly from contract terms (not artificial multipliers)
+- **Intervention Suggestions**: Recommends:
+  - Queue rerouting
+  - Resource shifting
+  - Escalation triggers
+
+**Code Flow**:
+```
+User creates ticket → Agentic Intake classifies ticket → SLA Runtime matches against contract rules →
+Calculates time remaining and penalty → Predicted breach risk triggers alerts → 
+Action Agent generates intervention playbook → Escalation or auto-action triggered
+```
+
+---
+
+#### 3. Resource Optimization Agents
+
+These agents monitor **utilization across tools, infrastructure, and teams**—recommending consolidation and executing approved changes.
+
+**Connector Management** (`backend/app/services/connectors.py`)
+
+- **Data Source Integration**: Connects to external PostgreSQL databases
+- **Schema Introspection**: Extracts table structures, column types, and relationship metadata
+- **Utilization Metrics**: Analyzes query patterns and result volumes
+
+**Detector Presets** (generated by SQL Agent)
+
+- Monitors resource utilization across connected data sources
+- Identifies:
+  - Underutilized infrastructure
+  - Redundant processes
+  - Cost optimization opportunities
+
+---
+
+#### 4. Financial Operations Agents
+
+These agents **reconcile transactions, flag discrepancies, and produce variance analyses** with root-cause attribution to cut close cycles.
+
+**Alert & Case Management** (`backend/app/services/alerts/`, `backend/app/services/cases.py`)
+
+- **Anomaly Detection**: Monitors for:
+  - Duplicate spend across vendors
+  - Rate mismatches between contracts and invoices
+  - Vendor discrepancies
+- **Root Cause Attribution**: Links detected issues to:
+  - Specific vendors
+  - Departments
+  - Contract terms
+
+**Action Recommendation Agent** (`backend/app/services/agents.py` - Cerebras LangChain)
+
+- **Playbook Generation**: Creates actionable recommendations from alerts:
+  - Title and rationale
+  - Specific action type (reroute_queue, open_review_task, etc.)
+  - Step-by-step playbook
+  - Expected savings ratio
+  - Confidence score
+- **Approval Workflow Integration**: Routes recommendations through enterprise approval chains
+
+**Approval Suggestion Agent** (`backend/app/services/agents.py`)
+
+- **Risk Assessment**: Evaluates action risk against configured guardrails
+- **Auto-Approval**: Determines if actions can be auto-approved based on:
+  - Risk level (low/medium actions from trusted agents)
+  - Policy rules
+  - Historical approval patterns
+
+**Code Flow**:
+```
+Detector runs → Alert generated → Action Agent analyzes alert context → 
+Generates playbook with expected savings → Approval Agent evaluates risk → 
+Routes to appropriate approver → Approved action executed → Audit trail recorded
+```
+
+---
+
+### Agent Communication Flow
+![alt text](image.png)
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           User Creates Ticket                                │
+└─────────────────────────────────┬───────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     Agentic Intake System                                    │
+│  • Classifies ticket (delivery, vendor dispute, support)                    │
+│  • Extracts SLA context from PDF contracts                                   │
+│  • Calculates penalty exposure from contract terms                           │
+└─────────────────────────────────┬───────────────────────────────────────────┘
+                                  │
+                                  ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                     SLA Runtime Engine                                       │
+│  • Matches ticket against active SLA rules                                   │
+│  • Calculates time remaining and breach risk                                │
+│  • Generates intervention recommendations                                    │
+└─────────────────────────────────┬───────────────────────────────────────────┘
+                                  │
+            ┌─────────────────────┼─────────────────────┐
+            ▼                     ▼                     ▼
+┌───────────────────┐   ┌───────────────────┐   ┌───────────────────┐
+│  Spend Intelligence │   │  Financial Ops   │   │  Resource Opt    │
+│  (SQL Agent)       │   │  (Action Agent)  │   │  (Detectors)     │
+│  - Anomaly SQL     │   │  - Playbooks     │   │  - Utilization   │
+│  - Rate checks     │   │  - Approvals     │   │  - Consolidation │
+└───────────────────┘   └─────────┬─────────┘   └───────────────────┘
+                                  │
+                                  ▼
+                    ┌───────────────────────────┐
+                    │   Enterprise Approval    │
+                    │   Workflow (if needed)   │
+                    └───────────┬───────────────┘
+                                │
+                                ▼
+                    ┌───────────────────────────┐
+                    │   Action Execution       │
+                    │   + Audit Trail          │
+                    └───────────────────────────┘
+```
+
+---
+
+### Agent Fallback Mechanisms
+
+Each agent implements deterministic fallback strategies:
+
+- **A2A Agents**: If external agent service is unavailable, falls back to deterministic artifact generation
+- **LLM Agents**: If Cerebras/Gemini API is unavailable, uses rule-based heuristics
+- Fallback outputs maintain same structure as AI-generated outputs
+- All fallback events are logged for monitoring
+
+Location: `backend/app/services/agent_artifacts.py`
+
+### Intelligent Intake System
+
+The **Agentic Intake** system (`backend/app/services/agentic_intake.py`) uses hybrid AI/heuristic approaches to classify incoming tickets and approvals:
+
+#### Ticket Classification
+
+- **Workflow Type Detection**: Identifies support tickets, delivery issues, vendor disputes, and warehouse requests
+- **Priority Assignment**: Automatically assigns P1/standard priority based on urgency markers
+- **Customer Tier Matching**: Detects premium/VIP customer signals
+- **Department Routing**: Intelligently routes to Finance, Operations, or other departments based on content analysis
+- **Vendor Identification**: Extracts vendor information from ticket text
+- **SLA Signal Detection**: Identifies explicit SLA cues from text (response times, deadlines, EOD references)
+- **Risk Flagging**: Detects high-risk language (outage, breach, blocker, launch-critical)
+- **Estimated Value Inference**: Estimates financial value when not explicitly stated using heuristics
+
+#### Approval Classification
+
+- **Type Detection**: Identifies procurement approvals, general approvals, and workflow chains
+- **Risk Assessment**: Evaluates approval risk based on urgency and context
+- **SLA Turnaround Detection**: Identifies approval turnaround requirements
+
+---
+
+## Features
+
+### 1. Data Source Management
+
+- **Connector Management**: Connect to external PostgreSQL databases with encrypted credentials
+- **Schema Introspection**: Automatic extraction of tables, views, columns, and statistics
+- **Relation Caching**: Caches schema metadata for performance
+- **Secure Query Execution**: Read-only queries with configurable timeouts
+
+Location: `backend/app/services/connectors.py`
+
+### 2. Anomaly Detection Engine
+
+- **SQL-Based Detectors**: Configurable SQL queries that run on connected data sources
+- **Scheduled Execution**: Configurable polling intervals for automated detection
+- **Alert Generation**: Automatic alert creation when detector conditions are met
+- **Severity Classification**: Low, Medium, High, Critical severity levels
+
+Location: `backend/app/services/detectors.py`, `backend/app/services/detector_runtime.py`
+
+### 3. SLA Management
+
+- **SLA Contract Management**: Define SLA rules with target hours and penalty terms
+- **Runtime SLA Tracking**: Monitor active workflows against SLA targets
+- **Breach Detection**: Real-time SLA breach risk identification
+- **Live Operations Dashboard**: Track SLA performance in real-time
+
+Location: `backend/app/services/sla/`
+
+### 4. Alert & Action System
+
+- **Multi-Type Alerts**:
+  - Duplicate Spend Detection
+  - Rate Mismatch Identification
+  - SLA Risk Warnings
+  - Resource Overload Detection
+  - Resource Waste Identification
+  - Vendor Discrepancy Alerts
+- **Workflow Actions**: Automated or manual action execution
+- **Approval Chains**: Multi-level approval workflows
+
+Location: `backend/app/services/alerts/`, `backend/app/services/action_center.py`
+
+### 5. Impact Analysis
+
+- **Financial Impact Tracking**: Calculate potential savings from actions
+- **Department-Level Aggregation**: View impact by department
+- **Vendor Risk Scoring**: Track vendor-related risks
+
+Location: `backend/app/services/impact.py`
+
+### 6. Reporting & Audit
+
+- **PDF Report Generation**: Executive summary reports in PDF format
+- **Audit Feed**: Comprehensive audit trail of all operations
+- **Report Scheduling**: On-demand and scheduled report generation
+
+Location: `backend/app/services/reporting/`
+
+### 7. Natural Language Querying
+
+- **Copilot Interface**: Ask questions in natural language
+- **AI-Powered Investigation**: Uses LLMs to analyze and respond to queries
+- **Context-Aware Responses**: Maintains conversation context
+
+Location: `backend/app/api/routes.py` (investigate endpoint)
+
+### 8. Real-Time Operations
+
+- **Live Ops Dashboard**: Real-time view of operational metrics
+- **SLA Rulebook**: Define and manage SLA rules
+- **Case Management**: Track and manage operational cases
+
+---
+
+## Workflow
+
+### Data Source Connection Flow
+
+```
+1. User adds PostgreSQL connector via UI
+2. System validates and encrypts connection credentials
+3. Agentic Intake triggers SQL Agent via A2A
+4. SQL Agent analyzes schema and generates anomaly presets
+5. System creates DetectorDefinitions from presets
+6. Dashboard Agent generates visualization spec
+7. User can view auto-generated dashboard and enable detectors
+```
+
+### Alert Detection Flow
+
+```
+1. Detector scheduler polls enabled detectors at configured intervals
+2. SQL queries execute against connected data sources
+3. Results are evaluated against anomaly thresholds
+4. If anomaly detected, Alert is created
+5. Action Recommendation Agent analyzes alert context
+6. Suggested action is pushed to Action Center
+7. User reviews and approves/rejects action
+8. Upon approval, action is executed
+```
+
+### SLA Monitoring Flow
+
+```
+1. User defines SLA rules in Rulebook
+2. Runtime monitors active workflows
+3. Expected-by timestamps are tracked
+4. As deadlines approach, SLA risk is calculated
+5. Alerts are generated for at-risk SLAs
+6. Live Ops dashboard shows current SLA status
+```
+
+### Approval Workflow
+
+```
+1. User submits approval request
+2. Agentic Intake classifies the approval type
+3. Approval Suggestion Agent evaluates:
+   - Risk level
+   - Required approver
+   - Auto-approval eligibility
+4. Request is routed to appropriate approver
+5. Approver reviews and makes decision
+6. Decision is logged in audit trail
+```
+
+---
+
+## Setup & Running
+
+### Prerequisites
+
+- Docker and Docker Compose
+- PostgreSQL (optional, for production)
+- Node.js 18+ (for frontend development)
+- Python 3.11+ (for backend development)
+
+### Environment Variables
+
+Create a `.env` file in the root directory:
+
+```bash
+# Database
+POSTGRES_USER=costpulse
+POSTGRES_PASSWORD=costpulse
+POSTGRES_DB=costpulse
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+
+# Security
+CONNECTOR_ENCRYPTION_KEY=your-secure-encryption-key
+
+# A2A Agent URLs
+SQL_AGENT_A2A_URL=http://sql-agent:8010
+DASHBOARD_AGENT_A2A_URL=http://dashboard-agent:8011
+
+# Optional: AI Providers
+CEREBRAS_API_KEY=your-cerebras-api-key
+GEMINI_API_KEY=your-gemini-api-key
+```
+
+### Running with Docker Compose (Recommended)
 
 ```bash
 docker compose up --build
 ```
 
-Open:
+This starts all services:
 
-- Frontend: `http://localhost:5173`
-- Backend: `http://localhost:8000`
-- API docs: `http://localhost:8000/docs`
+| Service | URL | Description |
+|---------|-----|-------------|
+| Frontend | http://localhost:5173 | React dashboard |
+| Backend | http://localhost:8000 | FastAPI application |
+| API Docs | http://localhost:8000/docs | OpenAPI documentation |
+| SQL Agent | http://localhost:8010 | A2A SQL agent |
+| Dashboard Agent | http://localhost:8011 | A2A dashboard agent |
+| PostgreSQL | localhost:5432 | Database |
+| Redis | localhost:6379 | Caching/Queue |
 
-Then use the `Generate Enterprise Dataset` button in the sidebar.
-
-### Backend without Docker
+### Running Backend Locally
 
 ```bash
 cd backend
@@ -42,19 +420,9 @@ uv sync
 uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
-This path now defaults to a local SQLite database at `backend/costpulse_local.db`.
+By default, this uses SQLite at `backend/costpulse_local.db`.
 
-If you want to use PostgreSQL outside Docker, create `backend/.env` with:
-
-```bash
-POSTGRES_USER=costpulse
-POSTGRES_PASSWORD=costpulse
-POSTGRES_DB=costpulse
-POSTGRES_HOST=localhost
-POSTGRES_PORT=5432
-```
-
-### Frontend without Docker
+### Running Frontend Locally
 
 ```bash
 cd frontend
@@ -62,16 +430,91 @@ npm install
 npm run dev
 ```
 
-## Seed Pipeline
+Access at http://localhost:5173
 
-Enterprise-like datasets are generated from YAML profiles in [`data/seed_profiles`](./data/seed_profiles). Each profile defines:
+### Running Individual Agents
 
-- organization metadata
-- department structure
-- vendor mix
-- workload scale
-- resource pools
-- anomaly probabilities
-- sample source schemas for normalization
+**SQL Agent:**
+```bash
+cd backend
+uv run uvicorn app.a2a_apps.sql_agent:app --host 0.0.0.0 --port 8010
+```
 
-The backend converts these profiles into normalized relational data, then scans for alerts and generates executive PDF reports.
+**Dashboard Agent:**
+```bash
+cd backend
+uv run uvicorn app.a2a_apps.dashboard_agent:app --host 0.0.0.0 --port 8011
+```
+
+---
+
+## Tech Stack
+
+### Frontend
+
+- **Vite**: Next-generation build tooling
+- **React**: Component-based UI library
+- **TypeScript**: Type-safe JavaScript
+- **React Router**: Client-side routing
+- **TanStack Query**: Server state management
+- **Tailwind CSS**: Utility-first CSS framework
+
+### Backend
+
+- **FastAPI**: Modern Python web framework
+- **SQLAlchemy**: Python SQL toolkit and ORM
+- **Pydantic**: Data validation using Python type annotations
+- **LangChain**: Framework for building LLM applications
+- **Cerebras**: LLM provider for action recommendations
+
+### Database & Infrastructure
+
+- **PostgreSQL**: Primary relational database
+- **SQLite**: Development database
+- **Redis**: In-memory data store for caching and queues
+
+### AI/ML
+
+- **Cerebras API**: Primary LLM for action recommendations and approvals
+- **Gemini API**: Alternative LLM for certain features
+- **A2A Protocol**: Agent-to-Agent communication
+
+---
+
+## Problem Solved
+
+### Challenge: Manual Operations Management
+
+Traditional operations management requires significant manual effort to:
+
+- Monitor multiple data sources for anomalies
+- Track SLA compliance across workflows
+- Identify cost-saving opportunities
+- Route tickets to appropriate departments
+- Generate executive reports
+
+### Solution: Agentic Operations Platform
+
+SLA.ck addresses these challenges through:
+
+1. **Automated Anomaly Detection**: Continuously monitors connected data sources using AI-generated SQL queries, eliminating manual monitoring
+
+2. **Intelligent Routing**: Uses NLP and heuristic analysis to automatically classify and route tickets to correct departments
+
+3. **Proactive SLA Management**: Tracks SLA targets in real-time and generates alerts before breaches occur
+
+4. **Actionable Insights**: Provides AI-generated recommendations with confidence scores, playbooks, and expected savings
+
+5. **Self-Service Dashboards**: Auto-generates dashboards based on data source schemas, reducing setup time
+
+6. **Multi-Agent Collaboration**: A2A protocol enables specialized agents to work together, with graceful fallback to deterministic logic
+
+7. **Audit & Compliance**: Complete audit trail of all operations for compliance and governance
+
+### Key Benefits
+
+- **Reduced Manual Effort**: Automated detection and routing reduce operational overhead
+- **Faster Response Times**: Real-time alerts enable proactive issue resolution
+- **Better Decision Making**: AI-powered recommendations improve decision quality
+- **Scalability**: Agentic architecture scales with growing data sources and complexity
+- **Reliability**: Fallback mechanisms ensure continuous operation even when AI services are unavailable

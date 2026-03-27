@@ -44,6 +44,7 @@ export function createBusinessSentryAdapter(): BusinessSentryAdapter {
     getAutoMode: LIVE_ENDPOINTS.autoMode ? h.getAutoMode : m.getAutoMode,
     putAutoMode: LIVE_ENDPOINTS.autoModePut ? h.putAutoMode : m.putAutoMode,
     rescanAlerts: LIVE_ENDPOINTS.alertsScan ? h.rescanAlerts : m.rescanAlerts,
+    deleteWorkflow: h.deleteWorkflow,
   };
 }
 

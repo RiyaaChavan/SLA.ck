@@ -105,6 +105,8 @@ export const api = {
       body: JSON.stringify({ organization_id: organizationId, title }),
     }),
   listReports: (organizationId: number) => request<ReportSummary[]>(`/reports/${organizationId}`),
+  deleteWorkflow: (workflowId: number) =>
+    request(`/workflows/${workflowId}`, { method: "DELETE" }),
 };
 
 export function createCopilotEventSource(sessionId: string): EventSource {
