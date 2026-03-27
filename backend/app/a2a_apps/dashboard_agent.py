@@ -4,6 +4,7 @@ import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
+from langchain_core.callbacks.base import BaseCallbackHandler
 from pydantic import BaseModel, Field
 
 logging.basicConfig(
@@ -12,6 +13,7 @@ logging.basicConfig(
 )
 
 from app.core.config import settings
+from app.services.artifact_event_client import emit_remote_artifact_event
 from app.utils.logging import get_logger
 
 logger = get_logger("app.dashboard_agent")
@@ -25,6 +27,33 @@ class A2ARequest(BaseModel):
 
 
 app = FastAPI(title="Business Sentry Dashboard Agent")
+
+
+class AgentTraceCallbackHandler(BaseCallbackHandler):
+    def __init__(self, connector_id: int, agent_name: str) -> None:
+        self.connector_id = connector_id
+        self.agent_name = agent_name
+
+    def _emit(self, *, message: str, stage: str, detail: dict[str, Any] | None = None) -> None:
+        emit_remote_artifact_event(
+            self.connector_id,
+            kind="trace",
+            stage=stage,
+            agent=self.agent_name,
+            status="running",
+            message=message,
+            detail=detail,
+        )
+
+    def on_llm_start(self, serialized: dict[str, Any], prompts: list[str], **kwargs: Any) -> Any:
+        self._emit(
+            stage="llm_start",
+            message="Preparing structured dashboard output.",
+            detail={"prompt_preview": prompts[0][:240] if prompts else ""},
+        )
+
+    def on_llm_end(self, response, **kwargs: Any) -> Any:
+        self._emit(stage="llm_end", message="Structured dashboard output returned.")
 
 
 class DashboardMetric(BaseModel):
@@ -74,6 +103,8 @@ def _generate_dashboard_with_langchain(context: dict[str, Any]) -> dict[str, Any
     presets = context.get("presets", [])
     summary_text = context.get("summary_text", "")
     dashboard_brief = context.get("dashboard_brief", "")
+    connector = context.get("connector", {})
+    connector_id = int(connector.get("id") or 0)
 
     if not settings.gemini_api_key and not settings.cerebras_api_key:
         raise ValueError("GEMINI_API_KEY or CEREBRAS_API_KEY required")
@@ -87,9 +118,19 @@ def _generate_dashboard_with_langchain(context: dict[str, Any]) -> dict[str, Any
         logger.info("dashboard_agent_using_llm model=cerebras")
 
     structured_llm = llm.with_structured_output(DashboardSpecResponse)
+    trace_handler = AgentTraceCallbackHandler(connector_id, "dashboard_agent")
 
     try:
         logger.info("dashboard_agent_generating_spec")
+        emit_remote_artifact_event(
+            connector_id,
+            kind="trace",
+            stage="spec_generation",
+            agent="dashboard_agent",
+            status="running",
+            message="Generating dashboard metrics and widgets from validated presets.",
+            detail={"preset_count": len(presets)},
+        )
         spec_result = structured_llm.invoke(
             f"""Generate a complete operations dashboard specification for anomaly monitoring.
 
@@ -120,7 +161,8 @@ Requirements:
 - Subtitle should be short and business-facing.
 - Set version to 1.
 - Set preset_count to {len(presets)}.
-"""
+""",
+            config={"callbacks": [trace_handler]},
         )
         logger.info("dashboard_agent_spec_generated")
         return spec_result.model_dump()

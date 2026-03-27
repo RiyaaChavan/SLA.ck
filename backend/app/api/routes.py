@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
+from fastapi.responses import FileResponse, StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -9,6 +9,7 @@ from app.db.session import get_db
 from app.models.domain import Action, Alert, AuditEvent, Organization
 from app.schemas.api import (
     AgenticIntakeResultOut,
+    ArtifactEventIn,
     ActionDecisionIn,
     ActionRequestOut,
     AlertOut,
@@ -60,6 +61,7 @@ from app.services.action_center import (
     reject_action_request,
 )
 from app.services.agent_artifacts import persist_connector_artifacts
+from app.services.artifact_stream import publish_artifact_event, stream_connector_events
 from app.services.connectors import (
     create_connector,
     get_relation_preview,
@@ -119,11 +121,37 @@ def _run_artifact_generation_background(connector_id: int) -> None:
 
     db = SessionLocal()
     try:
+        publish_artifact_event(
+            connector_id,
+            kind="status",
+            stage="artifact_generation",
+            agent="system",
+            status="running",
+            message="Artifact generation started.",
+        )
         logger.info("background_artifact_start connector_id=%s", connector_id)
         persist_connector_artifacts(db, connector_id)
         logger.info("background_artifact_done connector_id=%s", connector_id)
-    except Exception:
+        publish_artifact_event(
+            connector_id,
+            kind="status",
+            stage="artifact_generation",
+            agent="system",
+            status="completed",
+            message="Artifact generation completed.",
+        )
+    except Exception as exc:
         logger.exception("background_artifact_error connector_id=%s", connector_id)
+        publish_artifact_event(
+            connector_id,
+            kind="status",
+            stage="artifact_generation",
+            agent="system",
+            status="error",
+            level="error",
+            message="Artifact generation failed.",
+            detail={"error": str(exc)},
+        )
     finally:
         db.close()
 
@@ -392,6 +420,30 @@ def get_data_source_memory(
 ) -> SourceAgentMemoryOut | None:
     payload = get_source_memory(db, organization_id)
     return None if payload is None else SourceAgentMemoryOut.model_validate(payload)
+
+
+@router.get("/data-sources/stream/{connector_id}")
+async def get_data_source_stream(connector_id: int, request: Request) -> StreamingResponse:
+    return StreamingResponse(
+        stream_connector_events(request, connector_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@router.post("/internal/artifacts/events", status_code=202)
+def publish_artifact_trace(payload: ArtifactEventIn) -> dict[str, str]:
+    publish_artifact_event(
+        payload.connector_id,
+        kind=payload.kind,
+        message=payload.message,
+        stage=payload.stage,
+        agent=payload.agent,
+        status=payload.status,
+        level=payload.level,
+        detail=payload.detail,
+    )
+    return {"status": "accepted"}
 
 
 @router.post("/data-sources/{organization_id}/upload", response_model=DataSourceSummaryOut)

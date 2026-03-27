@@ -407,6 +407,19 @@ export type SourceAgentMemory = {
   updated_at: string;
 };
 
+export type ConnectorArtifactEvent = {
+  seq: number;
+  connector_id: number;
+  timestamp: string;
+  kind: string;
+  message: string;
+  stage?: string | null;
+  agent?: string | null;
+  status?: string | null;
+  level?: string;
+  detail?: Record<string, unknown>;
+};
+
 export type SavedAnomalyQuery = {
   id: number;
   name: string;

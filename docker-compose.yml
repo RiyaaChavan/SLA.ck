@@ -29,6 +29,7 @@ services:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
       SQL_AGENT_A2A_URL: ${SQL_AGENT_A2A_URL:-http://sql-agent:8010}
       DASHBOARD_AGENT_A2A_URL: ${DASHBOARD_AGENT_A2A_URL:-http://dashboard-agent:8011}
+      ARTIFACT_EVENT_CALLBACK_URL: ${ARTIFACT_EVENT_CALLBACK_URL:-http://backend:8000/api/internal/artifacts/events}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       CEREBRAS_API_KEY: ${CEREBRAS_API_KEY}
@@ -50,6 +51,7 @@ services:
     command: ["uvicorn", "app.a2a_apps.sql_agent:app", "--host", "0.0.0.0", "--port", "8010"]
     environment:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+      ARTIFACT_EVENT_CALLBACK_URL: ${ARTIFACT_EVENT_CALLBACK_URL:-http://backend:8000/api/internal/artifacts/events}
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
     depends_on:
@@ -66,6 +68,7 @@ services:
     command: ["uvicorn", "app.a2a_apps.dashboard_agent:app", "--host", "0.0.0.0", "--port", "8011"]
     environment:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
+      ARTIFACT_EVENT_CALLBACK_URL: ${ARTIFACT_EVENT_CALLBACK_URL:-http://backend:8000/api/internal/artifacts/events}
     ports:
       - "8011:8011"
 

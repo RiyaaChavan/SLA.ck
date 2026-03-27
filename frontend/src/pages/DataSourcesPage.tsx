@@ -10,6 +10,7 @@ import { PageHeader } from "../components/business-sentry/PageHeader";
 import { StateBlock } from "../components/business-sentry/StateBlock";
 import { useNotifications } from "../components/shared/Notifications";
 import { formatDateTime } from "../lib/formatters";
+import { useConnectorArtifactStream } from "../hooks/useConnectorArtifactStream";
 import {
   useConnectors,
   useCreateConnector,
@@ -72,6 +73,7 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
   const primaryConnector = connectors[0] ?? null;
   const isConnected = Boolean(primaryConnector);
   const isSavingConnector = createConnectorMutation.isPending || updateConnectorMutation.isPending;
+  const artifactStream = useConnectorArtifactStream(primaryConnector?.id ?? null, organizationId);
 
   useEffect(() => {
     if (!selectedRelationId && relations.length > 0) {
@@ -167,6 +169,11 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
               <span className="ds-connected-detail">
                 {relations.length} relations cached · last sync {primaryConnector?.last_sync_at ? formatDateTime(primaryConnector.last_sync_at) : "pending"}
               </span>
+              {artifactStream.latestEvent ? (
+                <span className="ds-connected-detail">
+                  Agent pipeline {artifactStream.activeStatus} · {artifactStream.latestEvent.message}
+                </span>
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -286,7 +293,10 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
           ) : !memory || memory.status !== "ready" ? (
             <StateBlock
               title="Source intelligence pending"
-              description="The SQL agent has not finished writing summary and dashboard notes yet."
+              description={
+                artifactStream.latestEvent?.message ??
+                "The SQL agent has not finished writing summary and dashboard notes yet."
+              }
             />
           ) : (
             <div className="ds-memory-grid">
@@ -323,7 +333,13 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
         {detectorsQuery.isPending ? (
           <StateBlock title="Loading generated presets" loading />
         ) : !detectors.length ? (
-          <StateBlock title="No presets yet" description="The SQL agent has not generated anomaly queries for this connector yet." />
+          <StateBlock
+            title="No presets yet"
+            description={
+              artifactStream.latestEvent?.message ??
+              "The SQL agent has not generated anomaly queries for this connector yet."
+            }
+          />
         ) : (
           detectors.map((item) => (
             <div key={item.id} className="card ds-query-card">
@@ -357,6 +373,44 @@ export function DataSourcesPage({ organizationId }: DataSourcesPageProps) {
           ))
         )}
       </div>
+
+      {primaryConnector ? (
+        <details className="ds-agent-trace-card">
+          <summary className="ds-agent-trace-summary">
+            <span>Agent activity</span>
+            <span className={`badge badge-${
+              artifactStream.activeStatus === "error" ? "high" : "default"
+            }`}>
+              {artifactStream.activeStatus}
+            </span>
+          </summary>
+          <div className="ds-agent-trace-body">
+            {!artifactStream.events.length ? (
+              <div className="card-subtitle">No live agent events yet.</div>
+            ) : (
+              artifactStream.events
+                .slice()
+                .reverse()
+                .map((event) => (
+                  <div key={event.seq} className="ds-agent-trace-row">
+                    <div className="ds-agent-trace-meta">
+                      <span className="bs-pill bs-pill-mono">{event.agent ?? "system"}</span>
+                      {event.stage ? <span className="bs-pill bs-pill-mono">{event.stage}</span> : null}
+                      {event.status ? <span className="bs-pill">{event.status}</span> : null}
+                      <span>{formatDateTime(event.timestamp)}</span>
+                    </div>
+                    <div className="ds-agent-trace-message">{event.message}</div>
+                    {event.detail && Object.keys(event.detail).length ? (
+                      <pre className="ds-agent-trace-detail">
+                        {JSON.stringify(event.detail, null, 2)}
+                      </pre>
+                    ) : null}
+                  </div>
+                ))
+            )}
+          </div>
+        </details>
+      ) : null}
 
       <SectionHeading
         icon={<IconTable />}

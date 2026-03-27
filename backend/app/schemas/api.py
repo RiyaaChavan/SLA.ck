@@ -327,6 +327,17 @@ class SourceAgentMemoryOut(BaseModel):
     updated_at: datetime
 
 
+class ArtifactEventIn(BaseModel):
+    connector_id: int
+    kind: str
+    message: str
+    stage: str | None = None
+    agent: str | None = None
+    status: str | None = None
+    level: str = "info"
+    detail: dict = Field(default_factory=dict)
+
+
 class DataSourceUploadIn(BaseModel):
     name: str
     source_type: str

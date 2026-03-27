@@ -30,13 +30,15 @@ class Settings(BaseSettings):
     seed_profiles_dir: Path = DATA_DIR / "seed_profiles"
     gemini_api_key: str | None = None
     gemini_model: str = "gemini-2.5-flash"
-    gemini_sql_model: str = "gemini-2.0-flash-lite"
+    gemini_sql_model: str = "gemini-2.5-flash"
     cerebras_api_key: str | None = None
     cerebras_base_url: str = "https://api.cerebras.ai/v1"
     cerebras_model: str = "gpt-oss-120b"
     connector_encryption_key: str = "business-sentry-dev-key"
     sql_agent_a2a_url: str = "http://sql-agent:8010"
     dashboard_agent_a2a_url: str = "http://dashboard-agent:8011"
+    agent_a2a_timeout_seconds: int = 600
+    artifact_event_callback_url: str | None = "http://localhost:8000/api/internal/artifacts/events"
     scheduler_poll_seconds: int = 30
     source_query_statement_timeout_ms: int = 10_000
 
