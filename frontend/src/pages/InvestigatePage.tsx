@@ -1,18 +1,17 @@
 import { useMemo, useRef, useEffect, useState } from "react";
-import type { InvestigationResult } from "../types/api";
-import { pickCopilotScenario, type DemoQueryRun } from "../demo/businessSentryHardcoded";
+import { api, createCopilotEventSource } from "../api/client";
+import type { CopilotStreamEvent, InvestigationResult } from "../types/api";
 import Editor from "react-simple-code-editor";
 import Prism from "prismjs";
 import "prismjs/components/prism-sql";
 import "prismjs/themes/prism-tomorrow.css";
 
 type InvestigatePageProps = {
-  onSubmit: (question: string) => Promise<InvestigationResult>;
   organizationId?: number;
 };
 
 type StreamEvent =
-  | { id: string; kind: "reasoning"; text: string }
+  | { id: string; kind: "reasoning"; text: string; note?: string }
   | { id: string; kind: "action"; label: string; note: string; sql: string };
 
 type ChatTurn = {
@@ -28,19 +27,6 @@ const EXAMPLE_QUERIES = [
   "Where are we likely to breach SLA in the next hour?",
   "Which warehouses or drivers look overprovisioned?",
 ];
-
-const COPILOT_PACING = {
-  reasoningBaseMs: 820,
-  reasoningJitterMs: 280,
-  actionBaseMs: 1320,
-  actionJitterMs: 420,
-  packagingMs: 1180,
-  finalPauseMs: 780,
-};
-
-function sleep(ms: number) {
-  return new Promise((resolve) => window.setTimeout(resolve, ms));
-}
 
 /* ── tiny inline SVG icons ── */
 const IconSend = () => (
@@ -74,6 +60,7 @@ function AgentTrace({ stream }: { stream: StreamEvent[] }) {
                 <div>
                   <div className="chat-trace-event-kind">Reasoning</div>
                   <div className="chat-trace-event-text">{event.text}</div>
+                  {event.note ? <div className="chat-trace-event-note">{event.note}</div> : null}
                 </div>
               </div>
             ) : (
@@ -170,13 +157,52 @@ function AssistantMessage({ turn }: { turn: ChatTurn }) {
   );
 }
 
-export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
+function truncateText(value: unknown, maxLength = 320): string {
+  if (typeof value !== "string") return "";
+  const normalized = value.trim();
+  if (!normalized) return "";
+  return normalized.length > maxLength ? `${normalized.slice(0, maxLength - 1)}…` : normalized;
+}
+
+function mapCopilotEvent(event: CopilotStreamEvent): StreamEvent | null {
+  if (event.kind === "action") {
+    const sql = typeof event.detail.sql === "string" ? event.detail.sql : "";
+    if (!sql) return null;
+    return {
+      id: `evt-${event.seq}`,
+      kind: "action",
+      label: typeof event.detail.label === "string" ? event.detail.label : "SQL execution",
+      note: typeof event.detail.note === "string" ? event.detail.note : event.message,
+      sql,
+    };
+  }
+
+  if (event.kind === "reasoning") {
+    const tool = typeof event.detail.tool === "string" ? event.detail.tool : "";
+    const toolInput = truncateText(event.detail.tool_input ?? event.detail.input_preview, 220);
+    const outputPreview = truncateText(event.detail.output_preview, 320);
+    const note = outputPreview || (tool ? `${tool}${toolInput ? ` · ${toolInput}` : ""}` : toolInput);
+    return {
+      id: `evt-${event.seq}`,
+      kind: "reasoning",
+      text: event.message,
+      note: note || undefined,
+    };
+  }
+
+  return null;
+}
+
+export function InvestigatePage({ organizationId }: InvestigatePageProps) {
   const [draftQuestion, setDraftQuestion] = useState("");
   const [chat, setChat] = useState<ChatTurn[]>([]);
   const [loading, setLoading] = useState(false);
   const [liveStream, setLiveStream] = useState<StreamEvent[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState("");
+  const [errorMessage, setErrorMessage] = useState("");
   const threadRef = useRef<HTMLDivElement>(null);
+  const streamRef = useRef<EventSource | null>(null);
+  const liveStreamRef = useRef<StreamEvent[]>([]);
 
   useEffect(() => {
     if (threadRef.current) {
@@ -184,84 +210,92 @@ export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
     }
   }, [chat, liveStream]);
 
+  useEffect(() => () => streamRef.current?.close(), []);
+
   const helperText = useMemo(() => {
+    if (errorMessage) return errorMessage;
     if (!loading) return "Ask about anomalies, SLA risk, warehouse capacity, or vendor leakage.";
-    return "Agent is inspecting schema memory, selecting detectors, and composing an answer.";
-  }, [loading]);
+    return "Agent is inspecting schema, testing joins, executing SQL, and packaging the final answer.";
+  }, [errorMessage, loading]);
+
+  const appendLiveEvent = (event: StreamEvent) => {
+    liveStreamRef.current = [...liveStreamRef.current, event];
+    setLiveStream(liveStreamRef.current);
+  };
+
+  const resetInFlightState = () => {
+    streamRef.current?.close();
+    streamRef.current = null;
+    liveStreamRef.current = [];
+    setLiveStream([]);
+  };
 
   const handleSubmit = async (override?: string) => {
     const input = (override || draftQuestion).trim();
-    if (!input || loading) return;
+    if (!input || loading || !organizationId) return;
 
-    const scenario = pickCopilotScenario(input);
+    resetInFlightState();
     setCurrentQuestion(input);
     setDraftQuestion("");
     setLoading(true);
-    setLiveStream([]);
+    setErrorMessage("");
 
-    // 1. Simulate reasoning
-    for (const text of scenario.reasoning) {
-      await sleep(COPILOT_PACING.reasoningBaseMs + Math.random() * COPILOT_PACING.reasoningJitterMs);
-      setLiveStream((current) => [...current, { id: `evt-${current.length + 1}`, kind: "reasoning", text }]);
-    }
-
-    // 2. Simulate actions
-    for (const action of scenario.actions) {
-      await sleep(COPILOT_PACING.actionBaseMs + Math.random() * COPILOT_PACING.actionJitterMs);
-      setLiveStream((current) => [
-        ...current,
-        {
-          id: `evt-${current.length + 1}`,
-          kind: "action" as const,
-          label: action.label,
-          note: action.note,
-          sql: action.sql,
-        },
-      ]);
-    }
-
-    await sleep(COPILOT_PACING.packagingMs);
-    const finalReasoning = "Packaging a concise answer, attaching the strongest rows, and preserving the execution trace.";
-    setLiveStream((current) => [...current, { id: "reason-final", kind: "reasoning", text: finalReasoning }]);
-    await sleep(COPILOT_PACING.finalPauseMs);
-
-    // 3. Call real API for final result
     try {
-      const result = await onSubmit(input);
-      
-      setChat((current) => [
-        ...current,
-        {
-          id: `turn-${current.length + 1}`,
-          question: input,
-          summary: scenario.summary,
-          result: result,
-          stream: [
-            ...scenario.reasoning.map((text, index) => ({
-              id: `reason-${index + 1}`,
-              kind: "reasoning" as const,
-              text,
-            })),
-            ...scenario.actions.map((action, index) => ({
-              id: `action-${index + 1}`,
-              kind: "action" as const,
-              label: action.label,
-              note: action.note,
-              sql: action.sql,
-            })),
+      const session = await api.startInvestigationSession(organizationId, input);
+      const source = createCopilotEventSource(session.session_id);
+      streamRef.current = source;
+
+      source.addEventListener("copilot", (rawEvent) => {
+        const event = JSON.parse((rawEvent as MessageEvent<string>).data) as CopilotStreamEvent;
+
+        if (event.kind === "result") {
+          const result = event.detail as unknown as InvestigationResult;
+          source.close();
+          streamRef.current = null;
+          setChat((current) => [
+            ...current,
             {
-              id: "reason-final",
-              kind: "reasoning" as const,
-              text: finalReasoning,
+              id: `turn-${current.length + 1}`,
+              question: input,
+              summary: result.summary ?? event.message ?? result.query_label,
+              result,
+              stream: [...liveStreamRef.current],
             },
-          ],
-        },
-      ]);
+          ]);
+          setLoading(false);
+          liveStreamRef.current = [];
+          setLiveStream([]);
+          return;
+        }
+
+        if (event.kind === "error") {
+          source.close();
+          streamRef.current = null;
+          setLoading(false);
+          setErrorMessage(
+            typeof event.detail.error === "string" ? event.detail.error : event.message,
+          );
+          return;
+        }
+
+        const mapped = mapCopilotEvent(event);
+        if (mapped) {
+          appendLiveEvent(mapped);
+        }
+      });
+
+      source.onerror = () => {
+        source.close();
+        if (streamRef.current === source) {
+          streamRef.current = null;
+          setLoading(false);
+          setErrorMessage("Copilot stream disconnected before the answer completed.");
+        }
+      };
     } catch (err) {
       console.error("Investigation failed", err);
-    } finally {
       setLoading(false);
-      setLiveStream([]);
+      setErrorMessage(err instanceof Error ? err.message : "Could not start the copilot session.");
     }
   };
 
@@ -349,6 +383,7 @@ export function InvestigatePage({ onSubmit }: InvestigatePageProps) {
                             <div>
                               <div className="chat-trace-event-kind">Reasoning</div>
                               <div className="chat-trace-event-text">{event.text}</div>
+                              {event.note ? <div className="chat-trace-event-note">{event.note}</div> : null}
                             </div>
                           </div>
                         ) : (

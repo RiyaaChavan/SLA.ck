@@ -1,4 +1,3 @@
-import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -10,12 +9,10 @@ from app.db.schema import reconcile_sqlite_schema
 from app.db.session import engine
 from app.models.base import Base
 from app.services.detector_runtime import start_detector_scheduler, stop_detector_scheduler
+from app.utils.logging import configure_logging
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+configure_logging()
 
 
 @asynccontextmanager

@@ -1,20 +1,20 @@
 import json
-import logging
 import time
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
 from langchain_core.callbacks.base import BaseCallbackHandler
 from pydantic import BaseModel, Field
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+from sqlalchemy import create_engine, text
 
 from app.core.config import settings
 from app.services.artifact_event_client import emit_remote_artifact_event
-from app.utils.logging import get_logger
+from app.services.connector_crypto import decrypt_connector_uri
+from app.services.agent_artifacts import validate_generated_sql
+from app.utils.logging import configure_logging, get_logger
+
+
+configure_logging()
 
 logger = get_logger("app.dashboard_agent")
 
@@ -78,6 +78,17 @@ class DashboardSpecResponse(BaseModel):
     preset_count: int = 0
 
 
+class DashboardQuerySample(BaseModel):
+    name: str
+    description: str
+    module: str | None = None
+    validation_status: str | None = None
+    query_logic: str
+    output_columns: list[str] = Field(default_factory=list)
+    sample_rows: list[dict[str, Any]] = Field(default_factory=list)
+    sample_error: str | None = None
+
+
 def _build_llm():
     from langchain_openai import ChatOpenAI
 
@@ -106,6 +117,74 @@ def _generate_dashboard_with_langchain(context: dict[str, Any]) -> dict[str, Any
     connector = context.get("connector", {})
     connector_id = int(connector.get("id") or 0)
 
+    def _resolve_connector_uri(raw_uri: str) -> str:
+        normalized = raw_uri.strip()
+        if normalized.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+            return normalized
+        return decrypt_connector_uri(normalized)
+
+    def _json_safe_value(value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return str(value)
+
+    def _sample_preset_queries() -> list[DashboardQuerySample]:
+        raw_uri = str(connector.get("uri") or "").strip()
+        if not raw_uri:
+            emit_remote_artifact_event(
+                connector_id,
+                kind="trace",
+                stage="sql_sampling_skipped",
+                agent="dashboard_agent",
+                status="running",
+                message="No connector URI available; dashboard agent cannot sample SQL outputs.",
+            )
+            return []
+
+        uri = _resolve_connector_uri(raw_uri)
+        engine = create_engine(uri, future=True, pool_pre_ping=True)
+        samples: list[DashboardQuerySample] = []
+        try:
+            with engine.begin() as connection:
+                connection.execute(text("SET TRANSACTION READ ONLY"))
+                connection.execute(
+                    text(
+                        f"SET LOCAL statement_timeout = {int(settings.source_query_statement_timeout_ms)}"
+                    )
+                )
+                for preset in presets[:8]:
+                    query_logic = str(preset.get("query_logic") or "").strip()
+                    is_valid, validation_message = validate_generated_sql(query_logic)
+                    sample = DashboardQuerySample(
+                        name=str(preset.get("name") or "Unnamed preset"),
+                        description=str(preset.get("description") or ""),
+                        module=preset.get("module"),
+                        validation_status=preset.get("validation_status") or validation_message,
+                        query_logic=query_logic,
+                    )
+                    if not is_valid:
+                        sample.sample_error = validation_message
+                        samples.append(sample)
+                        continue
+
+                    preview_sql = query_logic.rstrip().rstrip(";")
+                    try:
+                        result = connection.execute(
+                            text(f"SELECT * FROM ({preview_sql}) AS dashboard_agent_preview LIMIT 5")
+                        )
+                        rows = result.mappings().all()
+                        sample.output_columns = list(result.keys())
+                        sample.sample_rows = [
+                            {key: _json_safe_value(value) for key, value in dict(row).items()}
+                            for row in rows
+                        ]
+                    except Exception as exc:
+                        sample.sample_error = f"{exc.__class__.__name__}: {exc}"
+                    samples.append(sample)
+        finally:
+            engine.dispose()
+        return samples
+
     if not settings.gemini_api_key and not settings.cerebras_api_key:
         raise ValueError("GEMINI_API_KEY or CEREBRAS_API_KEY required")
 
@@ -125,11 +204,21 @@ def _generate_dashboard_with_langchain(context: dict[str, Any]) -> dict[str, Any
         emit_remote_artifact_event(
             connector_id,
             kind="trace",
+            stage="sql_sampling",
+            agent="dashboard_agent",
+            status="running",
+            message="Sampling validated preset queries to infer dashboard bindings.",
+            detail={"preset_count": len(presets)},
+        )
+        query_samples = _sample_preset_queries()
+        emit_remote_artifact_event(
+            connector_id,
+            kind="trace",
             stage="spec_generation",
             agent="dashboard_agent",
             status="running",
-            message="Generating dashboard metrics and widgets from validated presets.",
-            detail={"preset_count": len(presets)},
+            message="Generating dashboard metrics and widgets from validated presets and sampled SQL output.",
+            detail={"preset_count": len(presets), "sampled_queries": len(query_samples)},
         )
         spec_result = structured_llm.invoke(
             f"""Generate a complete operations dashboard specification for anomaly monitoring.
@@ -145,6 +234,7 @@ Context:
             "name": p.get("name"),
             "description": p.get("description"),
             "category": p.get("category") or p.get("module"),
+            "query_logic": p.get("query_logic"),
             "schedule_minutes": p.get("schedule_minutes"),
             "validation_status": p.get("validation_status"),
         }
@@ -152,12 +242,16 @@ Context:
     ],
     indent=2,
 )}
+- Sampled query outputs:
+{json.dumps([item.model_dump() for item in query_samples], indent=2)}
 
 Requirements:
 - Return 2-4 metrics and 2-4 widgets.
 - Metrics kinds must be 'stat' or 'chart'.
 - Widget kinds must be 'list', 'table', or 'chart'.
 - Use concise titles and stable snake_case bindings.
+- Bindings must be grounded in the sampled query outputs above, not invented arbitrarily.
+- Prefer widgets whose bindings correspond to actual output columns or meaningful derived aggregates from the sampled queries.
 - Subtitle should be short and business-facing.
 - Set version to 1.
 - Set preset_count to {len(presets)}.

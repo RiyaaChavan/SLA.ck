@@ -1,4 +1,5 @@
 from pathlib import Path
+from uuid import uuid4
 
 from fastapi import APIRouter, BackgroundTasks, Depends, File, Form, HTTPException, Request, UploadFile
 from fastapi.responses import FileResponse, StreamingResponse
@@ -35,6 +36,8 @@ from app.schemas.api import (
     ImpactOverviewOut,
     InvestigationRequest,
     InvestigationResponse,
+    InvestigationSessionOut,
+    CopilotEventIn,
     LiveWorkItemOut,
     OrganizationOut,
     RecommendationDecisionIn,
@@ -61,6 +64,7 @@ from app.services.action_center import (
     reject_action_request,
 )
 from app.services.agent_artifacts import persist_connector_artifacts
+from app.services.copilot_stream import publish_copilot_event, stream_copilot_events
 from app.services.artifact_stream import publish_artifact_event, stream_connector_events
 from app.services.connectors import (
     create_connector,
@@ -150,6 +154,51 @@ def _run_artifact_generation_background(connector_id: int) -> None:
             status="error",
             level="error",
             message="Artifact generation failed.",
+            detail={"error": str(exc)},
+        )
+    finally:
+        db.close()
+
+
+def _run_copilot_background(session_id: str, organization_id: int, question: str) -> None:
+    from app.db.session import SessionLocal
+
+    db = SessionLocal()
+    try:
+        publish_copilot_event(
+            session_id,
+            kind="status",
+            status="running",
+            message="Copilot session started.",
+            detail={"question": question},
+        )
+        result = run_investigation(
+            db,
+            organization_id=organization_id,
+            question=question,
+            session_id=session_id,
+        )
+        publish_copilot_event(
+            session_id,
+            kind="result",
+            status="completed",
+            message=result.get("summary") or "Copilot answer ready.",
+            detail=result,
+        )
+        publish_copilot_event(
+            session_id,
+            kind="status",
+            status="completed",
+            message="Copilot session completed.",
+        )
+    except Exception as exc:
+        logger.exception("copilot_session_error session_id=%s", session_id)
+        publish_copilot_event(
+            session_id,
+            kind="error",
+            status="error",
+            level="error",
+            message="Copilot session failed.",
             detail={"error": str(exc)},
         )
     finally:
@@ -360,27 +409,6 @@ def refresh_connector_route(
         connector = refresh_connector(db, connector_id)
         # Run artifact generation in background
         background_tasks.add_task(_run_artifact_generation_background, connector_id)
-        return DataConnectorOut.model_validate(connector)
-    except ValueError as exc:
-        logger.warning(
-            "api_connector_refresh_failed connector_id=%s detail=%s", connector_id, str(exc)
-        )
-        raise HTTPException(status_code=404, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.exception(
-            "api_connector_refresh_error connector_id=%s error_type=%s",
-            connector_id,
-            exc.__class__.__name__,
-        )
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@router.post("/connectors/refresh/{connector_id}", response_model=DataConnectorOut)
-def refresh_connector_route(connector_id: int, db: Session = Depends(get_db)) -> DataConnectorOut:
-    try:
-        logger.info("api_connector_refresh connector_id=%s", connector_id)
-        connector = refresh_connector(db, connector_id)
-        persist_connector_artifacts(db, connector_id)
         return DataConnectorOut.model_validate(connector)
     except ValueError as exc:
         logger.warning(
@@ -837,6 +865,43 @@ def execute_investigation(
     payload: InvestigationRequest, db: Session = Depends(get_db)
 ) -> InvestigationResponse:
     return InvestigationResponse.model_validate(run_investigation(db, **payload.model_dump()))
+
+
+@router.post("/investigate/sessions", response_model=InvestigationSessionOut, status_code=202)
+def create_investigation_session(
+    payload: InvestigationRequest,
+    background_tasks: BackgroundTasks,
+) -> InvestigationSessionOut:
+    session_id = str(uuid4())
+    background_tasks.add_task(
+        _run_copilot_background,
+        session_id,
+        payload.organization_id,
+        payload.question,
+    )
+    return InvestigationSessionOut(session_id=session_id)
+
+
+@router.get("/investigate/stream/{session_id}")
+async def get_investigation_stream(session_id: str, request: Request) -> StreamingResponse:
+    return StreamingResponse(
+        stream_copilot_events(request, session_id),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "Connection": "keep-alive"},
+    )
+
+
+@router.post("/internal/copilot/events", status_code=202)
+def publish_copilot_trace(payload: CopilotEventIn) -> dict[str, str]:
+    publish_copilot_event(
+        payload.session_id,
+        kind=payload.kind,
+        message=payload.message,
+        detail=payload.detail,
+        status=payload.status,
+        level=payload.level,
+    )
+    return {"status": "accepted"}
 
 
 @router.post("/recommendations/{recommendation_id}/approve")

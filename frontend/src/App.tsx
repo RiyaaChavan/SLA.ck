@@ -138,9 +138,6 @@ export default function App() {
     },
   });
 
-  const investigate = async (question: string) =>
-    api.investigate(selectedOrganizationId!, question);
-
   const currentReports = useMemo(() => reportsQuery.data ?? [], [reportsQuery.data]);
   const organizations = organizationsQuery.data ?? [];
   const hasOrganizations = organizations.length > 0;
@@ -245,7 +242,7 @@ export default function App() {
         />
         <Route
           path="copilot"
-          element={guarded(<CopilotPage organizationId={selectedOrganizationId} onSubmit={investigate} />)}
+          element={guarded(<CopilotPage organizationId={selectedOrganizationId} />)}
         />
       </Route>
     </Routes>

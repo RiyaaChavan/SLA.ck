@@ -39,6 +39,7 @@ class Settings(BaseSettings):
     dashboard_agent_a2a_url: str = "http://dashboard-agent:8011"
     agent_a2a_timeout_seconds: int = 600
     artifact_event_callback_url: str | None = "http://localhost:8000/api/internal/artifacts/events"
+    copilot_event_callback_url: str | None = "http://localhost:8000/api/internal/copilot/events"
     scheduler_poll_seconds: int = 30
     source_query_statement_timeout_ms: int = 10_000
 

@@ -3,11 +3,12 @@ import type {
   AuditItem,
   DashboardOverview,
   InvestigationResult,
+  InvestigationSession,
   Organization,
   ResourceOverview,
 } from "../types/api";
 
-const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
+export const API_BASE = import.meta.env.VITE_API_URL ?? "/api";
 
 export type CreateOrganizationInput = {
   name: string;
@@ -81,6 +82,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ organization_id: organizationId, question }),
     }),
+  startInvestigationSession: (organizationId: number, question: string) =>
+    request<InvestigationSession>("/investigate/sessions", {
+      method: "POST",
+      body: JSON.stringify({ organization_id: organizationId, question }),
+    }),
   approveRecommendation: (recommendationId: number, approverName: string, notes?: string) =>
     request(`/recommendations/${recommendationId}/approve`, {
       method: "POST",
@@ -100,3 +106,7 @@ export const api = {
     }),
   listReports: (organizationId: number) => request<ReportSummary[]>(`/reports/${organizationId}`),
 };
+
+export function createCopilotEventSource(sessionId: string): EventSource {
+  return new EventSource(`${API_BASE}/investigate/stream/${sessionId}`);
+}

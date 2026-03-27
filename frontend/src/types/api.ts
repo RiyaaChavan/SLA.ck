@@ -51,8 +51,24 @@ export type ResourceOverview = {
 export type InvestigationResult = {
   query_label: string;
   sql: string;
-  rows: Array<Record<string, string | number | null>>;
+  rows: Array<Record<string, string | number | boolean | null>>;
   explanation: string;
+  summary?: string | null;
+};
+
+export type InvestigationSession = {
+  session_id: string;
+};
+
+export type CopilotStreamEvent = {
+  seq: number;
+  session_id: string;
+  timestamp: string;
+  kind: "status" | "reasoning" | "action" | "result" | "error";
+  message: string;
+  detail: Record<string, unknown>;
+  status?: "running" | "completed" | "error" | null;
+  level?: string;
 };
 
 export type AuditItem = {

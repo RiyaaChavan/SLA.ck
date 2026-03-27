@@ -1,21 +1,21 @@
 import json
-import logging
 import time
 from typing import Any, Literal
 
 from fastapi import FastAPI, HTTPException
 from langchain_core.callbacks.base import BaseCallbackHandler
 from pydantic import BaseModel, Field
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s %(levelname)s %(name)s %(message)s",
-)
+from sqlalchemy import create_engine, text
 
 from app.core.config import settings
 from app.services.artifact_event_client import emit_remote_artifact_event
+from app.services.copilot_event_client import emit_remote_copilot_event
 from app.services.connector_crypto import decrypt_connector_uri
-from app.utils.logging import get_logger
+from app.services.agent_artifacts import validate_generated_sql
+from app.utils.logging import configure_logging, get_logger
+
+
+configure_logging()
 
 logger = get_logger("app.sql_agent")
 
@@ -59,6 +59,12 @@ class SchemaSummaryResponse(BaseModel):
     join_paths: list[str] = Field(default_factory=list)
     dashboard_brief: str = Field(min_length=1)
     schema_notes: list[str] = Field(default_factory=list)
+
+
+class CopilotAnswerResponse(BaseModel):
+    query_label: str = Field(min_length=1)
+    summary: str = Field(min_length=1)
+    explanation: str = Field(min_length=1)
 
 
 class AgentTraceCallbackHandler(BaseCallbackHandler):
@@ -115,6 +121,56 @@ class AgentTraceCallbackHandler(BaseCallbackHandler):
 
     def on_llm_end(self, response, **kwargs: Any) -> Any:
         self._emit(stage="llm_end", message="Model structured output generation finished.")
+
+
+class CopilotTraceCallbackHandler(BaseCallbackHandler):
+    def __init__(self, session_id: str | None) -> None:
+        self.session_id = session_id
+        self.last_sql: str | None = None
+        self.candidate_sql: str | None = None
+
+    def _emit(self, *, kind: str, message: str, detail: dict[str, Any] | None = None) -> None:
+        if not self.session_id:
+            return
+        emit_remote_copilot_event(
+            self.session_id,
+            kind=kind,
+            message=message,
+            detail=detail,
+            status="running",
+        )
+
+    def on_agent_action(self, action, **kwargs: Any) -> Any:
+        self._emit(
+            kind="reasoning",
+            message=f"Agent selected tool `{action.tool}`.",
+            detail={"tool": action.tool, "tool_input": str(action.tool_input)[:500]},
+        )
+
+    def on_tool_start(self, serialized: dict[str, Any], input_str: str, **kwargs: Any) -> Any:
+        tool_name = serialized.get("name", "tool")
+        detail = {"tool": tool_name, "input_preview": input_str[:2000]}
+        if tool_name == "sql_db_query_checker":
+            self.candidate_sql = input_str
+        if tool_name == "sql_db_query":
+            self.last_sql = input_str
+            self._emit(
+                kind="action",
+                message="Executing SQL query.",
+                detail={"label": "SQL execution", "note": "Running generated SQL against the connected source.", "sql": input_str},
+            )
+            return
+        self._emit(kind="reasoning", message=f"Running tool `{tool_name}`.", detail=detail)
+
+    def on_tool_end(self, output: Any, **kwargs: Any) -> Any:
+        self._emit(kind="reasoning", message="Tool finished.", detail={"output_preview": str(output)[:2000]})
+
+    def on_agent_finish(self, finish, **kwargs: Any) -> Any:
+        self._emit(
+            kind="reasoning",
+            message="Agent finished the investigation pass.",
+            detail={"output_preview": str(finish.return_values)[:1000]},
+        )
 
 
 def _build_llm():
@@ -490,6 +546,164 @@ Return as JSON array with these fields for each preset."""
         raise
 
 
+def _answer_question_with_langchain(context: dict[str, Any]) -> dict[str, Any]:
+    from langchain_community.agent_toolkits import SQLDatabaseToolkit, create_sql_agent
+    from langchain_community.utilities import SQLDatabase
+
+    connector = context.get("connector", {})
+    question = str(context.get("question") or "").strip()
+    session_id = context.get("session_id")
+    memory = context.get("memory") or {}
+
+    if not question:
+        raise ValueError("Question required")
+
+    def _resolve_connector_uri(raw_uri: str) -> str:
+        normalized = raw_uri.strip()
+        if normalized.startswith(("postgres://", "postgresql://", "postgresql+psycopg://")):
+            return normalized
+        return decrypt_connector_uri(normalized)
+
+    def _json_safe_value(value: Any) -> Any:
+        if value is None or isinstance(value, (str, int, float, bool)):
+            return value
+        return str(value)
+
+    emit_remote_copilot_event(
+        session_id,
+        kind="reasoning",
+        message="Reviewing source memory and planning the investigation.",
+        detail={"question": question},
+        status="running",
+    )
+
+    uri = _resolve_connector_uri(connector.get("uri", ""))
+    db = SQLDatabase.from_uri(uri)
+    if settings.gemini_api_key:
+        llm = _build_gemini_llm()
+    else:
+        llm = _build_llm()
+
+    trace_handler = CopilotTraceCallbackHandler(session_id)
+    toolkit = SQLDatabaseToolkit(db=db, llm=llm)
+    agent = create_sql_agent(
+        llm=llm,
+        toolkit=toolkit,
+        agent_type="tool-calling",
+        verbose=True,
+        max_iterations=12,
+        agent_executor_kwargs={"callbacks": [trace_handler]},
+    )
+
+    agent_response = agent.invoke(
+        {
+            "input": f"""You are SLA.ck Copilot, an expert operations and finance SQL analyst.
+
+Your job is to answer the user's question using the connected source database.
+
+Base behavior:
+- Inspect schema and relevant tables before writing SQL.
+- Prefer a single strong final SQL query over many weak ones.
+- Use joins deliberately and choose business-meaningful measures.
+- Avoid vague output; return rows a human operator can act on.
+- If the question is underspecified, make the narrowest reasonable assumption and say so.
+- Do not invent facts that are not in the data.
+- Prefer compact, reviewable SQL over clever SQL.
+- If the user asks for drivers, vendors, departments, contracts, invoices, alerts, or SLA items, return identifiers and descriptive fields that a human can follow up on.
+- Always finish by executing the strongest final query unless the schema clearly cannot answer the question.
+
+Connected source memory:
+- Summary: {memory.get("summary_text", "")}
+- Dashboard brief: {memory.get("dashboard_brief", "")}
+- Schema notes: {memory.get("schema_notes", "")}
+
+Question:
+{question}
+
+Instructions:
+1. Inspect the schema as needed.
+2. Identify the exact business slice, grain, and measures needed to answer the question.
+3. Determine the most useful final SQL query to answer the question.
+4. Validate and execute the query.
+5. Produce a concise analyst answer grounded in the returned data, including any narrow assumptions you had to make.
+"""
+        }
+    )
+    final_answer = str(agent_response.get("output", ""))
+    final_sql = (trace_handler.last_sql or trace_handler.candidate_sql or "").strip()
+
+    rows: list[dict[str, Any]] = []
+    sql = ""
+    if final_sql:
+        is_valid, _ = validate_generated_sql(final_sql)
+        if is_valid:
+            sql = final_sql.rstrip().rstrip(";")
+            engine = create_engine(uri, future=True, pool_pre_ping=True)
+            try:
+                with engine.begin() as connection:
+                    connection.execute(text("SET TRANSACTION READ ONLY"))
+                    connection.execute(
+                        text(
+                            f"SET LOCAL statement_timeout = {int(settings.source_query_statement_timeout_ms)}"
+                        )
+                    )
+                    result = connection.execute(text(f"SELECT * FROM ({sql}) AS copilot_result LIMIT 25"))
+                    rows = [
+                        {key: _json_safe_value(value) for key, value in dict(row).items()}
+                        for row in result.mappings().all()
+                    ]
+                    if session_id:
+                        emit_remote_copilot_event(
+                            session_id,
+                            kind="reasoning",
+                            message=f"Final SQL returned {len(rows)} rows.",
+                            detail={"row_count": len(rows), "first_row_preview": rows[0] if rows else {}},
+                            status="running",
+                        )
+            finally:
+                engine.dispose()
+
+    answer_llm = llm.with_structured_output(CopilotAnswerResponse)
+    answer = answer_llm.invoke(
+        f"""Turn this SQL investigation into a polished copilot response.
+
+Question:
+{question}
+
+Agent answer:
+{final_answer}
+
+Final SQL:
+{sql}
+
+Rows:
+{json.dumps(rows, indent=2)}
+
+Requirements:
+- query_label should be a short snake_case identifier.
+- summary should be one strong top-line conclusion.
+- explanation should be a compact paragraph grounded in the rows and mention assumptions if data is thin.
+"""
+    )
+
+    if session_id:
+        emit_remote_copilot_event(
+            session_id,
+            kind="reasoning",
+            message="Packaging final answer and attaching SQL results.",
+            detail={"row_count": len(rows)},
+            status="running",
+        )
+
+    return {
+        "query_label": answer.query_label,
+        "sql": sql,
+        "rows": rows,
+        "explanation": answer.explanation,
+        "summary": answer.summary,
+    }
+
+
 @app.get("/agent-card")
 def agent_card() -> dict:
     return {
@@ -505,20 +719,35 @@ def message_send(payload: A2ARequest) -> dict:
     task_type = payload.params.get("task_type")
     context = payload.params.get("payload", {})
 
-    if task_type != "generate_sql_artifacts":
+    if task_type == "generate_sql_artifacts":
+        logger.info("sql_agent_request connector_id=%s", context.get("connector", {}).get("id"))
+        started = time.perf_counter()
+
+        result = _generate_sql_artifacts_with_langchain(context)
+
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.info(
+            "sql_agent_done connector_id=%s latency_ms=%s preset_count=%s",
+            context.get("connector", {}).get("id"),
+            latency_ms,
+            len(result.get("presets", [])),
+        )
+
+        return {"jsonrpc": "2.0", "id": payload.id, "result": result}
+
+    if task_type == "answer_question":
+        logger.info("sql_agent_copilot_request connector_id=%s", context.get("connector", {}).get("id"))
+        started = time.perf_counter()
+        result = _answer_question_with_langchain(context)
+        latency_ms = int((time.perf_counter() - started) * 1000)
+        logger.info(
+            "sql_agent_copilot_done connector_id=%s latency_ms=%s row_count=%s",
+            context.get("connector", {}).get("id"),
+            latency_ms,
+            len(result.get("rows", [])),
+        )
+        return {"jsonrpc": "2.0", "id": payload.id, "result": result}
+
+    if task_type not in {"generate_sql_artifacts", "answer_question"}:
         raise HTTPException(status_code=400, detail="Unsupported task type")
-
-    logger.info("sql_agent_request connector_id=%s", context.get("connector", {}).get("id"))
-    started = time.perf_counter()
-
-    result = _generate_sql_artifacts_with_langchain(context)
-
-    latency_ms = int((time.perf_counter() - started) * 1000)
-    logger.info(
-        "sql_agent_done connector_id=%s latency_ms=%s preset_count=%s",
-        context.get("connector", {}).get("id"),
-        latency_ms,
-        len(result.get("presets", [])),
-    )
-
-    return {"jsonrpc": "2.0", "id": payload.id, "result": result}
+    raise HTTPException(status_code=400, detail="Unsupported task type")

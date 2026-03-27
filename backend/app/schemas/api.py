@@ -52,6 +52,20 @@ class InvestigationResponse(BaseModel):
     sql: str
     rows: list[dict]
     explanation: str
+    summary: str | None = None
+
+
+class InvestigationSessionOut(BaseModel):
+    session_id: str
+
+
+class CopilotEventIn(BaseModel):
+    session_id: str
+    kind: str
+    message: str
+    detail: dict = Field(default_factory=dict)
+    status: str | None = None
+    level: str = "info"
 
 
 class ReportRequest(BaseModel):

@@ -1,13 +1,11 @@
-import type { InvestigationResult } from "../types/api";
 import { InvestigatePage } from "./InvestigatePage";
 import { StateBlock } from "../components/business-sentry/StateBlock";
 
 type CopilotPageProps = {
   organizationId?: number;
-  onSubmit: (question: string) => Promise<InvestigationResult>;
 };
 
-export function CopilotPage({ organizationId, onSubmit }: CopilotPageProps) {
+export function CopilotPage({ organizationId }: CopilotPageProps) {
   if (!organizationId) {
     return (
       <div className="page-content">
@@ -15,5 +13,5 @@ export function CopilotPage({ organizationId, onSubmit }: CopilotPageProps) {
       </div>
     );
   }
-  return <InvestigatePage onSubmit={onSubmit} />;
+  return <InvestigatePage organizationId={organizationId} />;
 }
