@@ -105,6 +105,7 @@ type ApiLiveWorkItemOut = {
   resolution_deadline: string | { toISOString(): string } | null;
   time_remaining_minutes: number;
   predicted_breach_risk: string | number;
+  contract_penalty?: number;
   projected_penalty: number;
   projected_business_impact?: number;
   linked_case_id: number | null;
@@ -136,6 +137,7 @@ function mapLiveWorkItem(r: ApiLiveWorkItemOut): LiveWorkItem {
     resolution_deadline: r.resolution_deadline == null ? null : iso(r.resolution_deadline),
     time_remaining_minutes: r.time_remaining_minutes,
     predicted_breach_risk,
+    contract_penalty: r.contract_penalty ?? 0,
     projected_penalty: r.projected_penalty,
     projected_business_impact: r.projected_business_impact ?? 0,
     linked_case_id: r.linked_case_id == null ? null : String(r.linked_case_id),
@@ -818,5 +820,8 @@ export const httpBusinessSentryAdapter: BusinessSentryAdapter = {
   },
   rescanAlerts: async (organizationId) => {
     await request<unknown[]>(`/alerts/${organizationId}/scan`, { method: "POST" });
+  },
+  deleteWorkflow: async (workflowId) => {
+    await request(`/workflows/${workflowId}`, { method: "DELETE" });
   },
 };

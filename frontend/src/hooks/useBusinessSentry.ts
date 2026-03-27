@@ -393,3 +393,13 @@ export function useRescanAlerts(organizationId: number | undefined) {
     },
   });
 }
+
+export function useDeleteWorkflow(organizationId: number | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (workflowId: number) => adapter.deleteWorkflow(workflowId),
+    onSuccess: async () => {
+      await qc.invalidateQueries({ queryKey: ["bs", "liveOps", organizationId] });
+    },
+  });
+}

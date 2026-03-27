@@ -156,4 +156,5 @@ export type BusinessSentryAdapter = {
   putAutoMode(organizationId: number, policies: AutoModePolicyUpdate[]): Promise<AutoModeSettings>;
   /** Run detector scan to refresh alerts (e.g. after SLA rule changes). */
   rescanAlerts(organizationId: number): Promise<void>;
+  deleteWorkflow(workflowId: number): Promise<void>;
 };

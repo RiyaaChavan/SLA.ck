@@ -51,6 +51,35 @@ _TIME_PATTERN = re.compile(
     re.IGNORECASE,
 )
 
+_DELIVERY_TOKENS = (
+    "delivery",
+    "pickup",
+    "pick-up",
+    "rider",
+    "shipment",
+    "dispatch",
+    "fleet",
+    "hub",
+    "dark store",
+    "last mile",
+    "last-mile",
+    "drop",
+    "courier",
+)
+
+_FINANCE_DISPUTE_TOKENS = (
+    "invoice",
+    "reconciliation",
+    "payment",
+    "billing",
+    "overbilling",
+    "rate mismatch",
+    "commercial dispute",
+    "vendor dispute",
+    "purchase order",
+    "accounts payable",
+)
+
 
 def _hours_from_text(value: float, unit: str) -> float:
     lowered = unit.lower()
@@ -193,6 +222,56 @@ def _select_vendor(vendors: list[Vendor], preferred_name: str | None, text: str)
     return None
 
 
+def _apply_ticket_text_overrides(
+    classification: IntakeClassification,
+    *,
+    title: str,
+    description: str,
+    departments: list[Department],
+    vendors: list[Vendor],
+) -> IntakeClassification:
+    text = f"{title}\n{description}".lower()
+    rationale = list(classification.rationale)
+    department_name = classification.department_name
+    vendor = _select_vendor(vendors, classification.vendor_name, text)
+
+    if any(token in text for token in _DELIVERY_TOKENS) and not any(token in text for token in _FINANCE_DISPUTE_TOKENS):
+        department = _select_department(departments, None, text, fallback="operations")
+        department_name = department.name
+        rationale.append("Overrode classification to delivery from explicit last-mile or pickup signals in the ticket.")
+        return classification.model_copy(
+            update={
+                "workflow_type": "delivery_issue",
+                "workflow_category": "delivery",
+                "issue_type": "ops_task",
+                "business_unit": "delivery",
+                "department_name": department_name,
+                "vendor_name": vendor.name if vendor else classification.vendor_name,
+                "rationale": rationale,
+            }
+        )
+
+    if any(token in text for token in _FINANCE_DISPUTE_TOKENS):
+        department = _select_department(departments, None, text, fallback="finance")
+        department_name = department.name
+        rationale.append("Confirmed finance or procurement discrepancy routing from explicit commercial dispute signals.")
+        return classification.model_copy(
+            update={
+                "workflow_type": "vendor_dispute",
+                "workflow_category": "finance",
+                "issue_type": "discrepancy_case",
+                "business_unit": "procurement",
+                "department_name": department_name,
+                "vendor_name": vendor.name if vendor else classification.vendor_name,
+                "rationale": rationale,
+            }
+        )
+
+    return classification.model_copy(
+        update={"vendor_name": vendor.name if vendor else classification.vendor_name}
+    )
+
+
 def _heuristic_ticket_classification(
     *, departments: list[Department], vendors: list[Vendor], title: str, description: str, department_name: str | None, vendor_name: str | None
 ) -> IntakeClassification:
@@ -205,13 +284,20 @@ def _heuristic_ticket_classification(
     issue_type = "support_ticket"
     business_unit = "support"
     department_fallback = "operations"
-    if any(token in text for token in ("vendor", "dispute", "invoice", "reconciliation")):
+    if any(token in text for token in _DELIVERY_TOKENS):
+        workflow_type = "delivery_issue"
+        workflow_category = "delivery"
+        issue_type = "ops_task"
+        business_unit = "delivery"
+        department_fallback = "operations"
+        rationale.append("Detected delivery or last-mile operations language.")
+    elif any(token in text for token in _FINANCE_DISPUTE_TOKENS):
         workflow_type = "vendor_dispute"
         workflow_category = "finance"
         issue_type = "discrepancy_case"
         business_unit = "procurement"
         department_fallback = "finance"
-        rationale.append("Detected vendor or finance discrepancy language.")
+        rationale.append("Detected finance or procurement discrepancy language.")
     elif any(token in text for token in ("warehouse", "inventory", "putaway")):
         workflow_type = "warehouse_request"
         workflow_category = "warehouse"
@@ -219,13 +305,6 @@ def _heuristic_ticket_classification(
         business_unit = "warehouse"
         department_fallback = "operations"
         rationale.append("Detected warehouse operations language.")
-    elif any(token in text for token in ("delivery", "rider", "shipment")):
-        workflow_type = "delivery_issue"
-        workflow_category = "delivery"
-        issue_type = "ops_task"
-        business_unit = "delivery"
-        department_fallback = "operations"
-        rationale.append("Detected delivery support language.")
     else:
         rationale.append("Defaulted to support ticket classification from ticket-like content.")
     if priority == "P1":
@@ -326,35 +405,39 @@ def _heuristic_approval_classification(
 def _classify_with_model(
     *, title: str, description: str, departments: list[Department], vendors: list[Vendor], mode: str
 ) -> IntakeClassification | None:
-    if not settings.cerebras_api_key:
+    if not settings.gemini_api_key:
         return None
-    from langchain_openai import ChatOpenAI
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
 
-    model = ChatOpenAI(
-        model=settings.cerebras_model,
-        api_key=settings.cerebras_api_key,
-        base_url=settings.cerebras_base_url,
-        temperature=0.1,
-    ).with_structured_output(IntakeClassification)
-    prompt = (
-        f"You classify new {mode} requests for SLA routing.\n"
-        "Choose department_name only from the provided list.\n"
-        "Choose vendor_name only from the provided list or null.\n"
-        "Use workflow_category from: support, operations, finance, delivery, warehouse.\n"
-        "Use issue_type from: support_ticket, ops_task, discrepancy_case.\n"
-        "Use priority from: P1, standard.\n"
-        "Use customer_tier from: premium, standard.\n"
-        "Infer estimated value from the title/description if not explicit; do not ask the user for it.\n"
-        "Detect SLA cues, deadline language, and approval turnaround clues from the text.\n"
-        "Set should_raise_alert when the text implies blocker/critical/breach-sensitive handling.\n"
-        "Set suggested_backlog_hours high enough only when urgency is explicit.\n\n"
-        f"Departments: {[item.name for item in departments]}\n"
-        f"Vendors: {[item.name for item in vendors]}\n"
-        f"Title: {title}\n"
-        f"Description: {description}"
-    )
-    payload = model.invoke(prompt)
-    return payload if isinstance(payload, IntakeClassification) else IntakeClassification.model_validate(payload)
+        model = ChatGoogleGenerativeAI(
+            model=settings.gemini_model,
+            google_api_key=settings.gemini_api_key,
+            temperature=0.1,
+        ).with_structured_output(IntakeClassification)
+        prompt = (
+            f"You classify new {mode} requests for SLA routing.\n"
+            "Choose department_name only from the provided list.\n"
+            "Choose vendor_name only from the provided list or null.\n"
+            "Use workflow_category from: support, operations, finance, delivery, warehouse.\n"
+            "Use issue_type from: support_ticket, ops_task, discrepancy_case.\n"
+            "Use priority from: P1, standard.\n"
+            "Use customer_tier from: premium, standard.\n"
+            "Treat last-mile, pickup, rider, fleet, dispatch, dark-store, courier, and delivery delays as delivery operations, not finance.\n"
+            "Treat invoice, billing, payment, reconciliation, PO, rate mismatch, and commercial dispute language as finance or procurement discrepancies.\n"
+            "Infer estimated value from the title/description if not explicit; do not ask the user for it.\n"
+            "Detect SLA cues, deadline language, and approval turnaround clues from the text.\n"
+            "Set should_raise_alert when the text implies blocker/critical/breach-sensitive handling.\n"
+            "Set suggested_backlog_hours high enough only when urgency is explicit.\n\n"
+            f"Departments: {[item.name for item in departments]}\n"
+            f"Vendors: {[item.name for item in vendors]}\n"
+            f"Title: {title}\n"
+            f"Description: {description}"
+        )
+        payload = model.invoke(prompt)
+        return payload if isinstance(payload, IntakeClassification) else IntakeClassification.model_validate(payload)
+    except Exception:
+        return None
 
 
 def _evaluate_workflow(db: Session, workflow: Workflow) -> tuple[dict[str, Any], Any]:
@@ -391,6 +474,7 @@ def _evaluate_workflow(db: Session, workflow: Workflow) -> tuple[dict[str, Any],
         "resolution_deadline": evaluation.risk.resolution_deadline,
         "time_remaining_minutes": evaluation.risk.time_remaining_minutes or 0,
         "predicted_breach_risk": evaluation.risk.predicted_breach_risk or "low",
+        "contract_penalty": evaluation.risk.contract_penalty,
         "projected_penalty": evaluation.risk.projected_penalty,
         "projected_business_impact": evaluation.risk.projected_business_impact,
         "linked_case_id": None,
@@ -473,6 +557,13 @@ def ingest_ticket(
         description=description,
         department_name=department_name,
         vendor_name=vendor_name,
+    )
+    classification = _apply_ticket_text_overrides(
+        classification,
+        title=title,
+        description=description,
+        departments=departments,
+        vendors=vendors,
     )
     department = _select_department(departments, classification.department_name, title + description)
     vendor = _select_vendor(vendors, classification.vendor_name, title + description)

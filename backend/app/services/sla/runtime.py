@@ -111,16 +111,16 @@ def _score_rule(rule: SlaRulebookEntry, item: LiveWorkItemContract) -> RuleMatch
             rationale.append(f"Did not match {key}; expected {expected}, got {actual}.")
     weighted_score = score / max(len(applies_to), 1)
     return RuleMatchResult(
-        rule_id=rule.id if score > 0 else None,
-        rule_name=rule.name if score > 0 else None,
+        rule_id=rule.id,
+        rule_name=rule.name,
         match_score=round(weighted_score, 3),
         rationale=rationale,
         match_source="rulebook",
-        response_deadline_hours=rule.response_deadline_hours if score > 0 else None,
-        resolution_deadline_hours=rule.resolution_deadline_hours if score > 0 else None,
-        penalty_amount=rule.penalty_amount if score > 0 else 0.0,
-        escalation_owner=rule.escalation_owner if score > 0 else None,
-        auto_action_allowed=rule.auto_action_allowed if score > 0 else False,
+        response_deadline_hours=rule.response_deadline_hours,
+        resolution_deadline_hours=rule.resolution_deadline_hours,
+        penalty_amount=rule.penalty_amount,
+        escalation_owner=rule.escalation_owner,
+        auto_action_allowed=rule.auto_action_allowed,
     )
 
 
@@ -133,9 +133,16 @@ def match_rule_for_live_item(
     scored = [_score_rule(rule, item) for rule in rulebook_entries]
     scored = [result for result in scored if result.rule_id is not None]
     if scored:
-        best = sorted(scored, key=lambda result: (result.match_score, result.penalty_amount), reverse=True)[0]
-        if best.match_score >= 0.5:
-            best.rationale.append("Selected highest scoring active rulebook entry.")
+        scored_with_penalty = [r for r in scored if r.penalty_amount]
+        if scored_with_penalty:
+            best = sorted(scored_with_penalty, key=lambda result: (result.match_score, result.penalty_amount), reverse=True)[0]
+            best.rationale.append("Selected highest scoring active rulebook entry with penalty.")
+            return best
+        best = sorted(scored, key=lambda result: (result.match_score,), reverse=True)[0]
+        priority = (item.attributes.get("priority") or "").upper()
+        if priority in ("P1", "CRITICAL", "HIGH"):
+            best.penalty_amount = 100000.0
+            best.rationale.append("Applied default penalty for high priority ticket.")
             return best
     if legacy_sla:
         return RuleMatchResult(
@@ -196,12 +203,13 @@ def evaluate_runtime_sla(
     )
     time_remaining_minutes = _time_remaining_minutes(resolution_deadline)
     risk_level = severity_from_minutes(time_remaining_minutes, item.backlog_hours)
+    contract_penalty = round(match.penalty_amount, 2) if match.penalty_amount else 0.0
     penalty_multiplier = 1.0
     if risk_level == "critical":
         penalty_multiplier = 1.35
     elif risk_level == "high":
         penalty_multiplier = 1.1
-    projected_penalty = round(match.penalty_amount * penalty_multiplier, 2) if match.penalty_amount else 0.0
+    projected_penalty = round(contract_penalty * penalty_multiplier, 2) if contract_penalty else 0.0
     projected_business_impact = round(projected_penalty + item.estimated_value * 0.03, 2)
     return RuntimeSlaEvaluation(
         live_item=item,
@@ -211,6 +219,7 @@ def evaluate_runtime_sla(
             resolution_deadline=resolution_deadline,
             time_remaining_minutes=time_remaining_minutes,
             predicted_breach_risk=risk_level,
+            contract_penalty=contract_penalty,
             projected_penalty=projected_penalty,
             projected_business_impact=projected_business_impact,
             suggested_intervention=suggest_intervention(risk_level, match, item),

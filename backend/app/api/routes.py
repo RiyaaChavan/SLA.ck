@@ -237,6 +237,21 @@ def create_approval_intake(
     )
 
 
+@router.delete("/workflows/{workflow_id}")
+def delete_workflow(workflow_id: int, db: Session = Depends(get_db)) -> dict[str, str]:
+    from sqlalchemy import delete
+    from app.models.domain import Workflow, Alert
+
+    workflow = db.get(Workflow, workflow_id)
+    if workflow is None:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    db.execute(delete(Alert).where(Alert.workflow_id == workflow_id))
+    db.execute(delete(Workflow).where(Workflow.id == workflow_id))
+    db.commit()
+    return {"message": f"Workflow {workflow_id} deleted"}
+
+
 @router.get("/connectors/{organization_id}", response_model=list[DataConnectorOut])
 def get_connectors(organization_id: int, db: Session = Depends(get_db)) -> list[DataConnectorOut]:
     return [DataConnectorOut.model_validate(item) for item in list_connectors(db, organization_id)]

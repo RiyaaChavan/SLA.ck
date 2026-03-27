@@ -70,3 +70,4 @@ docker/volumes/
 *.tmp
 
 *.local.*
+sample_sla_docs.local/

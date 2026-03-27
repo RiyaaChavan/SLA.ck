@@ -93,6 +93,7 @@ class RiskEvaluation(BaseModel):
     resolution_deadline: datetime | None = None
     time_remaining_minutes: int | None = None
     predicted_breach_risk: str | None = None
+    contract_penalty: float = 0.0
     projected_penalty: float = 0.0
     projected_business_impact: float = 0.0
     suggested_intervention: str

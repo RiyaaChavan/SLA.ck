@@ -183,6 +183,7 @@ export type LiveWorkItem = {
   time_remaining_minutes: number;
   /** Backend SLA runtime uses string bands: low, medium, high, critical, … */
   predicted_breach_risk: string;
+  contract_penalty?: number;
   projected_penalty: number;
   projected_business_impact: number;
   linked_case_id: string | null;
