@@ -72,6 +72,10 @@ services:
       CONNECTOR_ENCRYPTION_KEY: ${CONNECTOR_ENCRYPTION_KEY:-dev-connector-key}
       ARTIFACT_EVENT_CALLBACK_URL: ${ARTIFACT_EVENT_CALLBACK_URL:-http://backend:8000/api/internal/artifacts/events}
       COPILOT_EVENT_CALLBACK_URL: ${COPILOT_EVENT_CALLBACK_URL:-http://backend:8000/api/internal/copilot/events}
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      CEREBRAS_API_KEY: ${CEREBRAS_API_KEY}
+      CEREBRAS_MODEL: ${CEREBRAS_MODEL:-gpt-oss-120b}
     ports:
       - "8011:8011"
 
